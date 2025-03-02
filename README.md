@@ -1,4 +1,4 @@
-# 📺 No Shorts, No Clickbait 🎯 ![Extension Icon](icons/icon-96.png){width=30px}
+# 📺 No Shorts, No Clickbait 🎯
 
 A **Firefox extension** that helps you stay **focused** on YouTube by:
 ✅ Blurring all video thumbnails (unblur on hover) 👀
@@ -22,10 +22,9 @@ A **Firefox extension** that helps you stay **focused** on YouTube by:
 
 ## 🖼️ Screenshots
 Here are some screenshots of the extension in action:
-
-![Screenshot 1](screenshots/screenshot1.png)
-![Screenshot 2](screenshots/screenshot2.png)
-![Screenshot 3](screenshots/screenshot3.png)
+<img src="screenshots/screenshot1.png" width="200">
+<img src="screenshots/screenshot2.png" width="200">
+<img src="screenshots/screenshot3.png" width="200">
 
 ---
 
