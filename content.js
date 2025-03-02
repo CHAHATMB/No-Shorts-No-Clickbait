@@ -196,23 +196,21 @@ function setupVideoPauseOnHover() {
   setupThumbnailHoverPause();
 }
 
-  // Function to remove video pause event listeners
-  function removeVideoPauseListeners() {
-    document.querySelectorAll('video, .html5-main-video, .video-stream').forEach(video => {
-      if (videoElements.has(video)) {
-        const handlers = videoElements.get(video);
-        video.removeEventListener('mouseenter', handlers.mouseEnterHandler);
-        video.removeEventListener('mouseleave', handlers.mouseLeaveHandler);
-        videoElements.delete(video);
-      }
-    });
-    
-    document.querySelectorAll('[data-pause-listener="true"]').forEach(thumbnail => {
-      // We can't easily remove specific listeners, so we'll just clear the attribute
-      // and the setupVideoPauseOnHover function will add new ones if needed
-      thumbnail.removeAttribute('data-pause-listener');
-    });
-  }
+// Function to remove video pause event listeners
+function removeVideoPauseListeners() {
+  document.querySelectorAll('video, .html5-main-video, .video-stream').forEach(video => {
+    if (videoElements.has(video)) {
+      const { mouseEnterHandler, mouseLeaveHandler } = videoElements.get(video);
+      video.removeEventListener('mouseenter', mouseEnterHandler);
+      video.removeEventListener('mouseleave', mouseLeaveHandler);
+      videoElements.delete(video);
+    }
+  });
+
+  document.querySelectorAll('[data-pause-listener="true"]').forEach(thumbnail => {
+    thumbnail.removeAttribute('data-pause-listener');
+  });
+}
 
   // Main function to apply all modifications
   function applyModifications() {
