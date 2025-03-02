@@ -1,0 +1,29 @@
+/* Blur effect for thumbnails */
+.blurred-thumbnail {
+  filter: blur(10px) !important;
+  transition: filter 0.3s ease-in-out !important;
+}
+
+/* Hover effect to unblur */
+.blurred-thumbnail:hover {
+  filter: blur(0) !important;
+}
+
+/* Hide Shorts section */
+ytd-rich-section-renderer[is-shorts-shelf],
+ytd-reel-shelf-renderer,
+ytd-guide-entry-renderer a[title="Shorts"],
+ytd-mini-guide-entry-renderer a[title="Shorts"],
+ytd-grid-video-renderer a[href*="/shorts/"],
+ytd-video-renderer a[href*="/shorts/"],
+ytd-rich-grid-row:has(a[href*="/shorts/"]),
+ytd-shelf-renderer:has(a[href*="/shorts/"]) {
+  display: none !important;
+}
+
+/* Additional selectors for Shorts */
+ytd-browse[page-subtype="home"] ytd-rich-grid-row:has(span:contains("Shorts")),
+ytd-browse[page-subtype="subscriptions"] ytd-shelf-renderer:has(span:contains("Shorts")),
+ytd-browse ytd-rich-section-renderer:has(span:contains("Shorts")) {
+  display: none !important;
+}
