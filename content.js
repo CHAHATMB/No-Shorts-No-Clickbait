@@ -11,13 +11,15 @@
   // Settings state
   let settings = {
     blurEnabled: true,
-    shortsRemovalEnabled: true
+    shortsRemovalEnabled: true,
+    pauseOnHoverEnabled: true
   };
 
   // Load settings
-  browser.storage.local.get(['blurEnabled', 'shortsRemovalEnabled']).then(result => {
+  browser.storage.local.get(['blurEnabled', 'shortsRemovalEnabled', 'pauseOnHoverEnabled']).then(result => {
     settings.blurEnabled = result.blurEnabled !== undefined ? result.blurEnabled : true;
     settings.shortsRemovalEnabled = result.shortsRemovalEnabled !== undefined ? result.shortsRemovalEnabled : true;
+    settings.pauseOnHoverEnabled = result.pauseOnHoverEnabled !== undefined ? result.pauseOnHoverEnabled : true;
     applyModifications();
   }).catch(error => {
     console.error("Error loading settings:", error);
@@ -33,6 +35,15 @@
     } else if (message.action === 'toggleShorts') {
       settings.shortsRemovalEnabled = message.enabled;
       toggleShortsRemoval(message.enabled);
+    } else if (message.action === 'togglePauseOnHover') {
+      settings.pauseOnHoverEnabled = message.enabled;
+      if (!message.enabled) {
+        // Remove event listeners if disabled
+        removeVideoPauseListeners();
+      } else {
+        // Add event listeners if enabled
+        setupVideoPauseOnHover();
+      }
     }
     return Promise.resolve({response: "Settings updated"});
   });
@@ -140,10 +151,74 @@
     });
   }
 
+  // Store references to videos with event listeners
+  const videoElements = new WeakMap();
+
+// const videoElements = new Map();
+
+// Function to pause video on hover
+function setupVideoPauseOnHover() {
+  if (!settings.pauseOnHoverEnabled) return;
+
+  const videoSelectors = ['video', '.html5-main-video', '.video-stream'];
+  const videos = document.querySelectorAll(videoSelectors.join(', '));
+
+  videos.forEach(video => {
+    if (!videoElements.has(video)) {
+      // Create event handlers
+      const mouseEnterHandler = () => {
+        if (!video.paused) {
+          video.pause();
+          video.dataset.wasPausedByExtension = 'true';
+        }
+      };
+
+      const mouseLeaveHandler = () => {
+        if (video.dataset.wasPausedByExtension === 'true') {
+          video.play().catch(e => console.log('Auto-play prevented:', e));
+          delete video.dataset.wasPausedByExtension;
+        }
+      };
+
+      // Add event listeners
+      video.addEventListener('mouseenter', mouseEnterHandler);
+      video.addEventListener('mouseleave', mouseLeaveHandler);
+
+      // Store references
+      videoElements.set(video, { mouseEnterHandler, mouseLeaveHandler });
+    }
+  });
+
+  // Handle dynamically loaded videos
+  observeNewVideos();
+
+  // Handle preview videos in thumbnails
+  setupThumbnailHoverPause();
+}
+
+  // Function to remove video pause event listeners
+  function removeVideoPauseListeners() {
+    document.querySelectorAll('video, .html5-main-video, .video-stream').forEach(video => {
+      if (videoElements.has(video)) {
+        const handlers = videoElements.get(video);
+        video.removeEventListener('mouseenter', handlers.mouseEnterHandler);
+        video.removeEventListener('mouseleave', handlers.mouseLeaveHandler);
+        videoElements.delete(video);
+      }
+    });
+    
+    document.querySelectorAll('[data-pause-listener="true"]').forEach(thumbnail => {
+      // We can't easily remove specific listeners, so we'll just clear the attribute
+      // and the setupVideoPauseOnHover function will add new ones if needed
+      thumbnail.removeAttribute('data-pause-listener');
+    });
+  }
+
   // Main function to apply all modifications
   function applyModifications() {
     blurThumbnails();
     removeShorts();
+    setupVideoPauseOnHover();
   }
 
   // Create a MutationObserver to detect when new content is loaded
