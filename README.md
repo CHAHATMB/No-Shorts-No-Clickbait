@@ -1,10 +1,8 @@
-# 📺 No Shorts, No Clickbait 🎯
+# 📺 No Shorts, No Clickbait 🎯 ![Extension Icon](icons/icon-96.png){width=30px}
 
 A **Firefox extension** that helps you stay **focused** on YouTube by:
 ✅ Blurring all video thumbnails (unblur on hover) 👀
 ✅ Removing all Shorts videos and sections 🚫
-
-![Extension Icon](icons/icon-96.png)
 
 ---
 
@@ -19,6 +17,15 @@ A **Firefox extension** that helps you stay **focused** on YouTube by:
 - **Removes the Shorts section** from the YouTube homepage
 - **Hides the Shorts button** from the sidebar navigation
 - **Filters out Shorts** from recommendations & search results
+
+---
+
+## 🖼️ Screenshots
+Here are some screenshots of the extension in action:
+
+![Screenshot 1](screenshots/screenshot1.png)
+![Screenshot 2](screenshots/screenshot2.png)
+![Screenshot 3](screenshots/screenshot3.png)
 
 ---
 
