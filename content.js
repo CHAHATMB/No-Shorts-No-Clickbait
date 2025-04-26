@@ -12,14 +12,59 @@
   let settings = {
     blurEnabled: true,
     shortsRemovalEnabled: true,
-    pauseOnHoverEnabled: true
+    pauseOnHoverEnabled: true,
+    popupRemovalEnabled: true
   };
 
+  // Create a MutationObserver for popup detection
+  const popupObserver = new MutationObserver((mutations) => {
+    if (settings.popupRemovalEnabled) {
+      mutations.forEach(mutation => {
+        mutation.addedNodes.forEach(node => {
+          if (node.nodeName === 'TP-YT-IRON-OVERLAY-BACKDROP' || 
+              (node.classList && node.classList.contains('ytd-enforcement-message-view-model'))) {
+            removeAdBlockerPopup();
+          }
+        });
+      });
+    }
+  });
+
+  // Function to remove ad blocker popup
+  function removeAdBlockerPopup() {
+    if (!settings.popupRemovalEnabled) return;
+
+    // Remove the backdrop
+    const backdrop = document.querySelector('tp-yt-iron-overlay-backdrop');
+    if (backdrop) {
+      backdrop.remove();
+    }
+
+    // Remove the modal dialog
+    const dialog = document.querySelector('ytd-enforcement-message-view-model');
+    if (dialog) {
+      dialog.remove();
+    }
+
+    // Remove any other overlay elements
+    const overlays = document.querySelectorAll('[class*="overlay"]');
+    overlays.forEach(overlay => {
+      if (overlay.style.zIndex > 2000) {
+        overlay.remove();
+      }
+    });
+
+    // Re-enable scrolling on the body
+    document.body.style.overflow = '';
+    document.documentElement.style.overflow = '';
+  }
+
   // Load settings
-  browser.storage.local.get(['blurEnabled', 'shortsRemovalEnabled', 'pauseOnHoverEnabled']).then(result => {
+  browser.storage.local.get(['blurEnabled', 'shortsRemovalEnabled', 'pauseOnHoverEnabled', 'popupRemovalEnabled']).then(result => {
     settings.blurEnabled = result.blurEnabled !== undefined ? result.blurEnabled : true;
     settings.shortsRemovalEnabled = result.shortsRemovalEnabled !== undefined ? result.shortsRemovalEnabled : true;
     settings.pauseOnHoverEnabled = result.pauseOnHoverEnabled !== undefined ? result.pauseOnHoverEnabled : true;
+    settings.popupRemovalEnabled = result.popupRemovalEnabled !== undefined ? result.popupRemovalEnabled : true;
     applyModifications();
   }).catch(error => {
     console.error("Error loading settings:", error);
@@ -43,6 +88,11 @@
       } else {
         // Add event listeners if enabled
         setupVideoPauseOnHover();
+      }
+    } else if (message.action === 'togglePopupRemoval') {
+      settings.popupRemovalEnabled = message.enabled;
+      if (message.enabled) {
+        removeAdBlockerPopup();
       }
     }
     return Promise.resolve({response: "Settings updated"});
@@ -154,63 +204,110 @@
   // Store references to videos with event listeners
   const videoElements = new WeakMap();
 
-// const videoElements = new Map();
+  // const videoElements = new Map();
 
-// Function to pause video on hover
-function setupVideoPauseOnHover() {
-  if (!settings.pauseOnHoverEnabled) return;
+    // Function to pause video on hover
+  function setupVideoPauseOnHover() {
+    if (!settings.pauseOnHoverEnabled) return;
 
-  const videoSelectors = ['video', '.html5-main-video', '.video-stream'];
-  const videos = document.querySelectorAll(videoSelectors.join(', '));
+    // Target video elements
+    const videoSelectors = [
+      'video',
+      '.html5-main-video',
+      '.video-stream'
+    ];
+    
+    const videos = document.querySelectorAll(videoSelectors.join(', '));
+    
+    videos.forEach(video => {
+      if (!videoElements.has(video)) {
+        // Create event handlers
+        const mouseEnterHandler = () => {
+          if (video.played.length > 0 && !video.paused) {
+            video.pause();
+            video.dataset.wasPausedByExtension = 'true';
+          }
+        };
+        
+        const mouseLeaveHandler = () => {
+          if (video.dataset.wasPausedByExtension === 'true') {
+            video.play().catch(e => {
+              console.log('Auto-play prevented by browser policy:', e);
+            });
+            delete video.dataset.wasPausedByExtension;
+          }
+        };
+        
+        // Add event listeners
+        video.addEventListener('mouseenter', mouseEnterHandler);
+        video.addEventListener('mouseleave', mouseLeaveHandler);
+        
+        // Store references to event handlers
+        videoElements.set(video, {
+          mouseEnterHandler,
+          mouseLeaveHandler
+        });
+      }
+    });
 
-  videos.forEach(video => {
-    if (!videoElements.has(video)) {
-      // Create event handlers
-      const mouseEnterHandler = () => {
-        if (!video.paused) {
-          video.pause();
-          video.dataset.wasPausedByExtension = 'true';
-        }
-      };
-
-      const mouseLeaveHandler = () => {
-        if (video.dataset.wasPausedByExtension === 'true') {
-          video.play().catch(e => console.log('Auto-play prevented:', e));
-          delete video.dataset.wasPausedByExtension;
-        }
-      };
-
-      // Add event listeners
-      video.addEventListener('mouseenter', mouseEnterHandler);
-      video.addEventListener('mouseleave', mouseLeaveHandler);
-
-      // Store references
-      videoElements.set(video, { mouseEnterHandler, mouseLeaveHandler });
-    }
-  });
-
-  // Handle dynamically loaded videos
+      // Handle dynamically loaded videos
   observeNewVideos();
 
   // Handle preview videos in thumbnails
   setupThumbnailHoverPause();
-}
 
-// Function to remove video pause event listeners
-function removeVideoPauseListeners() {
-  document.querySelectorAll('video, .html5-main-video, .video-stream').forEach(video => {
-    if (videoElements.has(video)) {
-      const { mouseEnterHandler, mouseLeaveHandler } = videoElements.get(video);
-      video.removeEventListener('mouseenter', mouseEnterHandler);
-      video.removeEventListener('mouseleave', mouseLeaveHandler);
-      videoElements.delete(video);
-    }
-  });
+    // Also handle preview videos in thumbnails
+    const thumbnailSelectors = [
+      'ytd-thumbnail',
+      'ytd-compact-video-renderer',
+      'ytd-grid-video-renderer',
+      'ytd-video-renderer'
+    ];
+    
+    const thumbnails = document.querySelectorAll(thumbnailSelectors.join(', '));
+    
+    thumbnails.forEach(thumbnail => {
+      if (!thumbnail.hasAttribute('data-pause-listener')) {
+        thumbnail.setAttribute('data-pause-listener', 'true');
+        
+        thumbnail.addEventListener('mouseenter', () => {
+          const video = thumbnail.querySelector('video');
+          if (video && video.played.length > 0 && !video.paused) {
+            video.pause();
+            video.dataset.wasPausedByExtension = 'true';
+          }
+        });
+        
+        thumbnail.addEventListener('mouseleave', () => {
+          const video = thumbnail.querySelector('video');
+          if (video && video.dataset.wasPausedByExtension === 'true') {
+            video.play().catch(e => {
+              console.log('Auto-play prevented by browser policy:', e);
+            });
+            delete video.dataset.wasPausedByExtension;
+          }
+        });
+      }
+    });
+  }
 
-  document.querySelectorAll('[data-pause-listener="true"]').forEach(thumbnail => {
-    thumbnail.removeAttribute('data-pause-listener');
-  });
-}
+  // Function to remove video pause event listeners
+  function removeVideoPauseListeners() {
+    document.querySelectorAll('video, .html5-main-video, .video-stream').forEach(video => {
+      if (videoElements.has(video)) {
+        const handlers = videoElements.get(video);
+        video.removeEventListener('mouseenter', handlers.mouseEnterHandler);
+        video.removeEventListener('mouseleave', handlers.mouseLeaveHandler);
+        videoElements.delete(video);
+      }
+    });
+    
+    document.querySelectorAll('[data-pause-listener="true"]').forEach(thumbnail => {
+      // We can't easily remove specific listeners, so we'll just clear the attribute
+      // and the setupVideoPauseOnHover function will add new ones if needed
+      thumbnail.removeAttribute('data-pause-listener');
+    });
+  }
 
   // Main function to apply all modifications
   function applyModifications() {
@@ -218,6 +315,12 @@ function removeVideoPauseListeners() {
     removeShorts();
     setupVideoPauseOnHover();
   }
+
+  // Start observing for popups
+  popupObserver.observe(document.body, { 
+    childList: true, 
+    subtree: true 
+  });
 
   // Create a MutationObserver to detect when new content is loaded
   const observer = new MutationObserver((mutations) => {
