@@ -21,7 +21,7 @@
   let watchStartTime = null;
   let reminderTimer = null;
   let isWatchingVideo = false;
-  const REMINDER_INTERVAL = 1 * 10 * 1000; // 15 minutes in milliseconds
+  let REMINDER_INTERVAL = 15 * 60 * 1000; // Default 15 minutes
 
   // Create a MutationObserver for popup detection
   const popupObserver = new MutationObserver((mutations) => {
@@ -67,12 +67,17 @@
   }
 
   // Load settings
-  browser.storage.local.get(['blurEnabled', 'shortsRemovalEnabled', 'pauseOnHoverEnabled', 'popupRemovalEnabled', 'timeReminderEnabled']).then(result => {
+  browser.storage.local.get(['blurEnabled', 'shortsRemovalEnabled', 'pauseOnHoverEnabled', 'popupRemovalEnabled', 'timeReminderEnabled', 'timerInterval']).then(result => {
     settings.blurEnabled = result.blurEnabled !== undefined ? result.blurEnabled : true;
     settings.shortsRemovalEnabled = result.shortsRemovalEnabled !== undefined ? result.shortsRemovalEnabled : true;
     settings.pauseOnHoverEnabled = result.pauseOnHoverEnabled !== undefined ? result.pauseOnHoverEnabled : true;
     settings.popupRemovalEnabled = result.popupRemovalEnabled !== undefined ? result.popupRemovalEnabled : true;
     settings.timeReminderEnabled = result.timeReminderEnabled !== undefined ? result.timeReminderEnabled : true;
+    
+    // Set timer interval
+    const timerInterval = result.timerInterval || 15;
+    REMINDER_INTERVAL = timerInterval * 60 * 1000;
+    
     applyModifications();
     initializeTimeTracking();
   }).catch(error => {
@@ -108,6 +113,12 @@
         initializeTimeTracking();
       } else {
         stopTimeTracking();
+      }
+    } else if (message.action === 'updateTimerInterval') {
+      REMINDER_INTERVAL = message.interval * 60 * 1000;
+      // If currently watching, restart timer with new interval
+      if (isWatchingVideo) {
+        startWatchTimer();
       }
     }
     return Promise.resolve({response: "Settings updated"});
@@ -406,6 +417,14 @@
   function showTimeReminder() {
     if (!settings.timeReminderEnabled) return;
     
+    const minutesWatched = Math.round(REMINDER_INTERVAL / (60 * 1000));
+
+    // Pause the video
+    const video = document.querySelector('video');
+      if (video) {
+        video.pause();
+      }
+    
     // Create reminder popup
     const reminderDiv = document.createElement('div');
     reminderDiv.id = 'youtube-time-reminder';
@@ -415,7 +434,7 @@
           <h3>⏰ Time Check!</h3>
           <button class="reminder-close">&times;</button>
         </div>
-        <p>You've been watching YouTube for 15 minutes.</p>
+        <p>You've been watching YouTube for ${minutesWatched} minutes.</p>
         <p>Take a moment to consider if you're still on track with your goals.</p>
         <div class="reminder-buttons">
           <button class="reminder-btn continue">Continue Watching</button>

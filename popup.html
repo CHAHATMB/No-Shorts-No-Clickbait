@@ -100,6 +100,49 @@
       color: #999;
       text-align: center;
     }
+    
+    .timer-config {
+      margin-top: 12px;
+      padding: 12px;
+      background-color: #f8f8f8;
+      border-radius: 6px;
+      border: 1px solid #e0e0e0;
+    }
+    
+    .timer-options {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .timer-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    
+    .timer-option input[type="radio"] {
+      margin: 0;
+    }
+    
+    .timer-option input[type="number"] {
+      width: 50px;
+      padding: 2px 6px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    
+    .timer-option input[type="number"]:disabled {
+      background-color: #f5f5f5;
+      color: #999;
+    }
+    
+    .timer-config.hidden {
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -150,6 +193,24 @@
         <input type="checkbox" id="time-reminder-toggle" checked>
         <span class="slider"></span>
       </label>
+    </div>
+    <div class="timer-config" id="timer-config">
+      <div class="timer-options">
+        <label class="timer-option">
+          <input type="radio" name="timer-preset" value="15" checked>
+          <span>15 minutes</span>
+        </label>
+        <label class="timer-option">
+          <input type="radio" name="timer-preset" value="30">
+          <span>30 minutes</span>
+        </label>
+        <label class="timer-option">
+          <input type="radio" name="timer-preset" value="custom">
+          <span>Custom:</span>
+          <input type="number" id="custom-timer" min="1" max="180" value="45" disabled>
+          <span>min</span>
+        </label>
+      </div>
     </div>
   </div>
   <div class="feature">
