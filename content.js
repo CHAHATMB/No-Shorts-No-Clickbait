@@ -13,8 +13,15 @@
     blurEnabled: true,
     shortsRemovalEnabled: true,
     pauseOnHoverEnabled: true,
-    popupRemovalEnabled: true
+    popupRemovalEnabled: true,
+    timeReminderEnabled: true
   };
+
+  // Time tracking variables
+  let watchStartTime = null;
+  let reminderTimer = null;
+  let isWatchingVideo = false;
+  const REMINDER_INTERVAL = 1 * 10 * 1000; // 15 minutes in milliseconds
 
   // Create a MutationObserver for popup detection
   const popupObserver = new MutationObserver((mutations) => {
@@ -60,16 +67,19 @@
   }
 
   // Load settings
-  browser.storage.local.get(['blurEnabled', 'shortsRemovalEnabled', 'pauseOnHoverEnabled', 'popupRemovalEnabled']).then(result => {
+  browser.storage.local.get(['blurEnabled', 'shortsRemovalEnabled', 'pauseOnHoverEnabled', 'popupRemovalEnabled', 'timeReminderEnabled']).then(result => {
     settings.blurEnabled = result.blurEnabled !== undefined ? result.blurEnabled : true;
     settings.shortsRemovalEnabled = result.shortsRemovalEnabled !== undefined ? result.shortsRemovalEnabled : true;
     settings.pauseOnHoverEnabled = result.pauseOnHoverEnabled !== undefined ? result.pauseOnHoverEnabled : true;
     settings.popupRemovalEnabled = result.popupRemovalEnabled !== undefined ? result.popupRemovalEnabled : true;
+    settings.timeReminderEnabled = result.timeReminderEnabled !== undefined ? result.timeReminderEnabled : true;
     applyModifications();
+    initializeTimeTracking();
   }).catch(error => {
     console.error("Error loading settings:", error);
     // Continue with defaults if there's an error
     applyModifications();
+    initializeTimeTracking();
   });
 
   // Listen for messages from popup
@@ -91,6 +101,13 @@
       settings.popupRemovalEnabled = message.enabled;
       if (message.enabled) {
         removeAdBlockerPopup();
+      }
+    } else if (message.action === 'toggleTimeReminder') {
+      settings.timeReminderEnabled = message.enabled;
+      if (message.enabled) {
+        initializeTimeTracking();
+      } else {
+        stopTimeTracking();
       }
     }
     return Promise.resolve({response: "Settings updated"});
@@ -304,6 +321,150 @@
     document.querySelectorAll('[data-control-listener="true"]').forEach(thumbnail => {
       thumbnail.removeAttribute('data-control-listener');
     });
+  }
+
+  // Time tracking functions
+  function initializeTimeTracking() {
+    if (!settings.timeReminderEnabled) return;
+    
+    // Check if we're on a video page
+    if (window.location.pathname.includes('/watch')) {
+      startWatchTimer();
+    }
+    
+    // Listen for navigation changes
+    let lastUrl = location.href;
+    new MutationObserver(() => {
+      const url = location.href;
+      if (url !== lastUrl) {
+        lastUrl = url;
+        if (url.includes('/watch')) {
+          startWatchTimer();
+        } else {
+          stopWatchTimer();
+        }
+      }
+    }).observe(document, { subtree: true, childList: true });
+    
+    // Listen for video play/pause events
+    document.addEventListener('play', handleVideoPlay, true);
+    document.addEventListener('pause', handleVideoPause, true);
+  }
+
+  function startWatchTimer() {
+    if (!settings.timeReminderEnabled) return;
+    
+    stopWatchTimer(); // Clear any existing timer
+    watchStartTime = Date.now();
+    isWatchingVideo = true;
+    
+    reminderTimer = setTimeout(() => {
+      showTimeReminder();
+    }, REMINDER_INTERVAL);
+  }
+
+  function stopWatchTimer() {
+    if (reminderTimer) {
+      clearTimeout(reminderTimer);
+      reminderTimer = null;
+    }
+    watchStartTime = null;
+    isWatchingVideo = false;
+  }
+
+  function stopTimeTracking() {
+    stopWatchTimer();
+    document.removeEventListener('play', handleVideoPlay, true);
+    document.removeEventListener('pause', handleVideoPause, true);
+  }
+
+  function handleVideoPlay(event) {
+    if (!settings.timeReminderEnabled) return;
+    
+    const video = event.target;
+    if (video.tagName === 'VIDEO' && window.location.pathname.includes('/watch')) {
+      if (!isWatchingVideo) {
+        startWatchTimer();
+      }
+    }
+  }
+
+  function handleVideoPause(event) {
+    if (!settings.timeReminderEnabled) return;
+    
+    const video = event.target;
+    if (video.tagName === 'VIDEO' && window.location.pathname.includes('/watch')) {
+      // Don't stop timer for short pauses, only for longer ones
+      setTimeout(() => {
+        if (video.paused) {
+          stopWatchTimer();
+        }
+      }, 5000); // 5 second delay
+    }
+  }
+
+  function showTimeReminder() {
+    if (!settings.timeReminderEnabled) return;
+    
+    // Create reminder popup
+    const reminderDiv = document.createElement('div');
+    reminderDiv.id = 'youtube-time-reminder';
+    reminderDiv.innerHTML = `
+      <div class="reminder-content">
+        <div class="reminder-header">
+          <h3>⏰ Time Check!</h3>
+          <button class="reminder-close">&times;</button>
+        </div>
+        <p>You've been watching YouTube for 15 minutes.</p>
+        <p>Take a moment to consider if you're still on track with your goals.</p>
+        <div class="reminder-buttons">
+          <button class="reminder-btn continue">Continue Watching</button>
+          <button class="reminder-btn take-break">Take a Break</button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(reminderDiv);
+    
+    // Add event listeners
+    const closeBtn = reminderDiv.querySelector('.reminder-close');
+    const continueBtn = reminderDiv.querySelector('.continue');
+    const breakBtn = reminderDiv.querySelector('.take-break');
+    
+    closeBtn.addEventListener('click', () => {
+      dismissReminder();
+      startWatchTimer(); // Restart timerx
+    });
+    
+    continueBtn.addEventListener('click', () => {
+      dismissReminder();
+      startWatchTimer(); // Restart timer
+    });
+    
+    breakBtn.addEventListener('click', () => {
+      dismissReminder();
+      stopWatchTimer();
+      // Pause the video
+      const video = document.querySelector('video');
+      if (video) {
+        video.pause();
+      }
+    });
+    
+    // Auto-dismiss after 30 seconds if no interaction
+    setTimeout(() => {
+      if (document.getElementById('youtube-time-reminder')) {
+        dismissReminder();
+        startWatchTimer(); // Restart timer
+      }
+    }, 30000);
+  }
+
+  function dismissReminder() {
+    const reminder = document.getElementById('youtube-time-reminder');
+    if (reminder) {
+      reminder.remove();
+    }
   }
 
   // Main function to apply all modifications
