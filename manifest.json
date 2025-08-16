@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "YouTube Thumbnail Blur & Shorts Remover",
-  "version": "1.1",
+  "version": "2.0",
   "description": "Blurs YouTube thumbnails and removes Shorts videos from the YouTube interface",
   "icons": {
     "48": "icons/icon-48.png",
@@ -22,5 +22,14 @@
     },
     "default_title": "YouTube Thumbnail Blur & Shorts Remover",
     "default_popup": "popup.html"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "{9c77beea-3750-4f33-b2dc-f8bb09969bc9}",
+      "strict_min_version": "58.0"
+    },
+    "gecko_android": {
+      "strict_min_version": "113.0"
+    }
   }
 }

@@ -83,11 +83,9 @@
     } else if (message.action === 'togglePauseOnHover') {
       settings.pauseOnHoverEnabled = message.enabled;
       if (!message.enabled) {
-        // Remove event listeners if disabled
-        removeVideoPauseListeners();
+        removeVideoControlListeners();
       } else {
-        // Add event listeners if enabled
-        setupVideoPauseOnHover();
+        setupVideoControls();
       }
     } else if (message.action === 'togglePopupRemoval') {
       settings.popupRemovalEnabled = message.enabled;
@@ -117,14 +115,11 @@
 
   // Function to toggle Shorts removal
   function toggleShortsRemoval(enabled) {
-    // We'll use CSS for this, but we can add/remove a class from the body
     if (enabled) {
       document.body.classList.add('hide-shorts');
-      // Also manually hide any existing shorts
       removeShorts();
     } else {
       document.body.classList.remove('hide-shorts');
-      // Show previously hidden shorts
       document.querySelectorAll('.shorts-hidden').forEach(element => {
         element.style.display = '';
         element.classList.remove('shorts-hidden');
@@ -136,7 +131,6 @@
   function blurThumbnails() {
     if (!settings.blurEnabled) return;
     
-    // Target all thumbnail images
     const thumbnailSelectors = [
       'ytd-thumbnail img', 
       'ytd-compact-video-renderer img',
@@ -154,15 +148,36 @@
         if (settings.blurEnabled) {
           img.style.filter = `blur(${config.blurAmount})`;
         }
+        
+        // Add touch event listeners for mobile
+        img.addEventListener('touchstart', handleTouchStart);
+        img.addEventListener('touchend', handleTouchEnd);
       }
     });
+  }
+
+  // Touch event handlers
+  let touchTimer;
+  
+  function handleTouchStart(e) {
+    const img = e.target;
+    touchTimer = setTimeout(() => {
+      img.style.filter = 'blur(0)';
+    }, 200);
+  }
+  
+  function handleTouchEnd(e) {
+    clearTimeout(touchTimer);
+    const img = e.target;
+    if (settings.blurEnabled) {
+      img.style.filter = `blur(${config.blurAmount})`;
+    }
   }
 
   // Function to remove Shorts
   function removeShorts() {
     if (!settings.shortsRemovalEnabled) return;
     
-    // Shorts in homepage
     const shortsSelectors = [
       'ytd-rich-section-renderer[is-shorts-shelf]',
       'ytd-reel-shelf-renderer',
@@ -174,14 +189,12 @@
       'ytd-shelf-renderer:has(a[href*="/shorts/"])'
     ];
     
-    // Find elements containing "Shorts" text
     const textSelectors = [
       'ytd-browse[page-subtype="home"] ytd-rich-grid-row',
       'ytd-browse[page-subtype="subscriptions"] ytd-shelf-renderer',
       'ytd-browse ytd-rich-section-renderer'
     ];
     
-    // Hide elements with direct selectors
     document.querySelectorAll(shortsSelectors.join(', ')).forEach(element => {
       if (!element.classList.contains('shorts-hidden')) {
         element.style.display = 'none';
@@ -189,7 +202,6 @@
       }
     });
     
-    // Check for elements containing "Shorts" text
     textSelectors.forEach(selector => {
       document.querySelectorAll(selector).forEach(element => {
         const text = element.textContent || '';
@@ -204,13 +216,10 @@
   // Store references to videos with event listeners
   const videoElements = new WeakMap();
 
-  // const videoElements = new Map();
-
-    // Function to pause video on hover
-  function setupVideoPauseOnHover() {
+  // Function to setup video controls
+  function setupVideoControls() {
     if (!settings.pauseOnHoverEnabled) return;
 
-    // Target video elements
     const videoSelectors = [
       'video',
       '.html5-main-video',
@@ -221,15 +230,14 @@
     
     videos.forEach(video => {
       if (!videoElements.has(video)) {
-        // Create event handlers
-        const mouseEnterHandler = () => {
+        const touchStartHandler = () => {
           if (video.played.length > 0 && !video.paused) {
             video.pause();
             video.dataset.wasPausedByExtension = 'true';
           }
         };
         
-        const mouseLeaveHandler = () => {
+        const touchEndHandler = () => {
           if (video.dataset.wasPausedByExtension === 'true') {
             video.play().catch(e => {
               console.log('Auto-play prevented by browser policy:', e);
@@ -238,25 +246,16 @@
           }
         };
         
-        // Add event listeners
-        video.addEventListener('mouseenter', mouseEnterHandler);
-        video.addEventListener('mouseleave', mouseLeaveHandler);
+        video.addEventListener('touchstart', touchStartHandler);
+        video.addEventListener('touchend', touchEndHandler);
         
-        // Store references to event handlers
         videoElements.set(video, {
-          mouseEnterHandler,
-          mouseLeaveHandler
+          touchStartHandler,
+          touchEndHandler
         });
       }
     });
 
-      // Handle dynamically loaded videos
-  observeNewVideos();
-
-  // Handle preview videos in thumbnails
-  setupThumbnailHoverPause();
-
-    // Also handle preview videos in thumbnails
     const thumbnailSelectors = [
       'ytd-thumbnail',
       'ytd-compact-video-renderer',
@@ -267,10 +266,10 @@
     const thumbnails = document.querySelectorAll(thumbnailSelectors.join(', '));
     
     thumbnails.forEach(thumbnail => {
-      if (!thumbnail.hasAttribute('data-pause-listener')) {
-        thumbnail.setAttribute('data-pause-listener', 'true');
+      if (!thumbnail.hasAttribute('data-control-listener')) {
+        thumbnail.setAttribute('data-control-listener', 'true');
         
-        thumbnail.addEventListener('mouseenter', () => {
+        thumbnail.addEventListener('touchstart', () => {
           const video = thumbnail.querySelector('video');
           if (video && video.played.length > 0 && !video.paused) {
             video.pause();
@@ -278,7 +277,7 @@
           }
         });
         
-        thumbnail.addEventListener('mouseleave', () => {
+        thumbnail.addEventListener('touchend', () => {
           const video = thumbnail.querySelector('video');
           if (video && video.dataset.wasPausedByExtension === 'true') {
             video.play().catch(e => {
@@ -291,21 +290,19 @@
     });
   }
 
-  // Function to remove video pause event listeners
-  function removeVideoPauseListeners() {
+  // Function to remove video control event listeners
+  function removeVideoControlListeners() {
     document.querySelectorAll('video, .html5-main-video, .video-stream').forEach(video => {
       if (videoElements.has(video)) {
         const handlers = videoElements.get(video);
-        video.removeEventListener('mouseenter', handlers.mouseEnterHandler);
-        video.removeEventListener('mouseleave', handlers.mouseLeaveHandler);
+        video.removeEventListener('touchstart', handlers.touchStartHandler);
+        video.removeEventListener('touchend', handlers.touchEndHandler);
         videoElements.delete(video);
       }
     });
     
-    document.querySelectorAll('[data-pause-listener="true"]').forEach(thumbnail => {
-      // We can't easily remove specific listeners, so we'll just clear the attribute
-      // and the setupVideoPauseOnHover function will add new ones if needed
-      thumbnail.removeAttribute('data-pause-listener');
+    document.querySelectorAll('[data-control-listener="true"]').forEach(thumbnail => {
+      thumbnail.removeAttribute('data-control-listener');
     });
   }
 
@@ -313,7 +310,7 @@
   function applyModifications() {
     blurThumbnails();
     removeShorts();
-    setupVideoPauseOnHover();
+    setupVideoControls();
   }
 
   // Start observing for popups
@@ -342,7 +339,4 @@
 
   // Initial application
   applyModifications();
-  
-  // Also run periodically to catch any elements that might have been missed
-  setInterval(applyModifications, config.checkInterval);
 })();
