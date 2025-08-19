@@ -1,10 +1,10 @@
 // Main functionality for the extension
-(function() {
-  'use strict';
+(function () {
+  "use strict";
 
   // Configuration
   const config = {
-    blurAmount: '10px',
+    blurAmount: "10px",
     checkInterval: 1000, // Check for new elements every second
   };
 
@@ -14,22 +14,26 @@
     shortsRemovalEnabled: true,
     pauseOnHoverEnabled: true,
     popupRemovalEnabled: true,
-    timeReminderEnabled: true
+    timeReminderEnabled: true,
   };
 
   // Time tracking variables
-  let watchStartTime = null;
+  let sessionStartTime = null;
   let reminderTimer = null;
-  let isWatchingVideo = false;
+  let isSessionActive = false;
   let REMINDER_INTERVAL = 15 * 60 * 1000; // Default 15 minutes
+  let totalWatchTime = 0; // New variable to store accumulated watch time
 
   // Create a MutationObserver for popup detection
   const popupObserver = new MutationObserver((mutations) => {
     if (settings.popupRemovalEnabled) {
-      mutations.forEach(mutation => {
-        mutation.addedNodes.forEach(node => {
-          if (node.nodeName === 'TP-YT-IRON-OVERLAY-BACKDROP' || 
-              (node.classList && node.classList.contains('ytd-enforcement-message-view-model'))) {
+      mutations.forEach((mutation) => {
+        mutation.addedNodes.forEach((node) => {
+          if (
+            node.nodeName === "TP-YT-IRON-OVERLAY-BACKDROP" ||
+            (node.classList &&
+              node.classList.contains("ytd-enforcement-message-view-model"))
+          ) {
             removeAdBlockerPopup();
           }
         });
@@ -42,101 +46,127 @@
     if (!settings.popupRemovalEnabled) return;
 
     // Remove the backdrop
-    const backdrop = document.querySelector('tp-yt-iron-overlay-backdrop');
+    const backdrop = document.querySelector("tp-yt-iron-overlay-backdrop");
     if (backdrop) {
       backdrop.remove();
     }
 
     // Remove the modal dialog
-    const dialog = document.querySelector('ytd-enforcement-message-view-model');
+    const dialog = document.querySelector("ytd-enforcement-message-view-model");
     if (dialog) {
       dialog.remove();
     }
 
     // Remove any other overlay elements
     const overlays = document.querySelectorAll('[class*="overlay"]');
-    overlays.forEach(overlay => {
+    overlays.forEach((overlay) => {
       if (overlay.style.zIndex > 2000) {
         overlay.remove();
       }
     });
 
     // Re-enable scrolling on the body
-    document.body.style.overflow = '';
-    document.documentElement.style.overflow = '';
+    document.body.style.overflow = "";
+    document.documentElement.style.overflow = "";
   }
 
   // Load settings
-  browser.storage.local.get(['blurEnabled', 'shortsRemovalEnabled', 'pauseOnHoverEnabled', 'popupRemovalEnabled', 'timeReminderEnabled', 'timerInterval']).then(result => {
-    settings.blurEnabled = result.blurEnabled !== undefined ? result.blurEnabled : true;
-    settings.shortsRemovalEnabled = result.shortsRemovalEnabled !== undefined ? result.shortsRemovalEnabled : true;
-    settings.pauseOnHoverEnabled = result.pauseOnHoverEnabled !== undefined ? result.pauseOnHoverEnabled : true;
-    settings.popupRemovalEnabled = result.popupRemovalEnabled !== undefined ? result.popupRemovalEnabled : true;
-    settings.timeReminderEnabled = result.timeReminderEnabled !== undefined ? result.timeReminderEnabled : true;
-    
-    // Set timer interval
-    const timerInterval = result.timerInterval || 15;
-    REMINDER_INTERVAL = timerInterval * 60 * 1000;
-    
-    applyModifications();
-    initializeTimeTracking();
-  }).catch(error => {
-    console.error("Error loading settings:", error);
-    // Continue with defaults if there's an error
-    applyModifications();
-    initializeTimeTracking();
-  });
+  browser.storage.local
+    .get([
+      "blurEnabled",
+      "shortsRemovalEnabled",
+      "pauseOnHoverEnabled",
+      "popupRemovalEnabled",
+      "timeReminderEnabled",
+      "timerInterval",
+      "totalWatchTime",
+    ])
+    .then((result) => {
+      settings.blurEnabled =
+        result.blurEnabled !== undefined ? result.blurEnabled : true;
+      settings.shortsRemovalEnabled =
+        result.shortsRemovalEnabled !== undefined
+          ? result.shortsRemovalEnabled
+          : true;
+      settings.pauseOnHoverEnabled =
+        result.pauseOnHoverEnabled !== undefined
+          ? result.pauseOnHoverEnabled
+          : true;
+      settings.popupRemovalEnabled =
+        result.popupRemovalEnabled !== undefined
+          ? result.popupRemovalEnabled
+          : true;
+      settings.timeReminderEnabled =
+        result.timeReminderEnabled !== undefined
+          ? result.timeReminderEnabled
+          : true;
+      totalWatchTime =
+        result.totalWatchTime !== undefined ? result.totalWatchTime : 0;
+
+      // Set timer interval
+      const timerInterval = result.timerInterval || 15;
+      REMINDER_INTERVAL = timerInterval * 60 * 1000;
+
+      applyModifications();
+      initializeTimeTracking();
+    })
+    .catch((error) => {
+      console.error("Error loading settings:", error);
+      // Continue with defaults if there's an error
+      applyModifications();
+      initializeTimeTracking();
+    });
 
   // Listen for messages from popup
   browser.runtime.onMessage.addListener((message) => {
-    if (message.action === 'toggleBlur') {
+    if (message.action === "toggleBlur") {
       settings.blurEnabled = message.enabled;
       toggleBlurring(message.enabled);
-    } else if (message.action === 'toggleShorts') {
+    } else if (message.action === "toggleShorts") {
       settings.shortsRemovalEnabled = message.enabled;
       toggleShortsRemoval(message.enabled);
-    } else if (message.action === 'togglePauseOnHover') {
+    } else if (message.action === "togglePauseOnHover") {
       settings.pauseOnHoverEnabled = message.enabled;
       if (!message.enabled) {
         removeVideoControlListeners();
       } else {
         setupVideoControls();
       }
-    } else if (message.action === 'togglePopupRemoval') {
+    } else if (message.action === "togglePopupRemoval") {
       settings.popupRemovalEnabled = message.enabled;
       if (message.enabled) {
         removeAdBlockerPopup();
       }
-    } else if (message.action === 'toggleTimeReminder') {
+    } else if (message.action === "toggleTimeReminder") {
       settings.timeReminderEnabled = message.enabled;
       if (message.enabled) {
         initializeTimeTracking();
       } else {
         stopTimeTracking();
       }
-    } else if (message.action === 'updateTimerInterval') {
+    } else if (message.action === "updateTimerInterval") {
       REMINDER_INTERVAL = message.interval * 60 * 1000;
       // If currently watching, restart timer with new interval
-      if (isWatchingVideo) {
-        startWatchTimer();
+      if (isSessionActive) {
+        scheduleNextReminder();
       }
     }
-    return Promise.resolve({response: "Settings updated"});
+    return Promise.resolve({ response: "Settings updated" });
   });
 
   // Function to toggle thumbnail blurring
   function toggleBlurring(enabled) {
     if (enabled) {
       // Re-apply blurring
-      document.querySelectorAll('.blurred-thumbnail').forEach(img => {
+      document.querySelectorAll(".blurred-thumbnail").forEach((img) => {
         img.style.filter = `blur(${config.blurAmount})`;
       });
       // Apply to any new thumbnails
       blurThumbnails();
     } else {
       // Remove blurring
-      document.querySelectorAll('.blurred-thumbnail').forEach(img => {
-        img.style.filter = 'blur(0)';
+      document.querySelectorAll(".blurred-thumbnail").forEach((img) => {
+        img.style.filter = "blur(0)";
       });
     }
   }
@@ -144,13 +174,13 @@
   // Function to toggle Shorts removal
   function toggleShortsRemoval(enabled) {
     if (enabled) {
-      document.body.classList.add('hide-shorts');
+      document.body.classList.add("hide-shorts");
       removeShorts();
     } else {
-      document.body.classList.remove('hide-shorts');
-      document.querySelectorAll('.shorts-hidden').forEach(element => {
-        element.style.display = '';
-        element.classList.remove('shorts-hidden');
+      document.body.classList.remove("hide-shorts");
+      document.querySelectorAll(".shorts-hidden").forEach((element) => {
+        element.style.display = "";
+        element.classList.remove("shorts-hidden");
       });
     }
   }
@@ -158,42 +188,42 @@
   // Function to blur thumbnails
   function blurThumbnails() {
     if (!settings.blurEnabled) return;
-    
+
     const thumbnailSelectors = [
-      'ytd-thumbnail img', 
-      'ytd-compact-video-renderer img',
-      'ytd-grid-video-renderer img',
-      'ytd-video-renderer img',
-      '.ytp-videowall-still-image img',
-      'a[href^="/watch"] img'
+      "ytd-thumbnail img",
+      "ytd-compact-video-renderer img",
+      "ytd-grid-video-renderer img",
+      "ytd-video-renderer img",
+      ".ytp-videowall-still-image img",
+      'a[href^="/watch"] img',
     ];
-    
-    const thumbnails = document.querySelectorAll(thumbnailSelectors.join(', '));
-    
-    thumbnails.forEach(img => {
-      if (!img.classList.contains('blurred-thumbnail')) {
-        img.classList.add('blurred-thumbnail');
+
+    const thumbnails = document.querySelectorAll(thumbnailSelectors.join(", "));
+
+    thumbnails.forEach((img) => {
+      if (!img.classList.contains("blurred-thumbnail")) {
+        img.classList.add("blurred-thumbnail");
         if (settings.blurEnabled) {
           img.style.filter = `blur(${config.blurAmount})`;
         }
-        
+
         // Add touch event listeners for mobile
-        img.addEventListener('touchstart', handleTouchStart);
-        img.addEventListener('touchend', handleTouchEnd);
+        img.addEventListener("touchstart", handleTouchStart);
+        img.addEventListener("touchend", handleTouchEnd);
       }
     });
   }
 
   // Touch event handlers
   let touchTimer;
-  
+
   function handleTouchStart(e) {
     const img = e.target;
     touchTimer = setTimeout(() => {
-      img.style.filter = 'blur(0)';
+      img.style.filter = "blur(0)";
     }, 200);
   }
-  
+
   function handleTouchEnd(e) {
     clearTimeout(touchTimer);
     const img = e.target;
@@ -205,37 +235,40 @@
   // Function to remove Shorts
   function removeShorts() {
     if (!settings.shortsRemovalEnabled) return;
-    
+
     const shortsSelectors = [
-      'ytd-rich-section-renderer[is-shorts-shelf]',
-      'ytd-reel-shelf-renderer',
+      "ytd-rich-section-renderer[is-shorts-shelf]",
+      "ytd-reel-shelf-renderer",
       'ytd-guide-entry-renderer a[title="Shorts"]',
       'ytd-mini-guide-entry-renderer a[title="Shorts"]',
       'ytd-grid-video-renderer a[href*="/shorts/"]',
       'ytd-video-renderer a[href*="/shorts/"]',
       'ytd-rich-grid-row:has(a[href*="/shorts/"])',
-      'ytd-shelf-renderer:has(a[href*="/shorts/"])'
+      'ytd-shelf-renderer:has(a[href*="/shorts/"])',
     ];
-    
+
     const textSelectors = [
       'ytd-browse[page-subtype="home"] ytd-rich-grid-row',
       'ytd-browse[page-subtype="subscriptions"] ytd-shelf-renderer',
-      'ytd-browse ytd-rich-section-renderer'
+      "ytd-browse ytd-rich-section-renderer",
     ];
-    
-    document.querySelectorAll(shortsSelectors.join(', ')).forEach(element => {
-      if (!element.classList.contains('shorts-hidden')) {
-        element.style.display = 'none';
-        element.classList.add('shorts-hidden');
+
+    document.querySelectorAll(shortsSelectors.join(", ")).forEach((element) => {
+      if (!element.classList.contains("shorts-hidden")) {
+        element.style.display = "none";
+        element.classList.add("shorts-hidden");
       }
     });
-    
-    textSelectors.forEach(selector => {
-      document.querySelectorAll(selector).forEach(element => {
-        const text = element.textContent || '';
-        if (text.includes('Shorts') && !element.classList.contains('shorts-hidden')) {
-          element.style.display = 'none';
-          element.classList.add('shorts-hidden');
+
+    textSelectors.forEach((selector) => {
+      document.querySelectorAll(selector).forEach((element) => {
+        const text = element.textContent || "";
+        if (
+          text.includes("Shorts") &&
+          !element.classList.contains("shorts-hidden")
+        ) {
+          element.style.display = "none";
+          element.classList.add("shorts-hidden");
         }
       });
     });
@@ -248,68 +281,64 @@
   function setupVideoControls() {
     if (!settings.pauseOnHoverEnabled) return;
 
-    const videoSelectors = [
-      'video',
-      '.html5-main-video',
-      '.video-stream'
-    ];
-    
-    const videos = document.querySelectorAll(videoSelectors.join(', '));
-    
-    videos.forEach(video => {
+    const videoSelectors = ["video", ".html5-main-video", ".video-stream"];
+
+    const videos = document.querySelectorAll(videoSelectors.join(", "));
+
+    videos.forEach((video) => {
       if (!videoElements.has(video)) {
         const touchStartHandler = () => {
           if (video.played.length > 0 && !video.paused) {
             video.pause();
-            video.dataset.wasPausedByExtension = 'true';
+            video.dataset.wasPausedByExtension = "true";
           }
         };
-        
+
         const touchEndHandler = () => {
-          if (video.dataset.wasPausedByExtension === 'true') {
-            video.play().catch(e => {
-              console.log('Auto-play prevented by browser policy:', e);
+          if (video.dataset.wasPausedByExtension === "true") {
+            video.play().catch((e) => {
+              console.log("Auto-play prevented by browser policy:", e);
             });
             delete video.dataset.wasPausedByExtension;
           }
         };
-        
-        video.addEventListener('touchstart', touchStartHandler);
-        video.addEventListener('touchend', touchEndHandler);
-        
+
+        video.addEventListener("touchstart", touchStartHandler);
+        video.addEventListener("touchend", touchEndHandler);
+
         videoElements.set(video, {
           touchStartHandler,
-          touchEndHandler
+          touchEndHandler,
         });
       }
     });
 
     const thumbnailSelectors = [
-      'ytd-thumbnail',
-      'ytd-compact-video-renderer',
-      'ytd-grid-video-renderer',
-      'ytd-video-renderer'
+      "ytd-thumbnail",
+      "ytd-compact-video-renderer",
+      "ytd-grid-video-renderer",
+      "ytd-video-renderer",
     ];
-    
-    const thumbnails = document.querySelectorAll(thumbnailSelectors.join(', '));
-    
-    thumbnails.forEach(thumbnail => {
-      if (!thumbnail.hasAttribute('data-control-listener')) {
-        thumbnail.setAttribute('data-control-listener', 'true');
-        
-        thumbnail.addEventListener('touchstart', () => {
-          const video = thumbnail.querySelector('video');
+
+    const thumbnails = document.querySelectorAll(thumbnailSelectors.join(", "));
+
+    thumbnails.forEach((thumbnail) => {
+      if (!thumbnail.hasAttribute("data-control-listener")) {
+        thumbnail.setAttribute("data-control-listener", "true");
+
+        thumbnail.addEventListener("touchstart", () => {
+          const video = thumbnail.querySelector("video");
           if (video && video.played.length > 0 && !video.paused) {
             video.pause();
-            video.dataset.wasPausedByExtension = 'true';
+            video.dataset.wasPausedByExtension = "true";
           }
         });
-        
-        thumbnail.addEventListener('touchend', () => {
-          const video = thumbnail.querySelector('video');
-          if (video && video.dataset.wasPausedByExtension === 'true') {
-            video.play().catch(e => {
-              console.log('Auto-play prevented by browser policy:', e);
+
+        thumbnail.addEventListener("touchend", () => {
+          const video = thumbnail.querySelector("video");
+          if (video && video.dataset.wasPausedByExtension === "true") {
+            video.play().catch((e) => {
+              console.log("Auto-play prevented by browser policy:", e);
             });
             delete video.dataset.wasPausedByExtension;
           }
@@ -320,95 +349,169 @@
 
   // Function to remove video control event listeners
   function removeVideoControlListeners() {
-    document.querySelectorAll('video, .html5-main-video, .video-stream').forEach(video => {
-      if (videoElements.has(video)) {
-        const handlers = videoElements.get(video);
-        video.removeEventListener('touchstart', handlers.touchStartHandler);
-        video.removeEventListener('touchend', handlers.touchEndHandler);
-        videoElements.delete(video);
-      }
-    });
-    
-    document.querySelectorAll('[data-control-listener="true"]').forEach(thumbnail => {
-      thumbnail.removeAttribute('data-control-listener');
-    });
+    document
+      .querySelectorAll("video, .html5-main-video, .video-stream")
+      .forEach((video) => {
+        if (videoElements.has(video)) {
+          const handlers = videoElements.get(video);
+          video.removeEventListener("touchstart", handlers.touchStartHandler);
+          video.removeEventListener("touchend", handlers.touchEndHandler);
+          videoElements.delete(video);
+        }
+      });
+
+    document
+      .querySelectorAll('[data-control-listener="true"]')
+      .forEach((thumbnail) => {
+        thumbnail.removeAttribute("data-control-listener");
+      });
   }
 
   // Time tracking functions
   function initializeTimeTracking() {
     if (!settings.timeReminderEnabled) return;
-    
-    // Check if we're on a video page
-    if (window.location.pathname.includes('/watch')) {
-      startWatchTimer();
-    }
-    
-    // Listen for navigation changes
+
+    // Load any previously accumulated watch time
+    browser.storage.local.get("totalWatchTime").then((result) => {
+      totalWatchTime = result.totalWatchTime || 0;
+      console.log(`Loaded totalWatchTime: ${totalWatchTime / 1000} seconds`);
+      // If already on a YouTube page, potentially start the timer
+      if (window.location.host.includes("youtube.com")) {
+        scheduleNextReminder(); // Schedule initial reminder based on accumulated time
+      }
+    });
+
+    // Listen for navigation changes - specifically when leaving a /watch page
     let lastUrl = location.href;
     new MutationObserver(() => {
       const url = location.href;
       if (url !== lastUrl) {
-        lastUrl = url;
-        if (url.includes('/watch')) {
-          startWatchTimer();
-        } else {
-          stopWatchTimer();
+        // If we were on a watch page and now we're not, stop the session and save time
+        if (lastUrl.includes("/watch") && !url.includes("/watch")) {
+          stopWatchingSession();
+        } else if (!lastUrl.includes("/watch") && url.includes("/watch")) {
+          // If we just entered a watch page, start tracking, but only if a video is playing
+          // The actual start of tracking will happen on 'play' event
+        } else if (url.includes("/watch") && lastUrl.includes("/watch")) {
+          // If navigating between videos on watch pages, reset session start but continue total tracking
+          if (isSessionActive) {
+            const sessionDuration = Date.now() - sessionStartTime;
+            totalWatchTime += sessionDuration;
+            console.log(
+              `Navigated within watch pages. Accumulated time: ${
+                totalWatchTime / 1000
+              }s`
+            );
+          }
+          sessionStartTime = Date.now(); // Reset session start for current video
+          scheduleNextReminder(); // Reschedule based on new video context (if applicable)
         }
+        lastUrl = url;
       }
     }).observe(document, { subtree: true, childList: true });
-    
+
     // Listen for video play/pause events
-    document.addEventListener('play', handleVideoPlay, true);
-    document.addEventListener('pause', handleVideoPause, true);
+    document.addEventListener("play", handleVideoPlay, true);
+    document.addEventListener("pause", handleVideoPause, true);
   }
 
-  function startWatchTimer() {
+  function startWatchingSession() {
     if (!settings.timeReminderEnabled) return;
-    
-    stopWatchTimer(); // Clear any existing timer
-    watchStartTime = Date.now();
-    isWatchingVideo = true;
-    
-    reminderTimer = setTimeout(() => {
-      showTimeReminder();
-    }, REMINDER_INTERVAL);
+
+    if (!isSessionActive) {
+      sessionStartTime = Date.now();
+      isSessionActive = true;
+      console.log("Watching session started.");
+    }
+    scheduleNextReminder();
   }
 
-  function stopWatchTimer() {
+  function stopWatchingSession() {
+    if (!settings.timeReminderEnabled || !isSessionActive) return;
+
+    const sessionDuration = Date.now() - sessionStartTime;
+    totalWatchTime += sessionDuration;
+    isSessionActive = false;
+    sessionStartTime = null;
+
+    browser.storage.local
+      .set({ totalWatchTime })
+      .then(() => {
+        console.log(`Watch time saved: ${totalWatchTime / 1000} seconds`);
+      })
+      .catch((error) => {
+        console.error("Error saving total watch time:", error);
+      });
+
     if (reminderTimer) {
       clearTimeout(reminderTimer);
       reminderTimer = null;
     }
-    watchStartTime = null;
-    isWatchingVideo = false;
+    console.log("Watching session stopped.");
+  }
+
+  function scheduleNextReminder() {
+    if (!settings.timeReminderEnabled || !isSessionActive) {
+      if (reminderTimer) {
+        clearTimeout(reminderTimer);
+        reminderTimer = null;
+      }
+      return;
+    }
+
+    if (reminderTimer) {
+      clearTimeout(reminderTimer);
+    }
+
+    const timeElapsedInCurrentPeriod = totalWatchTime % REMINDER_INTERVAL;
+    const timeLeftForNextReminder =
+      REMINDER_INTERVAL - timeElapsedInCurrentPeriod;
+
+    console.log(
+      `Scheduling next reminder in ${
+        timeLeftForNextReminder / 1000
+      } seconds. Total watched: ${totalWatchTime / 1000}s`
+    );
+
+    reminderTimer = setTimeout(() => {
+      showTimeReminder();
+    }, timeLeftForNextReminder);
   }
 
   function stopTimeTracking() {
-    stopWatchTimer();
-    document.removeEventListener('play', handleVideoPlay, true);
-    document.removeEventListener('pause', handleVideoPause, true);
+    stopWatchingSession(); // Ensure totalWatchTime is saved before stopping
+    document.removeEventListener("play", handleVideoPlay, true);
+    document.removeEventListener("pause", handleVideoPause, true);
+    // Optionally, reset totalWatchTime if tracking is completely disabled
+    totalWatchTime = 0;
+    browser.storage.local.set({ totalWatchTime: 0 });
   }
 
   function handleVideoPlay(event) {
     if (!settings.timeReminderEnabled) return;
-    
+
     const video = event.target;
-    if (video.tagName === 'VIDEO' && window.location.pathname.includes('/watch')) {
-      if (!isWatchingVideo) {
-        startWatchTimer();
-      }
+    if (
+      video.tagName === "VIDEO" &&
+      window.location.pathname.includes("/watch")
+    ) {
+      startWatchingSession();
     }
   }
 
   function handleVideoPause(event) {
     if (!settings.timeReminderEnabled) return;
-    
+
     const video = event.target;
-    if (video.tagName === 'VIDEO' && window.location.pathname.includes('/watch')) {
-      // Don't stop timer for short pauses, only for longer ones
+    if (
+      video.tagName === "VIDEO" &&
+      window.location.pathname.includes("/watch")
+    ) {
+      // Don't stop session for short pauses, only for longer ones
+      // This prevents saving time constantly during minor interruptions
       setTimeout(() => {
         if (video.paused) {
-          stopWatchTimer();
+          stopWatchingSession();
         }
       }, 5000); // 5 second delay
     }
@@ -416,18 +519,25 @@
 
   function showTimeReminder() {
     if (!settings.timeReminderEnabled) return;
-    
-    const minutesWatched = Math.round(REMINDER_INTERVAL / (60 * 1000));
 
     // Pause the video
-    const video = document.querySelector('video');
-      if (video) {
-        video.pause();
-      }
-    
+    const video = document.querySelector("video");
+    if (video) {
+      video.pause();
+    }
+
+    // Ensure current session time is added before showing reminder
+    if (isSessionActive && sessionStartTime) {
+      totalWatchTime += Date.now() - sessionStartTime;
+      sessionStartTime = Date.now(); // Reset session start for continuity after reminder
+      browser.storage.local.set({ totalWatchTime });
+    }
+
+    const minutesWatched = Math.round(totalWatchTime / (60 * 1000));
+
     // Create reminder popup
-    const reminderDiv = document.createElement('div');
-    reminderDiv.id = 'youtube-time-reminder';
+    const reminderDiv = document.createElement("div");
+    reminderDiv.id = "youtube-time-reminder";
     reminderDiv.innerHTML = `
       <div class="reminder-content">
         <div class="reminder-header">
@@ -442,45 +552,45 @@
         </div>
       </div>
     `;
-    
+
     document.body.appendChild(reminderDiv);
-    
+
     // Add event listeners
-    const closeBtn = reminderDiv.querySelector('.reminder-close');
-    const continueBtn = reminderDiv.querySelector('.continue');
-    const breakBtn = reminderDiv.querySelector('.take-break');
-    
-    closeBtn.addEventListener('click', () => {
+    const closeBtn = reminderDiv.querySelector(".reminder-close");
+    const continueBtn = reminderDiv.querySelector(".continue");
+    const breakBtn = reminderDiv.querySelector(".take-break");
+
+    closeBtn.addEventListener("click", () => {
       dismissReminder();
-      startWatchTimer(); // Restart timerx
+      scheduleNextReminder(); // Reschedule timer
     });
-    
-    continueBtn.addEventListener('click', () => {
+
+    continueBtn.addEventListener("click", () => {
       dismissReminder();
-      startWatchTimer(); // Restart timer
+      scheduleNextReminder(); // Reschedule timer
     });
-    
-    breakBtn.addEventListener('click', () => {
+
+    breakBtn.addEventListener("click", () => {
       dismissReminder();
-      stopWatchTimer();
+      stopWatchingSession(); // Stop tracking entirely for a break
       // Pause the video
-      const video = document.querySelector('video');
+      const video = document.querySelector("video");
       if (video) {
         video.pause();
       }
     });
-    
+
     // Auto-dismiss after 30 seconds if no interaction
     setTimeout(() => {
-      if (document.getElementById('youtube-time-reminder')) {
+      if (document.getElementById("youtube-time-reminder")) {
         dismissReminder();
-        startWatchTimer(); // Restart timer
+        scheduleNextReminder(); // Reschedule timer
       }
     }, 30000);
   }
 
   function dismissReminder() {
-    const reminder = document.getElementById('youtube-time-reminder');
+    const reminder = document.getElementById("youtube-time-reminder");
     if (reminder) {
       reminder.remove();
     }
@@ -494,21 +604,21 @@
   }
 
   // Start observing for popups
-  popupObserver.observe(document.body, { 
-    childList: true, 
-    subtree: true 
+  popupObserver.observe(document.body, {
+    childList: true,
+    subtree: true,
   });
 
   // Create a MutationObserver to detect when new content is loaded
   const observer = new MutationObserver((mutations) => {
     let shouldApplyModifications = false;
-    
-    mutations.forEach(mutation => {
+
+    mutations.forEach((mutation) => {
       if (mutation.addedNodes.length > 0) {
         shouldApplyModifications = true;
       }
     });
-    
+
     if (shouldApplyModifications) {
       applyModifications();
     }
