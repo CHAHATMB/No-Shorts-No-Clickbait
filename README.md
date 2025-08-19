@@ -1,11 +1,11 @@
 # 📺 YouTube Focus Mode: No Shorts, No Clickbait 🎯
 
-A **Firefox extension** that helps you stay **focused** on YouTube by:
-✅ Blurring all video thumbnails (unblur on hover) 👀
-✅ Removing all Shorts videos and sections 🚫
-✅ Auto-pausing videos on hover ⏯️
-✅ Removing ad blocker detection popups 🛡️
-✅ **Tracking cumulative watch time** and reminding you to take breaks ⏰
+A **Firefox extension** that helps you stay **focused** on YouTube by: 
+<br>✅ Blurring all video thumbnails (unblur on hover) 👀
+<br>✅ Removing all Shorts videos and sections 🚫
+<br>✅ Auto-pausing videos on hover ⏯️
+<br>✅ Removing ad blocker detection popups 🛡️
+<br>✅ **Tracking cumulative watch time** and reminding you to take breaks ⏰
 
 ---
 
