@@ -10,7 +10,7 @@
 
   // Settings state
   let settings = {
-    blurEnabled: true,
+    thumbnailMode: "blur", // "show", "blur", or "hide"
     shortsRemovalEnabled: true,
     pauseOnHoverEnabled: true,
     popupRemovalEnabled: true,
@@ -23,6 +23,7 @@
   let isSessionActive = false;
   let REMINDER_INTERVAL = 15 * 60 * 1000; // Default 15 minutes
   let totalWatchTime = 0; // New variable to store accumulated watch time
+  let bonusYouTubeTime = 0; // New variable for bonus time from coding profiles
 
   // Create a MutationObserver for popup detection
   const popupObserver = new MutationObserver((mutations) => {
@@ -57,13 +58,11 @@
       dialog.remove();
     }
 
-    // Remove any other overlay elements
-    const overlays = document.querySelectorAll('[class*="overlay"]');
-    overlays.forEach((overlay) => {
-      if (overlay.style.zIndex > 2000) {
-        overlay.remove();
-      }
-    });
+    // Remove enforcement message renderer
+    const renderer = document.querySelector("ytd-enforcement-message-view-model-renderer");
+    if (renderer) {
+      renderer.remove();
+    }
 
     // Re-enable scrolling on the body
     document.body.style.overflow = "";
@@ -73,7 +72,7 @@
   // Load settings
   browser.storage.local
     .get([
-      "blurEnabled",
+      "thumbnailMode",
       "shortsRemovalEnabled",
       "pauseOnHoverEnabled",
       "popupRemovalEnabled",
@@ -82,8 +81,8 @@
       "totalWatchTime",
     ])
     .then((result) => {
-      settings.blurEnabled =
-        result.blurEnabled !== undefined ? result.blurEnabled : true;
+      settings.thumbnailMode =
+        result.thumbnailMode !== undefined ? result.thumbnailMode : "blur";
       settings.shortsRemovalEnabled =
         result.shortsRemovalEnabled !== undefined
           ? result.shortsRemovalEnabled
@@ -119,9 +118,9 @@
 
   // Listen for messages from popup
   browser.runtime.onMessage.addListener((message) => {
-    if (message.action === "toggleBlur") {
-      settings.blurEnabled = message.enabled;
-      toggleBlurring(message.enabled);
+    if (message.action === "changeThumbnailMode") {
+      settings.thumbnailMode = message.mode;
+      applyThumbnailMode(message.mode);
     } else if (message.action === "toggleShorts") {
       settings.shortsRemovalEnabled = message.enabled;
       toggleShortsRemoval(message.enabled);
@@ -150,25 +149,58 @@
       if (isSessionActive) {
         scheduleNextReminder();
       }
+    } else if (message.action === "updateBonusTime") {
+      bonusYouTubeTime = message.bonusMinutes * 60 * 1000; // Convert minutes to milliseconds
+      console.log(
+        `Received bonus YouTube time: ${message.bonusMinutes} minutes`
+      );
+      if (isSessionActive) {
+        scheduleNextReminder(); // Reschedule reminder with new bonus time
+      }
     }
     return Promise.resolve({ response: "Settings updated" });
   });
 
-  // Function to toggle thumbnail blurring
-  function toggleBlurring(enabled) {
-    if (enabled) {
-      // Re-apply blurring
-      document.querySelectorAll(".blurred-thumbnail").forEach((img) => {
-        img.style.filter = `blur(${config.blurAmount})`;
+  // Function to apply thumbnail mode (show, blur, hide)
+  function applyThumbnailMode(mode) {
+    // If switching to "hide" mode, remove all thumbnail containers
+    if (mode === "hide") {
+      // Remove parent anchor elements that contain thumbnails
+      const thumbnailParents = document.querySelectorAll(
+        "a.yt-lockup-view-model__content-image"
+      );
+      thumbnailParents.forEach((parent) => {
+        parent.remove();
       });
-      // Apply to any new thumbnails
-      blurThumbnails();
-    } else {
-      // Remove blurring
-      document.querySelectorAll(".blurred-thumbnail").forEach((img) => {
-        img.style.filter = "blur(0)";
+
+      // Also handle other thumbnail containers as fallback
+      const thumbnailContainers = document.querySelectorAll(
+        "yt-thumbnail-view-model, ytd-thumbnail"
+      );
+      thumbnailContainers.forEach((container) => {
+        container.remove();
       });
+      return;
     }
+
+    // For switching between "show" and "blur" modes
+    const thumbnails = document.querySelectorAll(".thumbnail-controlled");
+
+    thumbnails.forEach((img) => {
+      // Remove blur classes and styles
+      img.classList.remove("thumbnail-blurred");
+      img.style.filter = "";
+
+      // Apply blur mode if selected
+      if (mode === "blur") {
+        img.classList.add("thumbnail-blurred");
+        img.style.filter = `blur(${config.blurAmount})`;
+      }
+      // "show" mode: no classes, no filter
+    });
+
+    // Process any new thumbnails
+    processThumbnails();
   }
 
   // Function to toggle Shorts removal
@@ -185,31 +217,64 @@
     }
   }
 
-  // Function to blur thumbnails
-  function blurThumbnails() {
-    if (!settings.blurEnabled) return;
+  // Function to process thumbnails based on current mode
+  function processThumbnails() {
+    // If mode is "hide", remove thumbnail containers entirely
+    if (settings.thumbnailMode === "hide") {
+      // Remove parent anchor elements that contain thumbnails
+      const thumbnailParents = document.querySelectorAll(
+        "a.yt-lockup-view-model__content-image"
+      );
+      thumbnailParents.forEach((parent) => {
+        if (!parent.hasAttribute("data-thumbnail-removed")) {
+          parent.setAttribute("data-thumbnail-removed", "true");
+          parent.remove();
+        }
+      });
 
+      // Also handle other thumbnail containers as fallback
+      const thumbnailContainers = document.querySelectorAll(
+        "yt-thumbnail-view-model, ytd-thumbnail"
+      );
+      thumbnailContainers.forEach((container) => {
+        if (!container.hasAttribute("data-thumbnail-removed")) {
+          container.setAttribute("data-thumbnail-removed", "true");
+          container.remove();
+        }
+      });
+      return;
+    }
+
+    // For "show" and "blur" modes, process thumbnail images
     const thumbnailSelectors = [
+      // Old YouTube structure
       "ytd-thumbnail img",
       "ytd-compact-video-renderer img",
       "ytd-grid-video-renderer img",
       "ytd-video-renderer img",
       ".ytp-videowall-still-image img",
-      'a[href^="/watch"] img',
+      "ytd-playlist-thumbnail img",
+      // New YouTube structure
+      ".ytThumbnailViewModelImage img",
+      "img.ytCoreImageHost",
     ];
 
     const thumbnails = document.querySelectorAll(thumbnailSelectors.join(", "));
 
     thumbnails.forEach((img) => {
-      if (!img.classList.contains("blurred-thumbnail")) {
-        img.classList.add("blurred-thumbnail");
-        if (settings.blurEnabled) {
-          img.style.filter = `blur(${config.blurAmount})`;
-        }
+      if (!img.classList.contains("thumbnail-controlled")) {
+        img.classList.add("thumbnail-controlled");
 
-        // Add touch event listeners for mobile
-        img.addEventListener("touchstart", handleTouchStart);
-        img.addEventListener("touchend", handleTouchEnd);
+        // Apply the current mode
+        if (settings.thumbnailMode === "blur") {
+          img.classList.add("thumbnail-blurred");
+          img.style.filter = `blur(${config.blurAmount})`;
+
+          // Add touch event listeners for mobile
+          img.addEventListener("touchstart", handleTouchStart);
+          img.addEventListener("touchend", handleTouchEnd);
+        }
+        // "show" mode: no additional styles
       }
     });
   }
@@ -227,7 +292,7 @@
   function handleTouchEnd(e) {
     clearTimeout(touchTimer);
     const img = e.target;
-    if (settings.blurEnabled) {
+    if (settings.thumbnailMode === "blur") {
       img.style.filter = `blur(${config.blurAmount})`;
     }
   }
@@ -245,12 +310,20 @@
       'ytd-video-renderer a[href*="/shorts/"]',
       'ytd-rich-grid-row:has(a[href*="/shorts/"])',
       'ytd-shelf-renderer:has(a[href*="/shorts/"])',
+      // New YouTube Shorts container structure
+      'grid-shelf-view-model.ytGridShelfViewModelHost',
+      'ytm-shorts-lockup-view-model',
+      'ytm-shorts-lockup-view-model-v2',
+      'a.shortsLockupViewModelHostEndpoint[href*="/shorts/"]',
     ];
 
     const textSelectors = [
       'ytd-browse[page-subtype="home"] ytd-rich-grid-row',
       'ytd-browse[page-subtype="subscriptions"] ytd-shelf-renderer',
       "ytd-browse ytd-rich-section-renderer",
+      // New YouTube structure
+      "grid-shelf-view-model",
+      "ytd-item-section-renderer",
     ];
 
     document.querySelectorAll(shortsSelectors.join(", ")).forEach((element) => {
@@ -463,9 +536,10 @@
       clearTimeout(reminderTimer);
     }
 
-    const timeElapsedInCurrentPeriod = totalWatchTime % REMINDER_INTERVAL;
+    const timeElapsedInCurrentPeriod =
+      totalWatchTime % (REMINDER_INTERVAL + bonusYouTubeTime);
     const timeLeftForNextReminder =
-      REMINDER_INTERVAL - timeElapsedInCurrentPeriod;
+      REMINDER_INTERVAL + bonusYouTubeTime - timeElapsedInCurrentPeriod;
 
     console.log(
       `Scheduling next reminder in ${
@@ -598,7 +672,7 @@
 
   // Main function to apply all modifications
   function applyModifications() {
-    blurThumbnails();
+    processThumbnails();
     removeShorts();
     setupVideoControls();
   }
