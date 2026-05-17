@@ -1,26 +1,27 @@
 {
-  "manifest_version": 2,
+  "manifest_version": 3,
   "name": "YouTube Thumbnail Blur & Shorts Remover",
-  "version": "2.2",
+  "version": "3.0",
   "description": "Blurs YouTube thumbnails and removes Shorts videos from the YouTube interface",
   "icons": {
     "48": "icons/icon-48.png",
     "96": "icons/icon-96.png"
   },
-  "permissions": ["activeTab", "storage", "*://*.youtube.com/*", "<all_urls>"],
+  "permissions": ["activeTab", "storage", "alarms"],
+  "host_permissions": ["*://*.youtube.com/*", "https://leetcode.com/graphql", "https://codeforces.com/api/*"],
   "content_scripts": [
     {
       "matches": ["*://*.youtube.com/*"],
-      "js": ["content.js"],
+      "js": ["browser-polyfill.js", "content.js"],
       "css": ["styles.css"],
       "run_at": "document_idle"
     }
   ],
   "background": {
-    "scripts": ["background.js"],
-    "persistent": false
+    "service_worker": "background.js",
+    "scripts": ["browser-polyfill.js", "background.js"]
   },
-  "browser_action": {
+  "action": {
     "default_icon": {
       "48": "icons/icon-48.png"
     },
@@ -30,7 +31,7 @@
   "browser_specific_settings": {
     "gecko": {
       "id": "{9c77beea-3750-4f33-b2dc-f8bb09969bc9}",
-      "strict_min_version": "58.0"
+      "strict_min_version": "109.0"
     },
     "gecko_android": {
       "strict_min_version": "113.0"

@@ -25,7 +25,7 @@
   let totalWatchTime = 0; // New variable to store accumulated watch time
   let bonusYouTubeTime = 0; // New variable for bonus time from coding profiles
 
-  // Create a MutationObserver for popup detection
+  // Create a MutationObserver for popup and ad detection
   const popupObserver = new MutationObserver((mutations) => {
     if (settings.popupRemovalEnabled) {
       mutations.forEach((mutation) => {
@@ -33,9 +33,12 @@
           if (
             node.nodeName === "TP-YT-IRON-OVERLAY-BACKDROP" ||
             (node.classList &&
-              node.classList.contains("ytd-enforcement-message-view-model"))
+              node.classList.contains("ytd-enforcement-message-view-model")) ||
+            node.nodeName === "YTD-IN-FEED-AD-LAYOUT-RENDERER" ||
+            node.nodeName === "YTD-AD-SLOT-RENDERER"
           ) {
             removeAdBlockerPopup();
+            removeAdBanners();
           }
         });
       });
@@ -67,6 +70,26 @@
     // Re-enable scrolling on the body
     document.body.style.overflow = "";
     document.documentElement.style.overflow = "";
+  }
+
+  // Function to remove ad banners
+  function removeAdBanners() {
+    if (!settings.popupRemovalEnabled) return;
+
+    const adSelectors = [
+      "ytd-in-feed-ad-layout-renderer",
+      "ytd-ad-slot-renderer",
+      "ytd-banner-promo-renderer",
+      "ytd-statement-banner-renderer",
+      "ytd-brand-video-singleton-renderer",
+      "#content > ytd-ad-slot-renderer"
+    ];
+
+    adSelectors.forEach(selector => {
+      document.querySelectorAll(selector).forEach(element => {
+        element.remove();
+      });
+    });
   }
 
   // Load settings
@@ -135,6 +158,7 @@
       settings.popupRemovalEnabled = message.enabled;
       if (message.enabled) {
         removeAdBlockerPopup();
+        removeAdBanners();
       }
     } else if (message.action === "toggleTimeReminder") {
       settings.timeReminderEnabled = message.enabled;
@@ -675,9 +699,10 @@
     processThumbnails();
     removeShorts();
     setupVideoControls();
+    removeAdBanners();
   }
 
-  // Start observing for popups
+  // Start observing for popups and ad detection
   popupObserver.observe(document.body, {
     childList: true,
     subtree: true,
