@@ -32,6 +32,16 @@ ytd-browse ytd-rich-section-renderer:has(span:contains("Shorts")) {
   display: none !important;
 }
 
+/* Hide ad containers in the grid */
+ytd-rich-item-renderer:has(ytd-ad-slot-renderer),
+ytd-rich-item-renderer:has(ytd-in-feed-ad-layout-renderer),
+ytd-rich-item-renderer:has(ytd-banner-promo-renderer),
+ytd-rich-item-renderer:has(ytd-display-ad-renderer),
+ytd-rich-item-renderer:has(ytd-statement-banner-renderer),
+ytd-rich-item-renderer:has(ytd-video-masthead-ad-renderer),
+ytd-rich-item-renderer:has(ytd-promoted-video-renderer),
+ytd-rich-item-renderer:has(.ytd-ad-slot-renderer),
+ytd-rich-item-renderer:has([class*="ad-renderer"]),
 /* Hide ad blocker popup and overlay */
 tp-yt-iron-overlay-backdrop,
 ytd-enforcement-message-view-model,

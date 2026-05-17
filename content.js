@@ -35,7 +35,9 @@
             (node.classList &&
               node.classList.contains("ytd-enforcement-message-view-model")) ||
             node.nodeName === "YTD-IN-FEED-AD-LAYOUT-RENDERER" ||
-            node.nodeName === "YTD-AD-SLOT-RENDERER"
+            node.nodeName === "YTD-AD-SLOT-RENDERER" ||
+            node.nodeName === "YTD-DISPLAY-AD-RENDERER" ||
+            node.nodeName === "YTD-PROMOTED-VIDEO-RENDERER"
           ) {
             removeAdBlockerPopup();
             removeAdBanners();
@@ -82,12 +84,21 @@
       "ytd-banner-promo-renderer",
       "ytd-statement-banner-renderer",
       "ytd-brand-video-singleton-renderer",
+      "ytd-display-ad-renderer",
+      "ytd-video-masthead-ad-renderer",
+      "ytd-promoted-video-renderer",
       "#content > ytd-ad-slot-renderer"
     ];
 
     adSelectors.forEach(selector => {
       document.querySelectorAll(selector).forEach(element => {
-        element.remove();
+        // Find if it's inside a rich-item-renderer and remove that instead to collapse the grid space
+        const gridItem = element.closest('ytd-rich-item-renderer');
+        if (gridItem) {
+          gridItem.remove();
+        } else {
+          element.remove();
+        }
       });
     });
   }
