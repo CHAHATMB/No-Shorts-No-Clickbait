@@ -200,19 +200,13 @@
   function applyThumbnailMode(mode) {
     // If switching to "hide" mode, remove all thumbnail containers
     if (mode === "hide") {
-      // Remove parent anchor elements that contain thumbnails
-      const thumbnailParents = document.querySelectorAll(
-        "a.yt-lockup-view-model__content-image"
-      );
-      thumbnailParents.forEach((parent) => {
-        parent.remove();
-      });
-
-      // Also handle other thumbnail containers as fallback
-      const thumbnailContainers = document.querySelectorAll(
-        "yt-thumbnail-view-model, ytd-thumbnail"
-      );
-      thumbnailContainers.forEach((container) => {
+      const hideSelectors = [
+        "a.yt-lockup-view-model__content-image",
+        "a.ytLockupViewModelContentImage",
+        "yt-thumbnail-view-model",
+        "ytd-thumbnail"
+      ];
+      document.querySelectorAll(hideSelectors.join(", ")).forEach((container) => {
         container.remove();
       });
       return;
@@ -256,22 +250,14 @@
   function processThumbnails() {
     // If mode is "hide", remove thumbnail containers entirely
     if (settings.thumbnailMode === "hide") {
-      // Remove parent anchor elements that contain thumbnails
-      const thumbnailParents = document.querySelectorAll(
-        "a.yt-lockup-view-model__content-image"
-      );
-      thumbnailParents.forEach((parent) => {
-        if (!parent.hasAttribute("data-thumbnail-removed")) {
-          parent.setAttribute("data-thumbnail-removed", "true");
-          parent.remove();
-        }
-      });
+      const hideSelectors = [
+        "a.yt-lockup-view-model__content-image",
+        "a.ytLockupViewModelContentImage",
+        "yt-thumbnail-view-model",
+        "ytd-thumbnail"
+      ];
 
-      // Also handle other thumbnail containers as fallback
-      const thumbnailContainers = document.querySelectorAll(
-        "yt-thumbnail-view-model, ytd-thumbnail"
-      );
-      thumbnailContainers.forEach((container) => {
+      document.querySelectorAll(hideSelectors.join(", ")).forEach((container) => {
         if (!container.hasAttribute("data-thumbnail-removed")) {
           container.setAttribute("data-thumbnail-removed", "true");
           container.remove();
