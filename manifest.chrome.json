@@ -12,14 +12,13 @@
   "content_scripts": [
     {
       "matches": ["*://*.youtube.com/*"],
-      "js": ["browser-polyfill.js", "content.js"],
+      "js": ["content.js"],
       "css": ["styles.css"],
       "run_at": "document_idle"
     }
   ],
   "background": {
-    "service_worker": "background.js",
-    "scripts": ["browser-polyfill.js", "background.js"]
+    "service_worker": "background.js"
   },
   "action": {
     "default_icon": {
@@ -27,14 +26,5 @@
     },
     "default_title": "YouTube Thumbnail Blur & Shorts Remover",
     "default_popup": "popup.html"
-  },
-  "browser_specific_settings": {
-    "gecko": {
-      "id": "{9c77beea-3750-4f33-b2dc-f8bb09969bc9}",
-      "strict_min_version": "109.0"
-    },
-    "gecko_android": {
-      "strict_min_version": "113.0"
-    }
   }
 }

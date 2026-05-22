@@ -1,3 +1,5 @@
+import './browser-polyfill.js';
+
 document.addEventListener("DOMContentLoaded", function () {
   const thumbnailModeRadios = document.querySelectorAll('input[name="thumbnail-mode"]');
   const shortsToggle = document.getElementById("shorts-toggle");

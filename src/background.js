@@ -1,7 +1,5 @@
 // background.js
-if (typeof importScripts !== 'undefined') {
-  importScripts("browser-polyfill.js");
-}
+import './browser-polyfill.js';
 
 console.log("Background service worker started.");
 

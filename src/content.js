@@ -1,4 +1,5 @@
 // Main functionality for the extension
+import './browser-polyfill.js';
 (function () {
   "use strict";
 
