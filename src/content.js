@@ -1,5 +1,5 @@
 // Main functionality for the extension
-import './browser-polyfill.js';
+import "./browser-polyfill.js";
 (function () {
   "use strict";
 
@@ -65,7 +65,9 @@ import './browser-polyfill.js';
     }
 
     // Remove enforcement message renderer
-    const renderer = document.querySelector("ytd-enforcement-message-view-model-renderer");
+    const renderer = document.querySelector(
+      "ytd-enforcement-message-view-model-renderer",
+    );
     if (renderer) {
       renderer.remove();
     }
@@ -88,13 +90,13 @@ import './browser-polyfill.js';
       "ytd-display-ad-renderer",
       "ytd-video-masthead-ad-renderer",
       "ytd-promoted-video-renderer",
-      "#content > ytd-ad-slot-renderer"
+      "#content > ytd-ad-slot-renderer",
     ];
 
-    adSelectors.forEach(selector => {
-      document.querySelectorAll(selector).forEach(element => {
+    adSelectors.forEach((selector) => {
+      document.querySelectorAll(selector).forEach((element) => {
         // Find if it's inside a rich-item-renderer and remove that instead to collapse the grid space
-        const gridItem = element.closest('ytd-rich-item-renderer');
+        const gridItem = element.closest("ytd-rich-item-renderer");
         if (gridItem) {
           gridItem.remove();
         } else {
@@ -188,7 +190,7 @@ import './browser-polyfill.js';
     } else if (message.action === "updateBonusTime") {
       bonusYouTubeTime = message.bonusMinutes * 60 * 1000; // Convert minutes to milliseconds
       console.log(
-        `Received bonus YouTube time: ${message.bonusMinutes} minutes`
+        `Received bonus YouTube time: ${message.bonusMinutes} minutes`,
       );
       if (isSessionActive) {
         scheduleNextReminder(); // Reschedule reminder with new bonus time
@@ -205,11 +207,13 @@ import './browser-polyfill.js';
         "a.yt-lockup-view-model__content-image",
         "a.ytLockupViewModelContentImage",
         "yt-thumbnail-view-model",
-        "ytd-thumbnail"
+        "ytd-thumbnail",
       ];
-      document.querySelectorAll(hideSelectors.join(", ")).forEach((container) => {
-        container.remove();
-      });
+      document
+        .querySelectorAll(hideSelectors.join(", "))
+        .forEach((container) => {
+          container.remove();
+        });
       return;
     }
 
@@ -255,15 +259,17 @@ import './browser-polyfill.js';
         "a.yt-lockup-view-model__content-image",
         "a.ytLockupViewModelContentImage",
         "yt-thumbnail-view-model",
-        "ytd-thumbnail"
+        "ytd-thumbnail",
       ];
 
-      document.querySelectorAll(hideSelectors.join(", ")).forEach((container) => {
-        if (!container.hasAttribute("data-thumbnail-removed")) {
-          container.setAttribute("data-thumbnail-removed", "true");
-          container.remove();
-        }
-      });
+      document
+        .querySelectorAll(hideSelectors.join(", "))
+        .forEach((container) => {
+          if (!container.hasAttribute("data-thumbnail-removed")) {
+            container.setAttribute("data-thumbnail-removed", "true");
+            container.remove();
+          }
+        });
       return;
     }
 
@@ -343,9 +349,9 @@ import './browser-polyfill.js';
       'ytd-rich-grid-row:has(a[href*="/shorts/"])',
       'ytd-shelf-renderer:has(a[href*="/shorts/"])',
       // New YouTube Shorts container structure
-      'grid-shelf-view-model.ytGridShelfViewModelHost',
-      'ytm-shorts-lockup-view-model',
-      'ytm-shorts-lockup-view-model-v2',
+      "grid-shelf-view-model.ytGridShelfViewModelHost",
+      "ytm-shorts-lockup-view-model",
+      "ytm-shorts-lockup-view-model-v2",
       'a.shortsLockupViewModelHostEndpoint[href*="/shorts/"]',
     ];
 
@@ -504,7 +510,7 @@ import './browser-polyfill.js';
             console.log(
               `Navigated within watch pages. Accumulated time: ${
                 totalWatchTime / 1000
-              }s`
+              }s`,
             );
           }
           sessionStartTime = Date.now(); // Reset session start for current video
@@ -575,7 +581,7 @@ import './browser-polyfill.js';
     console.log(
       `Scheduling next reminder in ${
         timeLeftForNextReminder / 1000
-      } seconds. Total watched: ${totalWatchTime / 1000}s`
+      } seconds. Total watched: ${totalWatchTime / 1000}s`,
     );
 
     reminderTimer = setTimeout(() => {
@@ -593,13 +599,21 @@ import './browser-polyfill.js';
   }
 
   function handleVideoPlay(event) {
-    if (!settings.timeReminderEnabled) return;
-
     const video = event.target;
-    if (
-      video.tagName === "VIDEO" &&
-      window.location.pathname.includes("/watch")
-    ) {
+    if (video.tagName !== "VIDEO") return;
+
+    // Check if it's the main video player (usually inside #ytd-player)
+    const isWatchPage = window.location.pathname.includes("/watch");
+    const isMainPlayer =
+      video.closest("#ytd-player") || video.closest(".html5-video-player");
+
+    // Aggressively pause inline preview videos if pauseOnHover is enabled
+    if (settings.pauseOnHoverEnabled && (!isWatchPage || !isMainPlayer)) {
+      video.pause();
+      return;
+    }
+
+    if (settings.timeReminderEnabled && isWatchPage) {
       startWatchingSession();
     }
   }
