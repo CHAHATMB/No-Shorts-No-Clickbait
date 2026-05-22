@@ -94,14 +94,19 @@ You can configure the extension by clicking on its **toolbar icon**:
 This project uses an automated release pipeline powered by GitHub Actions. To maintain consistent versioning and high-quality releases, we follow the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
 ### Automated Release Process
-When changes are merged into the `main` branch, our workflow analyzes the commit messages to determine if a new release is needed:
+When changes are merged into the `main` branch, our workflow analyzes the commit messages:
 
-| Commit Prefix | Release Type | Version Bump | Trigger Release? |
+| Commit Prefix | Action Taken | Version Bump | Trigger Store Publish? |
 | :--- | :--- | :--- | :--- |
-| `feat:` | **Minor** | `3.0.0` → `3.1.0` | ✅ Yes |
-| `fix:` | **Patch** | `3.0.0` → `3.0.1` | ✅ Yes |
-| `BREAKING CHANGE:` | **Major** | `3.0.0` → `4.0.0` | ✅ Yes |
-| `docs:`, `chore:`, etc. | **None** | No change | ❌ No |
+| `feat:` | **GitHub Release** | Minor (`3.1.0`) | ❌ No |
+| `fix:` | **GitHub Release** | Patch (`3.0.1`) | ❌ No |
+| `publish:` | **GitHub + Store** | Patch (`3.0.1`) | ✅ **Yes** |
+| `publish: feat:` | **GitHub + Store** | Minor (`3.1.0`) | ✅ **Yes** |
+| `docs:`, `chore:` | None | No change | ❌ No |
+
+**Strategy**:
+*   Use `feat:` or `fix:` for iterative development and internal/beta testing via GitHub Release artifacts.
+*   Use `publish:` (or `publish: feat:`) only when the code is stable and ready for public review on the Firefox Add-ons store.
 
 **Smart Filtering**: Changes exclusively to the `docs/` folder, `README.md`, or issue templates will **not** trigger a new extension release, even if they use the prefixes above.
 

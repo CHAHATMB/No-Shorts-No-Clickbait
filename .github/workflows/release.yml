@@ -37,10 +37,21 @@ jobs:
           COMMIT_MSG=$(git log -1 --pretty=%B)
           echo "Commit Message: $COMMIT_MSG"
           
-          if echo "$COMMIT_MSG" | grep -iqE "^feat(\(.*\))?!?:"; then
+          # Check for publish trigger
+          if echo "$COMMIT_MSG" | grep -iq "^publish"; then
+            echo "publish=true" >> $GITHUB_OUTPUT
+          else
+            echo "publish=false" >> $GITHUB_OUTPUT
+          fi
+
+          # Detect version bump type
+          if echo "$COMMIT_MSG" | grep -iqE "(^publish:? )?feat(\(.*\))?!?:"; then
             echo "BUMP_TYPE=minor" >> $GITHUB_ENV
             echo "release=true" >> $GITHUB_OUTPUT
-          elif echo "$COMMIT_MSG" | grep -iqE "^fix(\(.*\))?!?:"; then
+          elif echo "$COMMIT_MSG" | grep -iqE "(^publish:? )?fix(\(.*\))?!?:"; then
+            echo "BUMP_TYPE=patch" >> $GITHUB_ENV
+            echo "release=true" >> $GITHUB_OUTPUT
+          elif echo "$COMMIT_MSG" | grep -iqE "^publish:?"; then
             echo "BUMP_TYPE=patch" >> $GITHUB_ENV
             echo "release=true" >> $GITHUB_OUTPUT
           elif echo "$COMMIT_MSG" | grep -iq "BREAKING CHANGE:"; then
@@ -113,3 +124,19 @@ jobs:
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare Source for Mozilla Review
+        if: steps.detect_type.outputs.release == 'true'
+        run: |
+          zip -r artifacts/source.zip . -x "node_modules/*" "dist/*" ".git/*" "artifacts/*"
+
+      - name: Publish to Firefox Add-ons (AMO)
+        if: steps.detect_type.outputs.release == 'true' && steps.detect_type.outputs.publish == 'true'
+        uses: kewisch/action-web-ext@v2
+        with:
+          cmd: sign
+          source: dist/firefox
+          channel: listed
+          apiKey: ${{ secrets.FIREFOX_JWT_ISSUER }}
+          apiSecret: ${{ secrets.FIREFOX_JWT_SECRET }}
+          sourceCode: artifacts/source.zip
