@@ -89,6 +89,30 @@ You can configure the extension by clicking on its **toolbar icon**:
 
 ---
 
+## 🚀 Development & Releases
+
+This project uses an automated release pipeline powered by GitHub Actions. To maintain consistent versioning and high-quality releases, we follow the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
+
+### Automated Release Process
+When changes are merged into the `main` branch, our workflow analyzes the commit messages to determine if a new release is needed:
+
+| Commit Prefix | Release Type | Version Bump | Trigger Release? |
+| :--- | :--- | :--- | :--- |
+| `feat:` | **Minor** | `3.0.0` → `3.1.0` | ✅ Yes |
+| `fix:` | **Patch** | `3.0.0` → `3.0.1` | ✅ Yes |
+| `BREAKING CHANGE:` | **Major** | `3.0.0` → `4.0.0` | ✅ Yes |
+| `docs:`, `chore:`, etc. | **None** | No change | ❌ No |
+
+**Smart Filtering**: Changes exclusively to the `docs/` folder, `README.md`, or issue templates will **not** trigger a new extension release, even if they use the prefixes above.
+
+### Building Locally
+1. Install dependencies: `npm install`
+2. Build for Chrome: `npm run build:chrome`
+3. Build for Firefox: `npm run build:firefox`
+4. Build all (Production): `npm run build`
+
+---
+
 ## 🔒 Privacy
 
 This extension:

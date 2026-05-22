@@ -31,15 +31,36 @@ jobs:
       - name: Install Dependencies
         run: npm install
 
+      - name: Detect Bump Type
+        id: detect_type
+        run: |
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+          echo "Commit Message: $COMMIT_MSG"
+          
+          if echo "$COMMIT_MSG" | grep -iqE "^feat(\(.*\))?!?:"; then
+            echo "BUMP_TYPE=minor" >> $GITHUB_ENV
+            echo "release=true" >> $GITHUB_OUTPUT
+          elif echo "$COMMIT_MSG" | grep -iqE "^fix(\(.*\))?!?:"; then
+            echo "BUMP_TYPE=patch" >> $GITHUB_ENV
+            echo "release=true" >> $GITHUB_OUTPUT
+          elif echo "$COMMIT_MSG" | grep -iq "BREAKING CHANGE:"; then
+            echo "BUMP_TYPE=major" >> $GITHUB_ENV
+            echo "release=true" >> $GITHUB_OUTPUT
+          else
+            echo "BUMP_TYPE=none" >> $GITHUB_ENV
+            echo "release=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Bump Version
+        if: steps.detect_type.outputs.release == 'true'
         id: bump_version
         run: |
           # Configure Git
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Increment patch version in package.json
-          npm version patch --no-git-tag-version
+          # Increment version based on detected type
+          npm version ${{ env.BUMP_TYPE }} --no-git-tag-version
           
           # Get the new version
           NEW_VERSION=$(node -p "require('./package.json').version")
@@ -47,13 +68,14 @@ jobs:
           echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
 
           # Sync version with manifests
-          # Using node to safely update JSON files
           node -e "
             const fs = require('fs');
             ['manifest.chrome.json', 'manifest.firefox.json'].forEach(file => {
-              const manifest = JSON.parse(fs.readFileSync(file, 'utf8'));
-              manifest.version = '$NEW_VERSION';
-              fs.writeFileSync(file, JSON.stringify(manifest, null, 2) + '\n');
+              if (fs.existsSync(file)) {
+                const manifest = JSON.parse(fs.readFileSync(file, 'utf8'));
+                manifest.version = '$NEW_VERSION';
+                fs.writeFileSync(file, JSON.stringify(manifest, null, 2) + '\n');
+              }
             });
           "
 
@@ -63,18 +85,22 @@ jobs:
           git push
 
       - name: Build Chrome Extension
+        if: steps.detect_type.outputs.release == 'true'
         run: npm run build:chrome
 
       - name: Build Firefox Extension
+        if: steps.detect_type.outputs.release == 'true'
         run: npm run build:firefox
 
       - name: Package Extensions
+        if: steps.detect_type.outputs.release == 'true'
         run: |
           mkdir -p artifacts
           cd dist/chrome && zip -r ../../artifacts/yt-blur-chrome-${{ env.NEW_VERSION }}.zip . && cd ../..
           cd dist/firefox && zip -r ../../artifacts/yt-blur-firefox-${{ env.NEW_VERSION }}.zip . && cd ../..
 
       - name: Create GitHub Release
+        if: steps.detect_type.outputs.release == 'true'
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ env.NEW_VERSION }}
