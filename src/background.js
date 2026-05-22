@@ -1,5 +1,6 @@
 // background.js
 import './browser-polyfill.js';
+import { FEATURES } from './features.js';
 
 console.log("Background service worker started.");
 
@@ -133,6 +134,9 @@ async function fetchCodeforcesSolved(username) {
 
 // Main function to update solved problems
 async function updateSolvedProblems() {
+  if (!FEATURES.CODING_PLATFORM_INTEGRATION) {
+    return;
+  }
   await loadCodingSettings();
 
   if (!codingProfiles.codingBonusEnabled) {
@@ -214,12 +218,14 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 // Initial setup
-loadCodingSettings().then(() => {
-  updateSolvedProblems();
-  // Create alarm for periodic tracking (every 60 minutes)
-  browser.alarms.get("updateSolvedProblems").then((alarm) => {
-    if (!alarm) {
-      browser.alarms.create("updateSolvedProblems", { periodInMinutes: 60 });
-    }
+if (FEATURES.CODING_PLATFORM_INTEGRATION) {
+  loadCodingSettings().then(() => {
+    updateSolvedProblems();
+    // Create alarm for periodic tracking (every 60 minutes)
+    browser.alarms.get("updateSolvedProblems").then((alarm) => {
+      if (!alarm) {
+        browser.alarms.create("updateSolvedProblems", { periodInMinutes: 60 });
+      }
+    });
   });
-});
+}

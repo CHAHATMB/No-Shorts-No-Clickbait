@@ -1,6 +1,15 @@
 import './browser-polyfill.js';
+import { FEATURES } from './features.js';
 
 document.addEventListener("DOMContentLoaded", function () {
+  const codingIntegrationFeature = document.getElementById("coding-integration-feature");
+  
+  if (!FEATURES.CODING_PLATFORM_INTEGRATION) {
+    if (codingIntegrationFeature) {
+      codingIntegrationFeature.style.display = 'none';
+    }
+  }
+
   const thumbnailModeRadios = document.querySelectorAll('input[name="thumbnail-mode"]');
   const shortsToggle = document.getElementById("shorts-toggle");
   const pauseToggle = document.getElementById("pause-toggle");
@@ -24,6 +33,37 @@ document.addEventListener("DOMContentLoaded", function () {
     "solved-problems-count"
   );
   const bonusTimeSpan = document.getElementById("bonus-time");
+
+  // Coding profile input and toggle handlers
+  function saveCodingProfileSettings() {
+    browser.storage.local
+      .set({
+        leetcodeUsername: leetcodeUsernameInput.value,
+        codechefUsername: codechefUsernameInput.value,
+        codeforcesUsername: codeforcesUsernameInput.value,
+        hackerrankUsername: hackerrankUsernameInput.value,
+        codingBonusEnabled: codingBonusToggle.checked,
+      })
+      .then(() => {
+        // Send message to background script to update coding profiles
+        browser.runtime.sendMessage({
+          action: "updateCodingProfiles",
+          leetcodeUsername: leetcodeUsernameInput.value,
+          codechefUsername: codechefUsernameInput.value,
+          codeforcesUsername: codeforcesUsernameInput.value,
+          hackerrankUsername: hackerrankUsernameInput.value,
+          codingBonusEnabled: codingBonusToggle.checked,
+        });
+      });
+  }
+
+  if (FEATURES.CODING_PLATFORM_INTEGRATION) {
+    leetcodeUsernameInput.addEventListener("change", saveCodingProfileSettings);
+    codechefUsernameInput.addEventListener("change", saveCodingProfileSettings);
+    codeforcesUsernameInput.addEventListener("change", saveCodingProfileSettings);
+    hackerrankUsernameInput.addEventListener("change", saveCodingProfileSettings);
+    codingBonusToggle.addEventListener("change", saveCodingProfileSettings);
+  }
 
   // Load timer settings
   browser.storage.local.get(["timerInterval", "timerPreset"]).then((result) => {
@@ -229,35 +269,6 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     });
   });
-
-  // Coding profile input and toggle handlers
-  function saveCodingProfileSettings() {
-    browser.storage.local
-      .set({
-        leetcodeUsername: leetcodeUsernameInput.value,
-        codechefUsername: codechefUsernameInput.value,
-        codeforcesUsername: codeforcesUsernameInput.value,
-        hackerrankUsername: hackerrankUsernameInput.value,
-        codingBonusEnabled: codingBonusToggle.checked,
-      })
-      .then(() => {
-        // Send message to background script to update coding profiles
-        browser.runtime.sendMessage({
-          action: "updateCodingProfiles",
-          leetcodeUsername: leetcodeUsernameInput.value,
-          codechefUsername: codechefUsernameInput.value,
-          codeforcesUsername: codeforcesUsernameInput.value,
-          hackerrankUsername: hackerrankUsernameInput.value,
-          codingBonusEnabled: codingBonusToggle.checked,
-        });
-      });
-  }
-
-  leetcodeUsernameInput.addEventListener("change", saveCodingProfileSettings);
-  codechefUsernameInput.addEventListener("change", saveCodingProfileSettings);
-  codeforcesUsernameInput.addEventListener("change", saveCodingProfileSettings);
-  hackerrankUsernameInput.addEventListener("change", saveCodingProfileSettings);
-  codingBonusToggle.addEventListener("change", saveCodingProfileSettings);
 
   // Handle timer preset changes
   timerPresets.forEach((radio) => {
