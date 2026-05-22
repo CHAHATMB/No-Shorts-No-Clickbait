@@ -345,7 +345,6 @@ import './browser-polyfill.js';
       "ytd-browse ytd-rich-section-renderer",
       // New YouTube structure
       "grid-shelf-view-model",
-      "ytd-item-section-renderer",
     ];
 
     document.querySelectorAll(shortsSelectors.join(", ")).forEach((element) => {
