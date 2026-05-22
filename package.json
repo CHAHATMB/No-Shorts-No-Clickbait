@@ -1,0 +1,22 @@
+{
+  "name": "yt-blur",
+  "version": "3.0.0",
+  "description": "Blurs YouTube thumbnails and removes Shorts videos from the YouTube interface",
+  "main": "background.js",
+  "scripts": {
+    "build:chrome": "webpack --config webpack.config.js --env browser=chrome",
+    "build:firefox": "webpack --config webpack.config.js --env browser=firefox",
+    "build": "webpack --mode production",
+    "watch:chrome": "webpack --watch --config webpack.config.js --env browser=chrome --mode development",
+    "watch:firefox": "webpack --watch --config webpack.config.js --env browser=firefox --mode development",
+    "watch": "webpack --watch --mode development"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "copy-webpack-plugin": "^11.0.0",
+    "webpack": "^5.106.2",
+    "webpack-cli": "^5.1.4"
+  }
+}
