@@ -278,12 +278,22 @@ import './browser-polyfill.js';
       "ytd-playlist-thumbnail img",
       // New YouTube structure
       ".ytThumbnailViewModelImage img",
-      "img.ytCoreImageHost",
+      "yt-thumbnail-view-model img",
+      "ytd-thumbnail img.ytCoreImageHost",
     ];
 
     const thumbnails = document.querySelectorAll(thumbnailSelectors.join(", "));
 
     thumbnails.forEach((img) => {
+      // Skip if it's a channel avatar
+      if (
+        img.classList.contains("ytSpecAvatarShapeImage") ||
+        img.closest("yt-avatar-shape") ||
+        img.closest(".yt-decorated-avatar-view-model")
+      ) {
+        return;
+      }
+
       if (!img.classList.contains("thumbnail-controlled")) {
         img.classList.add("thumbnail-controlled");
 
