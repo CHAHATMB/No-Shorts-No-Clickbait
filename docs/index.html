@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Thumbnail Blur & Shorts Remover</title>
+    <style>
+        :root {
+            --primary: #ff0000;
+            --dark: #0f0f0f;
+            --light: #f9f9f9;
+            --text: #0f0f0f;
+            --text-secondary: #606060;
+        }
+
+        body {
+            font-family: 'Roboto', -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+            color: var(--text);
+            background-color: white;
+        }
+
+        header {
+            background-color: white;
+            padding: 2rem 1rem;
+            text-align: center;
+            border-bottom: 1px solid #eee;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+
+        .hero {
+            padding: 4rem 0;
+            text-align: center;
+            background: linear-gradient(180deg, #fff 0%, #fef2f2 100%);
+        }
+
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: var(--primary);
+        }
+
+        .hero p {
+            font-size: 1.25rem;
+            color: var(--text-secondary);
+            max-width: 700px;
+            margin: 0 auto 2rem;
+        }
+
+        .download-box {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            display: inline-block;
+            min-width: 300px;
+        }
+
+        .version-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            background: #fee2e2;
+            color: var(--primary);
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: all 0.2s;
+            cursor: pointer;
+            margin: 0.5rem;
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #d90000;
+            transform: translateY(-2px);
+        }
+
+        .btn-outline {
+            border: 2px solid #ddd;
+            color: var(--text);
+        }
+
+        .btn-outline:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        section {
+            padding: 4rem 0;
+        }
+
+        h2 {
+            font-size: 2.25rem;
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+        }
+
+        .feature-card {
+            padding: 2rem;
+            border-radius: 12px;
+            background: var(--light);
+            border: 1px solid #eee;
+        }
+
+        .feature-card h3 {
+            margin-top: 0;
+            color: var(--primary);
+        }
+
+        /* Gallery Styles */
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .gallery-item {
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border: 1px solid #eee;
+            transition: transform 0.3s;
+            background: #fff;
+        }
+
+        .gallery-item:hover {
+            transform: scale(1.02);
+        }
+
+        .gallery-item img {
+            width: 100%;
+            display: block;
+            height: auto;
+        }
+
+        .gallery-caption {
+            padding: 1rem;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            text-align: center;
+            border-top: 1px solid #f0f0f0;
+        }
+
+        .feedback-section {
+            background-color: var(--dark);
+            color: white;
+            text-align: center;
+        }
+
+        .feedback-section h2 {
+            color: white;
+        }
+
+        .feedback-grid {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .feedback-card {
+            background: rgba(255,255,255,0.1);
+            padding: 2rem;
+            border-radius: 12px;
+            width: 250px;
+            transition: background 0.2s;
+            text-decoration: none;
+            color: white;
+        }
+
+        .feedback-card:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .feedback-card i {
+            font-size: 2rem;
+            display: block;
+            margin-bottom: 1rem;
+        }
+
+        footer {
+            padding: 2rem;
+            text-align: center;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        #browser-detected {
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        .loading {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="container">
+            <strong>YouTube Blur & Shorts Remover</strong>
+        </div>
+    </header>
+
+    <div class="hero">
+        <div class="container">
+            <h1>Reclaim Your YouTube Experience</h1>
+            <p>Blur clickbait thumbnails, remove shorts, and focus on the content that matters. Integrated with your coding progress for bonus watch time.</p>
+            
+            <div class="download-box" id="download-box">
+                <div id="version-container">
+                    <span class="version-badge">Loading latest version...</span>
+                </div>
+                <div id="download-actions" class="loading">
+                    <a href="#" class="btn btn-primary" id="main-download">Download Extension</a>
+                    <p style="font-size: 0.8rem; margin-top: 1rem; color: #666;">
+                        Extract the ZIP and load it via <br>
+                        <code>Extensions > Load Unpacked</code>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <section id="features">
+        <div class="container">
+            <h2>Powerful Features</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <h3>Thumbnail Control</h3>
+                    <p>Choose to blur or completely hide thumbnails. Unblur instantly by hovering over the video.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>Shorts Begone</h3>
+                    <p>Completely remove the Shorts shelf and navigation from YouTube, saving you from endless scrolling.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>Coding Bonus</h3>
+                    <p>Earn YouTube time by solving problems on LeetCode and Codeforces. Productive procrastination at its best.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>Ad-Blocker Popup Fix</h3>
+                    <p>Automatically removes the annoying "Ad blockers are not allowed" popups for a smoother experience.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="gallery" style="background-color: #fff;">
+        <div class="container">
+            <h2>See it in Action</h2>
+            <div class="gallery-grid">
+                <div class="gallery-item">
+                    <img src="screenshots/screenshot1.png" alt="YouTube with Blur">
+                    <div class="gallery-caption">Blurred Thumbnails on YouTube</div>
+                </div>
+                <div class="gallery-item">
+                    <img src="screenshots/screenshot2.png" alt="Extension Popup">
+                    <div class="gallery-caption">Easy to use Control Popup</div>
+                </div>
+                <div class="gallery-item">
+                    <img src="screenshots/screenshot3.png" alt="Shorts Removal">
+                    <div class="gallery-caption">Shorts-free YouTube experience</div>
+                </div>
+                <div class="gallery-item">
+                    <img src="screenshots/screenshot4.png" alt="Coding Integration">
+                    <div class="gallery-caption">Integrated Coding Profiles</div>
+                </div>
+                <div class="gallery-item">
+                    <img src="screenshots/screenshot5.png" alt="Time Reminder">
+                    <div class="gallery-caption">Customizable Time Reminders</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="feedback-section">
+        <div class="container">
+            <h2>We Value Your Feedback</h2>
+            <p style="margin-bottom: 3rem; opacity: 0.8;">Found a bug? Have a great idea? Let us know directly on GitHub.</p>
+            
+            <div class="feedback-grid">
+                <a href="https://github.com/CHAHATMB/No-Shorts-No-Clickbait/issues/new?template=bug_report.yml" class="feedback-card">
+                    <i>🐛</i>
+                    <strong>Report a Bug</strong>
+                </a>
+                <a href="https://github.com/CHAHATMB/No-Shorts-No-Clickbait/issues/new?template=feature_request.yml" class="feedback-card">
+                    <i>💡</i>
+                    <strong>Request Feature</strong>
+                </a>
+                <a href="https://github.com/CHAHATMB/No-Shorts-No-Clickbait/issues/new?template=feedback.yml" class="feedback-card">
+                    <i>📣</i>
+                    <strong>General Feedback</strong>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2026 YouTube Thumbnail Blur & Shorts Remover. MIT Licensed.</p>
+            <p><a href="https://github.com/CHAHATMB/No-Shorts-No-Clickbait" style="color: inherit;">View Source on GitHub</a></p>
+        </div>
+    </footer>
+
+    <script>
+        const REPO = 'CHAHATMB/No-Shorts-No-Clickbait';
+        
+        async function fetchLatestRelease() {
+            try {
+                const response = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`);
+                const data = await response.json();
+                
+                if (data.tag_name) {
+                    document.getElementById('version-container').innerHTML = `<span class="version-badge">Latest: ${data.tag_name}</span>`;
+                    
+                    const browser = detectBrowser();
+                    let downloadUrl = '';
+                    
+                    const chromeAsset = data.assets.find(a => a.name.includes('chrome'));
+                    const firefoxAsset = data.assets.find(a => a.name.includes('firefox'));
+                    
+                    if (browser === 'Firefox' && firefoxAsset) {
+                        downloadUrl = firefoxAsset.browser_download_url;
+                    } else if (chromeAsset) {
+                        downloadUrl = chromeAsset.browser_download_url;
+                    }
+                    
+                    if (downloadUrl) {
+                        const btn = document.getElementById('main-download');
+                        btn.href = downloadUrl;
+                        btn.innerText = `Download for ${browser}`;
+                        document.getElementById('download-actions').classList.remove('loading');
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching release:', error);
+                document.getElementById('version-container').innerHTML = `<span class="version-badge">Version info unavailable</span>`;
+            }
+        }
+
+        function detectBrowser() {
+            const userAgent = navigator.userAgent;
+            let browserName = "Chrome";
+            
+            if (userAgent.indexOf("Firefox") > -1) {
+                browserName = "Firefox";
+            } else if (userAgent.indexOf("Edg") > -1) {
+                browserName = "Edge";
+            } else if (userAgent.indexOf("Chrome") > -1) {
+                browserName = "Chrome";
+            } else if (userAgent.indexOf("Safari") > -1) {
+                browserName = "Safari";
+            }
+            return browserName;
+        }
+
+        window.onload = () => {
+            detectBrowser();
+            fetchLatestRelease();
+        };
+    </script>
+</body>
+</html>

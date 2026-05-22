@@ -49,11 +49,11 @@ A **Firefox extension** that helps you stay **focused** on YouTube by:
 
 Here are some screenshots of the extension in action:
 
-<img src="screenshots/screenshot6.png" width="400" alt="Extension popup interface">
-<img src="screenshots/screenshot1.png" width="2000" alt="Blurred thumbnails">
-<img src="screenshots/screenshot2.png" width="2000" alt="Shorts removed">
-<img src="screenshots/screenshot3.png" width="2000" alt="Clean interface">
-<img src="screenshots/screenshot7.png" width="2000" alt="Video controls">
+<img src="docs/screenshots/screenshot6.png" width="400" alt="Extension popup interface">
+<img src="docs/screenshots/screenshot1.png" width="2000" alt="Blurred thumbnails">
+<img src="docs/screenshots/screenshot2.png" width="2000" alt="Shorts removed">
+<img src="docs/screenshots/screenshot3.png" width="2000" alt="Clean interface">
+<img src="docs/screenshots/screenshot7.png" width="2000" alt="Video controls">
 
 ---
 
