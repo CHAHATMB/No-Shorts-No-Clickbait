@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://chahatmb.github.io/No-Shorts-No-Clickbait/sitemap.xml
