@@ -110,11 +110,47 @@ When changes are merged into the `main` branch, our workflow analyzes the commit
 
 **Smart Filtering**: Changes exclusively to the `docs/` folder, `README.md`, or issue templates will **not** trigger a new extension release, even if they use the prefixes above.
 
-### Building Locally
-1. Install dependencies: `npm install`
-2. Build for Chrome: `npm run build:chrome`
-3. Build for Firefox: `npm run build:firefox`
-4. Build all (Production): `npm run build`
+---
+
+## 🛠️ Build & Source Submission (Mozilla Reviewers)
+
+To generate an exact copy of the extension from source, follow these instructions.
+
+### 📋 Environment Requirements
+- **Operating System**: Windows, macOS, or Linux
+- **Node.js**: `v18.0.0` or higher
+- **npm**: `v9.0.0` or higher
+
+### 🏗️ Build Instructions
+1. **Extract Source**: Ensure you are in the root directory of the source code.
+2. **Install Dependencies**: Run the following command to install the required build tools (Webpack, etc.):
+   ```bash
+   npm install
+   ```
+3. **Execute Build Script**: Run the production build command for Firefox:
+   ```bash
+   npm run build:firefox
+   ```
+4. **Output**: The exact, ready-to-load extension code will be generated in the `dist/firefox/` directory.
+
+### ⚙️ Build Script Details
+The project uses **Webpack** to manage file structure and bundling:
+- `webpack.config.js`: Defines the build process, including entry points and file copying.
+- `package.json`: Contains the `build:firefox` script which executes `webpack --config webpack.config.js --env browser=firefox`.
+- **Note**: Minification is explicitly disabled (`minimize: false` in `webpack.config.js`) to ensure the generated code remains human-readable for reviewers.
+
+---
+
+## 📜 Changelog
+
+### [v3.0.4] - 2026-05-23
+**✨ Highlights**
+- **Modern Tabbed UI**: Redesigned interface with Customization and Productivity tabs.
+- **Productivity Suite**: Added Time Reminders and Coding Bonus Integration (LeetCode, Codeforces, etc.).
+- **Mozilla Optimization**: Full compatibility and security fixes for Firefox.
+- **Enhanced Controls**: New options for thumbnail blurring and video preview blocking.
+
+[View Full Release Notes](docs/release-notes/v3.0.4.md)
 
 ---
 
