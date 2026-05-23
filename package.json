@@ -1,6 +1,6 @@
 {
   "name": "yt-blur",
-  "version": "3.0.3",
+  "version": "3.0.4",
   "description": "Blurs YouTube thumbnails and removes Shorts videos from the YouTube interface",
   "main": "background.js",
   "scripts": {
