@@ -4,45 +4,112 @@
     <meta charset="utf-8" />
     <title>YouTube Thumbnail Blur & Shorts Remover</title>
     <style>
+      :root {
+        --primary-color: #cc0000;
+        --primary-hover: #aa0000;
+        --bg-color: #ffffff;
+        --surface-color: #f8f8f8;
+        --border-color: #e0e0e0;
+        --text-color: #333333;
+        --text-secondary: #666666;
+        --shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        --radius: 8px;
+      }
+
       body {
-        width: 300px;
+        width: 320px;
+        padding: 0;
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        color: var(--text-color);
+        background-color: var(--bg-color);
+      }
+
+      .header {
         padding: 16px;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-          Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
-        color: #333;
+        background-color: var(--bg-color);
+        border-bottom: 1px solid var(--border-color);
+        text-align: center;
       }
 
       h1 {
-        font-size: 18px;
-        margin-top: 0;
-        margin-bottom: 16px;
-        color: #c00;
-      }
-
-      .feature {
-        margin-bottom: 16px;
-        padding-bottom: 16px;
-        border-bottom: 1px solid #eee;
-      }
-
-      .feature:last-child {
-        border-bottom: none;
-        margin-bottom: 0;
-        padding-bottom: 0;
-      }
-
-      .feature h2 {
         font-size: 16px;
+        margin: 0;
+        color: var(--primary-color);
+      }
+
+      /* Tabs Navigation */
+      .tabs {
+        display: flex;
+        background-color: var(--surface-color);
+        border-bottom: 1px solid var(--border-color);
+      }
+
+      .tab-btn {
+        flex: 1;
+        padding: 12px;
+        border: none;
+        background: none;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: all 0.2s;
+        border-bottom: 2px solid transparent;
+      }
+
+      .tab-btn:hover {
+        color: var(--text-color);
+        background-color: rgba(0, 0, 0, 0.02);
+      }
+
+      .tab-btn.active {
+        color: var(--primary-color);
+        border-bottom-color: var(--primary-color);
+        background-color: var(--bg-color);
+      }
+
+      /* Tab Content */
+      .tab-content {
+        display: none;
+        padding: 12px;
+        max-height: 450px;
+        overflow-y: auto;
+      }
+
+      .tab-content.active {
+        display: block;
+      }
+
+      /* Feature Cards */
+      .feature-card {
+        background-color: var(--bg-color);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius);
+        padding: 12px;
+        margin-bottom: 12px;
+        box-shadow: var(--shadow);
+      }
+
+      .feature-card h2 {
+        font-size: 14px;
         margin-top: 0;
         margin-bottom: 8px;
+        color: var(--text-color);
       }
 
-      .feature p {
-        margin: 0;
-        font-size: 14px;
+      .feature-card p {
+        margin: 0 0 10px 0;
+        font-size: 12px;
+        color: var(--text-secondary);
         line-height: 1.4;
       }
 
+      .feature-card:last-child {
+        margin-bottom: 0;
+      }
+
+      /* Controls */
       .toggle {
         display: flex;
         align-items: center;
@@ -50,11 +117,16 @@
         margin-top: 8px;
       }
 
+      .toggle span {
+        font-size: 13px;
+        font-weight: 500;
+      }
+
       .toggle-switch {
         position: relative;
         display: inline-block;
-        width: 40px;
-        height: 20px;
+        width: 36px;
+        height: 18px;
       }
 
       .toggle-switch input {
@@ -71,281 +143,279 @@
         right: 0;
         bottom: 0;
         background-color: #ccc;
-        transition: 0.4s;
-        border-radius: 20px;
+        transition: 0.3s;
+        border-radius: 18px;
       }
 
       .slider:before {
         position: absolute;
         content: "";
-        height: 16px;
-        width: 16px;
+        height: 14px;
+        width: 14px;
         left: 2px;
         bottom: 2px;
         background-color: white;
-        transition: 0.4s;
+        transition: 0.3s;
         border-radius: 50%;
       }
 
       input:checked + .slider {
-        background-color: #c00;
+        background-color: var(--primary-color);
       }
 
       input:checked + .slider:before {
-        transform: translateX(20px);
+        transform: translateX(18px);
       }
 
-      footer {
-        margin-top: 16px;
-        font-size: 12px;
-        color: #999;
-        text-align: center;
-      }
-
-      .timer-config {
-        margin-top: 12px;
-        padding: 12px;
-        background-color: #f8f8f8;
-        border-radius: 6px;
-        border: 1px solid #e0e0e0;
-      }
-
-      .timer-options {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-      }
-
-      .timer-option {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 14px;
-        cursor: pointer;
-      }
-
-      .timer-option input[type="radio"] {
-        margin: 0;
-      }
-
-      .timer-option input[type="number"] {
-        width: 50px;
-        padding: 2px 6px;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-        font-size: 14px;
-      }
-
-      .timer-option input[type="number"]:disabled {
-        background-color: #f5f5f5;
-        color: #999;
-      }
-
-      .timer-config.hidden {
-        display: none;
-      }
-
+      /* Thumbnail Options */
       .thumbnail-options {
         display: flex;
         flex-direction: column;
-        gap: 10px;
-        margin-top: 12px;
+        gap: 6px;
+        margin-top: 8px;
       }
 
       .thumbnail-option {
         display: flex;
         align-items: center;
-        gap: 10px;
-        padding: 8px 12px;
-        border: 1px solid #e0e0e0;
+        gap: 8px;
+        padding: 8px;
+        border: 1px solid var(--border-color);
         border-radius: 6px;
         cursor: pointer;
         transition: all 0.2s;
-        background-color: #f8f8f8;
+        background-color: var(--surface-color);
       }
 
       .thumbnail-option:hover {
-        background-color: #f0f0f0;
-        border-color: #c00;
+        border-color: var(--primary-color);
       }
 
       .thumbnail-option input[type="radio"] {
         margin: 0;
         cursor: pointer;
-        width: 16px;
-        height: 16px;
-      }
-
-      .thumbnail-option input[type="radio"]:checked + span {
-        font-weight: 600;
-        color: #c00;
       }
 
       .thumbnail-option span {
-        font-size: 14px;
-        color: #333;
-        flex: 1;
+        font-size: 12px;
+        color: var(--text-color);
+      }
+
+      /* Timer Config */
+      .timer-config {
+        margin-top: 10px;
+        padding: 10px;
+        background-color: var(--surface-color);
+        border-radius: 6px;
+        border: 1px solid var(--border-color);
+      }
+
+      .timer-options {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .timer-option {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        cursor: pointer;
+      }
+
+      .timer-option input[type="number"] {
+        width: 45px;
+        padding: 2px 4px;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        font-size: 12px;
+      }
+
+      /* Coding Profile */
+      .coding-profile-inputs {
+        margin-top: 8px;
+        padding: 10px;
+        background-color: var(--surface-color);
+        border-radius: 6px;
+        border: 1px solid var(--border-color);
+      }
+
+      .coding-profile-inputs label {
+        font-size: 12px;
+        margin-bottom: 4px;
+        display: block;
+        color: var(--text-secondary);
+      }
+
+      .coding-profile-inputs input[type="text"] {
+        width: 100%;
+        padding: 6px;
+        margin-bottom: 8px;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        font-size: 12px;
+        box-sizing: border-box;
+      }
+
+      .coding-profile-inputs input[type="text"]:last-child {
+        margin-bottom: 0;
+      }
+
+      .coding-profile-status {
+        margin-top: 8px;
+        font-size: 12px;
+        color: var(--text-secondary);
+      }
+
+      .coding-profile-status span {
+        font-weight: bold;
+        color: var(--primary-color);
+      }
+
+      footer {
+        padding: 12px;
+        font-size: 10px;
+        color: var(--text-secondary);
+        text-align: center;
+        border-top: 1px solid var(--border-color);
+      }
+
+      .hidden {
+        display: none !important;
       }
     </style>
   </head>
   <body>
-    <h1>YouTube Thumbnail Blur & Shorts Remover</h1>
-
-    <div class="feature">
-      <h2>Thumbnail Control</h2>
-      <p>
-        Control how YouTube thumbnails are displayed to reduce distractions and clickbait influence.
-      </p>
-      <div class="thumbnail-options">
-        <label class="thumbnail-option">
-          <input type="radio" name="thumbnail-mode" value="show" />
-          <span>Show - Display thumbnails normally</span>
-        </label>
-        <label class="thumbnail-option">
-          <input type="radio" name="thumbnail-mode" value="blur" checked />
-          <span>Blur - Blur thumbnails (unblur on hover)</span>
-        </label>
-        <label class="thumbnail-option">
-          <input type="radio" name="thumbnail-mode" value="hide" />
-          <span>Hide - Remove thumbnails completely</span>
-        </label>
-      </div>
+    <div class="header">
+      <h1>YouTube Thumbnail Blur & Shorts Remover</h1>
     </div>
 
-    <div class="feature">
-      <h2>Shorts Removal</h2>
-      <p>
-        All Shorts videos and sections are hidden from your YouTube experience.
-      </p>
-      <div class="toggle">
-        <span>Remove Shorts</span>
-        <label class="toggle-switch">
-          <input type="checkbox" id="shorts-toggle" checked />
-          <span class="slider"></span>
-        </label>
-      </div>
-    </div>
+    <nav class="tabs">
+      <button class="tab-btn active" data-tab="customization">Customization</button>
+      <button class="tab-btn" data-tab="productivity">Productivity</button>
+    </nav>
 
-    <div class="feature">
-      <h2>Pause on Hover</h2>
-      <p>
-        Prevents video previews from automatically playing when you hover over
-        thumbnails.
-      </p>
-      <div class="toggle">
-        <span>Block video previews</span>
-        <label class="toggle-switch">
-          <input type="checkbox" id="pause-toggle" checked />
-          <span class="slider"></span>
-        </label>
-      </div>
-    </div>
-
-    <div class="feature">
-      <h2>Time Reminder</h2>
-      <p>
-        Get a gentle reminder after 15 minutes of continuous YouTube watching to
-        help manage your time.
-      </p>
-      <div class="toggle">
-        <span>Enable time reminder</span>
-        <label class="toggle-switch">
-          <input type="checkbox" id="time-reminder-toggle" checked />
-          <span class="slider"></span>
-        </label>
-      </div>
-      <div class="timer-config" id="timer-config">
-        <div class="timer-options">
-          <label class="timer-option">
-            <input type="radio" name="timer-preset" value="15" checked />
-            <span>15 minutes</span>
+    <div id="tab-customization" class="tab-content active">
+      <div class="feature-card">
+        <h2>Thumbnail Control</h2>
+        <p>Manage how thumbnails appear to stay focused.</p>
+        <div class="thumbnail-options">
+          <label class="thumbnail-option">
+            <input type="radio" name="thumbnail-mode" value="show" />
+            <span>Show Normally</span>
           </label>
-          <label class="timer-option">
-            <input type="radio" name="timer-preset" value="30" />
-            <span>30 minutes</span>
+          <label class="thumbnail-option">
+            <input type="radio" name="thumbnail-mode" value="blur" checked />
+            <span>Blur (Unblur on hover)</span>
           </label>
-          <label class="timer-option">
-            <input type="radio" name="timer-preset" value="custom" />
-            <span>Custom:</span>
-            <input
-              type="number"
-              id="custom-timer"
-              min="1"
-              max="180"
-              value="45"
-              disabled
-            />
-            <span>min</span>
+          <label class="thumbnail-option">
+            <input type="radio" name="thumbnail-mode" value="hide" />
+            <span>Hide Completely</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="feature-card" id="pause-on-hover-card">
+        <h2>Block Video Previews</h2>
+        <p>Stop auto-playing video previews when hovering over thumbnails.</p>
+        <div class="toggle">
+          <span>Enabled</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="pause-toggle" checked />
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="feature-card">
+        <h2>Shorts Removal</h2>
+        <p>Hide all YouTube Shorts from your experience.</p>
+        <div class="toggle">
+          <span>Remove Shorts</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="shorts-toggle" checked />
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="feature-card">
+        <h2>Ad Blocker Popup</h2>
+        <p>Remove the ad blocker detection popup automatically.</p>
+        <div class="toggle">
+          <span>Remove Popup</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="popup-toggle" checked />
+            <span class="slider"></span>
           </label>
         </div>
       </div>
     </div>
-    <div class="feature" id="coding-integration-feature">
-      <h2>Coding Profile Integration</h2>
-      <p>
-        Link your coding profiles to earn bonus YouTube watch time! You'll get
-        15 minutes of extra YouTube time for each coding question solved per
-        day.
-      </p>
-      <div class="coding-profile-inputs">
-        <label for="leetcode-username">LeetCode Username:</label>
-        <input
-          type="text"
-          id="leetcode-username"
-          placeholder="e.g., your_leetcode_id"
-        /><br /><br />
 
-        <label for="codechef-username">CodeChef Username:</label>
-        <input
-          type="text"
-          id="codechef-username"
-          placeholder="e.g., your_codechef_id"
-        /><br /><br />
-
-        <label for="codeforces-username">Codeforces Username:</label>
-        <input
-          type="text"
-          id="codeforces-username"
-          placeholder="e.g., your_codeforces_id"
-        /><br /><br />
-
-        <label for="hackerrank-username">HackerRank Username:</label>
-        <input
-          type="text"
-          id="hackerrank-username"
-          placeholder="e.g., your_hackerrank_id"
-        />
+    <div id="tab-productivity" class="tab-content">
+      <div class="feature-card">
+        <h2>Time Reminder</h2>
+        <p>Get notified after a set period of continuous watching.</p>
+        <div class="toggle">
+          <span>Enable Reminder</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="time-reminder-toggle" checked />
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="timer-config" id="timer-config">
+          <div class="timer-options">
+            <label class="timer-option">
+              <input type="radio" name="timer-preset" value="15" checked />
+              <span>15 minutes</span>
+            </label>
+            <label class="timer-option">
+              <input type="radio" name="timer-preset" value="30" />
+              <span>30 minutes</span>
+            </label>
+            <label class="timer-option">
+              <input type="radio" name="timer-preset" value="custom" />
+              <span>Custom:</span>
+              <input type="number" id="custom-timer" min="1" max="180" value="45" disabled />
+              <span>min</span>
+            </label>
+          </div>
+        </div>
       </div>
-      <div class="toggle">
-        <span>Enable Coding Bonus</span>
-        <label class="toggle-switch">
-          <input type="checkbox" id="coding-bonus-toggle" checked />
-          <span class="slider"></span>
-        </label>
-      </div>
-      <div class="coding-profile-status" id="coding-profile-status">
-        <p>Solved today: <span id="solved-problems-count">0</span> problems</p>
-        <p>Bonus YouTube time: <span id="bonus-time">0</span> minutes</p>
-      </div>
-    </div>
 
-    <div class="feature">
-      <h2>Remove Ad Blocker Popup</h2>
-      <p>
-        Automatically removes the ad blocker detection popup when watching
-        videos.
-      </p>
-      <div class="toggle">
-        <span>Remove ad blocker popup</span>
-        <label class="toggle-switch">
-          <input type="checkbox" id="popup-toggle" checked />
-          <span class="slider"></span>
-        </label>
+      <div class="feature-card" id="coding-integration-feature">
+        <h2>Coding Profile Integration</h2>
+        <p>Earn bonus watch time by solving coding problems today.</p>
+        <div class="toggle">
+          <span>Enable Coding Bonus</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="coding-bonus-toggle" checked />
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="coding-profile-inputs" id="coding-profile-inputs">
+          <label for="leetcode-username">LeetCode Username</label>
+          <input type="text" id="leetcode-username" placeholder="username" />
+
+          <label for="codechef-username">CodeChef Username</label>
+          <input type="text" id="codechef-username" placeholder="username" />
+
+          <label for="codeforces-username">Codeforces Username</label>
+          <input type="text" id="codeforces-username" placeholder="username" />
+
+          <label for="hackerrank-username">HackerRank Username</label>
+          <input type="text" id="hackerrank-username" placeholder="username" />
+        </div>
+        <div class="coding-profile-status" id="coding-profile-status">
+          <p>Solved today: <span id="solved-problems-count">0</span> problems</p>
+          <p>Bonus time: <span id="bonus-time">0</span> minutes</p>
+        </div>
       </div>
     </div>
 
     <footer>
-      <p>YouTube Thumbnail Blur & Shorts Remover v1.0</p>
+      <p>YouTube Thumbnail Blur & Shorts Remover v3.0</p>
     </footer>
 
     <script src="browser-polyfill.js"></script>
