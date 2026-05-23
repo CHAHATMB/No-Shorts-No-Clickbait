@@ -657,28 +657,53 @@ import "./browser-polyfill.js";
     // Create reminder popup
     const reminderDiv = document.createElement("div");
     reminderDiv.id = "youtube-time-reminder";
-    reminderDiv.innerHTML = `
-      <div class="reminder-content">
-        <div class="reminder-header">
-          <h3>⏰ Time Check!</h3>
-          <button class="reminder-close">&times;</button>
-        </div>
-        <p>You've been watching YouTube for ${minutesWatched} minutes.</p>
-        <p>Take a moment to consider if you're still on track with your goals.</p>
-        <div class="reminder-buttons">
-          <button class="reminder-btn continue">Continue Watching</button>
-          <button class="reminder-btn take-break">Take a Break</button>
-        </div>
-      </div>
-    `;
 
+    const content = document.createElement("div");
+    content.className = "reminder-content";
+
+    const header = document.createElement("div");
+    header.className = "reminder-header";
+
+    const title = document.createElement("h3");
+    title.textContent = "⏰ Time Check!";
+
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "reminder-close";
+    closeBtn.textContent = "×";
+
+    header.appendChild(title);
+    header.appendChild(closeBtn);
+
+    const p1 = document.createElement("p");
+    p1.textContent = `You've been watching YouTube for ${minutesWatched} minutes.`;
+
+    const p2 = document.createElement("p");
+    p2.textContent =
+      "Take a moment to consider if you're still on track with your goals.";
+
+    const buttons = document.createElement("div");
+    buttons.className = "reminder-buttons";
+
+    const continueBtn = document.createElement("button");
+    continueBtn.className = "reminder-btn continue";
+    continueBtn.textContent = "Continue Watching";
+
+    const breakBtn = document.createElement("button");
+    breakBtn.className = "reminder-btn take-break";
+    breakBtn.textContent = "Take a Break";
+
+    buttons.appendChild(continueBtn);
+    buttons.appendChild(breakBtn);
+
+    content.appendChild(header);
+    content.appendChild(p1);
+    content.appendChild(p2);
+    content.appendChild(buttons);
+
+    reminderDiv.appendChild(content);
     document.body.appendChild(reminderDiv);
 
     // Add event listeners
-    const closeBtn = reminderDiv.querySelector(".reminder-close");
-    const continueBtn = reminderDiv.querySelector(".continue");
-    const breakBtn = reminderDiv.querySelector(".take-break");
-
     closeBtn.addEventListener("click", () => {
       dismissReminder();
       scheduleNextReminder(); // Reschedule timer

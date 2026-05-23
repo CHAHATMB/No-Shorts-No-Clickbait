@@ -4,14 +4,13 @@
   "version": "3.0.2",
   "description": "Blurs YouTube thumbnails and removes Shorts videos from the YouTube interface",
   "icons": {
-    "48": "icons/icon-48.png",
-    "96": "icons/icon-96.png"
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
   },
-  "permissions": [
-    "activeTab",
-    "storage",
-    "alarms"
-  ],
+
+  "permissions": ["activeTab", "storage", "alarms"],
   "host_permissions": [
     "*://*.youtube.com/*",
     "https://leetcode.com/graphql",
@@ -19,15 +18,9 @@
   ],
   "content_scripts": [
     {
-      "matches": [
-        "*://*.youtube.com/*"
-      ],
-      "js": [
-        "content.js"
-      ],
-      "css": [
-        "styles.css"
-      ],
+      "matches": ["*://*.youtube.com/*"],
+      "js": ["content.js"],
+      "css": ["styles.css"],
       "run_at": "document_idle"
     }
   ],

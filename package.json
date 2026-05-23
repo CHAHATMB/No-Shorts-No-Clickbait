@@ -9,7 +9,8 @@
     "build": "webpack --mode production",
     "watch:chrome": "webpack --watch --config webpack.config.js --env browser=chrome --mode development",
     "watch:firefox": "webpack --watch --config webpack.config.js --env browser=firefox --mode development",
-    "watch": "webpack --watch --mode development"
+    "watch": "webpack --watch --mode development",
+    "lint": "web-ext lint -s dist/firefox"
   },
   "keywords": [],
   "author": "",
@@ -17,6 +18,7 @@
   "devDependencies": {
     "copy-webpack-plugin": "^11.0.0",
     "webpack": "^5.106.2",
-    "webpack-cli": "^5.1.4"
+    "webpack-cli": "^5.1.4",
+    "web-ext": "^8.0.0"
   }
 }
