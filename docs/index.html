@@ -263,8 +263,10 @@
                     <span class="version-badge">Loading latest version...</span>
                 </div>
                 <div id="download-actions" class="loading">
-                    <a href="#" class="btn btn-primary" id="main-download">Download Extension</a>
-                    <p style="font-size: 0.8rem; margin-top: 1rem; color: #666;">
+                    <div id="action-buttons">
+                        <a href="#" class="btn btn-primary" id="main-download">Download Extension</a>
+                    </div>
+                    <p style="font-size: 0.8rem; margin-top: 1rem; color: #666;" id="install-instructions">
                         Extract the ZIP and load it via <br>
                         <code>Extensions > Load Unpacked</code>
                     </p>
@@ -366,23 +368,56 @@
                     document.getElementById('version-container').innerHTML = `<span class="version-badge">Latest: ${data.tag_name}</span>`;
                     
                     const browser = detectBrowser();
-                    let downloadUrl = '';
+                    const actionButtons = document.getElementById('action-buttons');
+                    const installInstructions = document.getElementById('install-instructions');
                     
                     const chromeAsset = data.assets.find(a => a.name.includes('chrome'));
                     const firefoxAsset = data.assets.find(a => a.name.includes('firefox'));
                     
-                    if (browser === 'Firefox' && firefoxAsset) {
-                        downloadUrl = firefoxAsset.browser_download_url;
-                    } else if (chromeAsset) {
-                        downloadUrl = chromeAsset.browser_download_url;
+                    if (browser === 'Firefox') {
+                        actionButtons.innerHTML = `
+                            <a href="https://addons.mozilla.org/en-US/firefox/addon/yt-no-shorts-no-clickbait/" class="btn btn-primary" id="amo-link">Add to Firefox</a>
+                            <a href="${firefoxAsset ? firefoxAsset.browser_download_url : '#'}" class="btn btn-outline">Download ZIP</a>
+                        `;
+                        installInstructions.innerHTML = `
+                            Install from Mozilla Add-ons for easy updates, <br>
+                            or download the ZIP for manual installation.
+                        `;
+
+                        // Auto-redirect to AMO after 5 seconds
+                        const redirectStatus = document.createElement('div');
+                        redirectStatus.id = 'redirect-status';
+                        redirectStatus.style.marginTop = '1rem';
+                        redirectStatus.style.fontSize = '0.8rem';
+                        redirectStatus.innerHTML = `Redirecting to Mozilla Add-ons in <span id="timer">5</span>s... <button id="stop-redirect" style="background:none; border:none; text-decoration:underline; cursor:pointer; color:#666; padding:0; font:inherit;">Stop</button>`;
+                        document.getElementById('download-actions').appendChild(redirectStatus);
+
+                        let timeLeft = 5;
+                        const timerInterval = setInterval(() => {
+                            timeLeft--;
+                            const timerEl = document.getElementById('timer');
+                            if (timerEl) timerEl.innerText = timeLeft;
+                            if (timeLeft <= 0) {
+                                clearInterval(timerInterval);
+                                if (document.getElementById('redirect-status').innerText.includes('Redirecting')) {
+                                    window.location.href = "https://addons.mozilla.org/en-US/firefox/addon/yt-no-shorts-no-clickbait/";
+                                }
+                            }
+                        }, 1000);
+
+                        document.getElementById('stop-redirect').onclick = () => {
+                            clearInterval(timerInterval);
+                            redirectStatus.innerHTML = "Auto-redirect stopped.";
+                        };
+                    } else {
+                        let downloadUrl = chromeAsset ? chromeAsset.browser_download_url : '#';
+                        const mainBtn = document.getElementById('main-download');
+                        if (mainBtn) {
+                            mainBtn.href = downloadUrl;
+                            mainBtn.innerText = `Download for ${browser}`;
+                        }
                     }
-                    
-                    if (downloadUrl) {
-                        const btn = document.getElementById('main-download');
-                        btn.href = downloadUrl;
-                        btn.innerText = `Download for ${browser}`;
-                        document.getElementById('download-actions').classList.remove('loading');
-                    }
+                    document.getElementById('download-actions').classList.remove('loading');
                 }
             } catch (error) {
                 console.error('Error fetching release:', error);
