@@ -14,6 +14,19 @@
         --text-secondary: #666666;
         --shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
         --radius: 8px;
+        --tab-hover-bg: rgba(0, 0, 0, 0.02);
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg-color: #0f0f0f;
+          --surface-color: #1f1f1f;
+          --border-color: #333333;
+          --text-color: #f1f1f1;
+          --text-secondary: #aaaaaa;
+          --shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+          --tab-hover-bg: rgba(255, 255, 255, 0.05);
+        }
       }
 
       body {
@@ -105,8 +118,36 @@
         line-height: 1.4;
       }
 
-      .feature-card:last-child {
-        margin-bottom: 0;
+      .focus-mode-card {
+        background: linear-gradient(135deg, var(--primary-color), #ff4d4d);
+        color: white;
+        border: none;
+      }
+
+      .focus-mode-card h2,
+      .focus-mode-card p,
+      .focus-mode-card span {
+        color: white;
+      }
+
+      .focus-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: bold;
+        font-size: 15px;
+      }
+
+      .focus-mode-card .toggle-switch .slider {
+        background-color: rgba(255, 255, 255, 0.3);
+      }
+
+      .focus-mode-card .toggle-switch input:checked + .slider {
+        background-color: white;
+      }
+
+      .focus-mode-card .toggle-switch input:checked + .slider:before {
+        background-color: var(--primary-color);
       }
 
       /* Controls */
@@ -201,6 +242,42 @@
         color: var(--text-color);
       }
 
+      /* Configuration Sections */
+      .config-section {
+        margin-top: 8px;
+        padding: 10px;
+        background-color: var(--surface-color);
+        border-radius: 6px;
+        border: 1px solid var(--border-color);
+      }
+
+      .config-label {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        margin-bottom: 8px;
+        color: var(--text-color);
+        font-weight: 500;
+      }
+
+      input[type="range"] {
+        width: 100%;
+        height: 4px;
+        background: #ccc;
+        border-radius: 2px;
+        outline: none;
+        -webkit-appearance: none;
+      }
+
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 14px;
+        height: 14px;
+        background: var(--primary-color);
+        border-radius: 50%;
+        cursor: pointer;
+      }
+
       /* Timer Config */
       .timer-config {
         margin-top: 10px;
@@ -232,10 +309,10 @@
         font-size: 12px;
       }
 
-      /* Coding Profile */
+      /* Coding Profile Integration styles */
       .coding-profile-inputs {
-        margin-top: 8px;
-        padding: 10px;
+        margin-top: 12px;
+        padding: 12px;
         background-color: var(--surface-color);
         border-radius: 6px;
         border: 1px solid var(--border-color);
@@ -250,27 +327,67 @@
 
       .coding-profile-inputs input[type="text"] {
         width: 100%;
-        padding: 6px;
-        margin-bottom: 8px;
+        padding: 8px;
         border: 1px solid var(--border-color);
         border-radius: 4px;
         font-size: 12px;
         box-sizing: border-box;
       }
 
-      .coding-profile-inputs input[type="text"]:last-child {
-        margin-bottom: 0;
+      .coding-stats-container {
+        margin-top: 16px;
+        padding: 12px;
+        background-color: var(--bg-color);
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
       }
 
-      .coding-profile-status {
-        margin-top: 8px;
+      .time-stat-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 8px;
         font-size: 12px;
-        color: var(--text-secondary);
       }
 
-      .coding-profile-status span {
+      .time-stat-row.primary {
         font-weight: bold;
+        font-size: 14px;
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 8px;
+        margin-bottom: 12px;
+      }
+
+      .stat-value.highlight {
         color: var(--primary-color);
+      }
+
+      .stats-breakdown {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .stat-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 8px;
+        background-color: var(--surface-color);
+        border-radius: 6px;
+        border: 1px solid var(--border-color);
+      }
+
+      .stat-item .label {
+        font-size: 10px;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+      }
+
+      .stat-item .value {
+        font-weight: bold;
+        font-size: 14px;
+        color: var(--text-color);
       }
 
       footer {
@@ -297,6 +414,20 @@
     </nav>
 
     <div id="tab-customization" class="tab-content active">
+      <div class="feature-card focus-mode-card">
+        <div class="toggle">
+          <div class="focus-title">
+            <span class="icon">🚀</span>
+            <span>Deep Focus Mode</span>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="focus-mode-toggle" />
+            <span class="slider"></span>
+          </label>
+        </div>
+        <p>Instantly applies the strictest focus settings.</p>
+      </div>
+
       <div class="feature-card">
         <h2>Thumbnail Control</h2>
         <p>Manage how thumbnails appear to stay focused.</p>
@@ -308,6 +439,17 @@
           <label class="thumbnail-option">
             <input type="radio" name="thumbnail-mode" value="blur" checked />
             <span>Blur (Unblur on hover)</span>
+          </label>
+          <div id="blur-intensity-config" class="config-section hidden">
+            <div class="config-label">
+              <span>Blur Intensity:</span>
+              <span id="blur-value-display">10px</span>
+            </div>
+            <input type="range" id="blur-range" min="1" max="30" value="10" />
+          </div>
+          <label class="thumbnail-option">
+            <input type="radio" name="thumbnail-mode" value="screenshot" />
+            <span>De-clickbait (Screenshots)</span>
           </label>
           <label class="thumbnail-option">
             <input type="radio" name="thumbnail-mode" value="hide" />
@@ -384,9 +526,37 @@
         </div>
       </div>
 
+      <div class="feature-card">
+        <h2>Watch Time History</h2>
+        <p>Your daily YouTube watch time for the last 7 days.</p>
+        <div class="watch-history-container">
+          <div id="watch-stats-graph" class="stats-graph">
+            <!-- Graph bars will be injected here -->
+            <div class="graph-placeholder">No data available yet</div>
+          </div>
+          <div class="graph-labels" id="graph-labels"></div>
+        </div>
+        <div class="time-stat-row" style="margin-top: 12px;">
+          <span>Watched Today:</span>
+          <span id="total-watched-today" class="stat-value">0m</span>
+        </div>
+        <div class="time-stat-row">
+          <span>Reminders Canceled:</span>
+          <span id="continue-count-today" class="stat-value">0</span>
+        </div>
+        <div class="time-stat-row">
+          <span>Breaks Taken:</span>
+          <span id="breaks-taken-today" class="stat-value">0</span>
+        </div>
+      </div>
+
       <div class="feature-card" id="coding-integration-feature">
         <h2>Coding Profile Integration</h2>
-        <p>Earn bonus watch time by solving coding problems today.</p>
+        <p>Link your LeetCode profile to earn YouTube watch time!</p>
+        <div class="coding-profile-inputs">
+          <label for="leetcode-username">LeetCode Username</label>
+          <input type="text" id="leetcode-username" placeholder="username" />
+        </div>
         <div class="toggle">
           <span>Enable Coding Bonus</span>
           <label class="toggle-switch">
@@ -394,22 +564,30 @@
             <span class="slider"></span>
           </label>
         </div>
-        <div class="coding-profile-inputs" id="coding-profile-inputs">
-          <label for="leetcode-username">LeetCode Username</label>
-          <input type="text" id="leetcode-username" placeholder="username" />
-
-          <label for="codechef-username">CodeChef Username</label>
-          <input type="text" id="codechef-username" placeholder="username" />
-
-          <label for="codeforces-username">Codeforces Username</label>
-          <input type="text" id="codeforces-username" placeholder="username" />
-
-          <label for="hackerrank-username">HackerRank Username</label>
-          <input type="text" id="hackerrank-username" placeholder="username" />
-        </div>
-        <div class="coding-profile-status" id="coding-profile-status">
-          <p>Solved today: <span id="solved-problems-count">0</span> problems</p>
-          <p>Bonus time: <span id="bonus-time">0</span> minutes</p>
+        
+        <div class="coding-stats-container" id="coding-stats-container">
+          <div class="time-stat-row primary">
+            <span>Time Remaining:</span>
+            <span id="remaining-time-display" class="stat-value highlight">0m</span>
+          </div>
+          <div class="time-stat-row">
+            <span>Earned Today:</span>
+            <span id="earned-time-display" class="stat-value">0m</span>
+          </div>
+          <div class="stats-breakdown">
+            <div class="stat-item">
+              <span class="label">Easy</span>
+              <span id="solved-easy" class="value">0</span>
+            </div>
+            <div class="stat-item">
+              <span class="label">Medium</span>
+              <span id="solved-medium" class="value">0</span>
+            </div>
+            <div class="stat-item">
+              <span class="label">Hard</span>
+              <span id="solved-hard" class="value">0</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>

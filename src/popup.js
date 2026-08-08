@@ -18,17 +18,41 @@ document.addEventListener("DOMContentLoaded", function () {
   const customTimerInput = document.getElementById("custom-timer");
   const timerPresets = document.querySelectorAll('input[name="timer-preset"]');
 
-  // Coding Profile Elements
-  const leetcodeUsernameInput = document.getElementById("leetcode-username");
-  const codechefUsernameInput = document.getElementById("codechef-username");
-  const codeforcesUsernameInput = document.getElementById("codeforces-username");
-  const hackerrankUsernameInput = document.getElementById("hackerrank-username");
-  const codingBonusToggle = document.getElementById("coding-bonus-toggle");
-  const codingProfileInputs = document.getElementById("coding-profile-inputs");
-  const codingProfileStatus = document.getElementById("coding-profile-status");
+  const blurIntensityConfig = document.getElementById("blur-intensity-config");
+  const blurRangeInput = document.getElementById("blur-range");
+  const blurValueDisplay = document.getElementById("blur-value-display");
 
-  const solvedProblemsCountSpan = document.getElementById("solved-problems-count");
-  const bonusTimeSpan = document.getElementById("bonus-time");
+  const focusModeToggle = document.getElementById("focus-mode-toggle");
+
+  function updateDeepFocusUI(enabled) {
+    const mainContent = document.querySelectorAll('#tab-customization .feature-card:not(.focus-mode-card)');
+    mainContent.forEach(card => {
+      if (enabled) {
+        card.style.opacity = '0.5';
+        card.style.pointerEvents = 'none';
+      } else {
+        card.style.opacity = '1';
+        card.style.pointerEvents = 'auto';
+      }
+    });
+  }
+
+  let dailyWatchStats = {};
+
+  // Tab Switching Logic
+  const leetcodeUsernameInput = document.getElementById("leetcode-username");
+  const codingBonusToggle = document.getElementById("coding-bonus-toggle");
+  const remainingTimeDisplay = document.getElementById("remaining-time-display");
+  const earnedTimeDisplay = document.getElementById("earned-time-display");
+  const solvedEasySpan = document.getElementById("solved-easy");
+  const solvedMediumSpan = document.getElementById("solved-medium");
+  const solvedHardSpan = document.getElementById("solved-hard");
+
+  const totalWatchedTodayDisplay = document.getElementById("total-watched-today");
+  const continueCountTodayDisplay = document.getElementById("continue-count-today");
+  const breaksTakenTodayDisplay = document.getElementById("breaks-taken-today");
+  const graphContainer = document.getElementById("watch-stats-graph");
+  const graphLabels = document.getElementById("graph-labels");
 
   // Tab Switching Logic
   tabBtns.forEach(btn => {
@@ -46,70 +70,18 @@ document.addEventListener("DOMContentLoaded", function () {
           content.classList.add("active");
         }
       });
+
+      if (tabId === "productivity") {
+        renderWatchHistoryGraph(dailyWatchStats);
+      }
     });
   });
-
-  // Dynamic UI visibility logic
-  function updateDynamicUI(thumbnailMode, codingBonusEnabled, timeReminderEnabled) {
-    // Hide pause on hover if thumbnails are hidden
-    if (thumbnailMode === "hide") {
-      pauseOnHoverCard.classList.add("hidden");
-    } else {
-      pauseOnHoverCard.classList.remove("hidden");
-    }
-
-    // Toggle coding profile inputs/status
-    if (codingBonusEnabled) {
-      codingProfileInputs.classList.remove("hidden");
-      codingProfileStatus.classList.remove("hidden");
-    } else {
-      codingProfileInputs.classList.add("hidden");
-      codingProfileStatus.classList.add("hidden");
-    }
-
-    // Toggle timer config
-    if (timeReminderEnabled) {
-      timerConfig.classList.remove("hidden");
-    } else {
-      timerConfig.classList.add("hidden");
-    }
-  }
 
   // Feature flag check
   if (!FEATURES.CODING_PLATFORM_INTEGRATION) {
     if (codingIntegrationFeature) {
       codingIntegrationFeature.style.display = 'none';
     }
-  }
-
-  // Coding profile input and toggle handlers
-  function saveCodingProfileSettings() {
-    const settings = {
-      leetcodeUsername: leetcodeUsernameInput.value,
-      codechefUsername: codechefUsernameInput.value,
-      codeforcesUsername: codeforcesUsernameInput.value,
-      hackerrankUsername: hackerrankUsernameInput.value,
-      codingBonusEnabled: codingBonusToggle.checked,
-    };
-
-    browser.storage.local.set(settings).then(() => {
-      updateDynamicUI(
-        document.querySelector('input[name="thumbnail-mode"]:checked').value,
-        codingBonusToggle.checked,
-        timeReminderToggle.checked
-      );
-      
-      browser.runtime.sendMessage({
-        action: "updateCodingProfiles",
-        ...settings
-      });
-    });
-  }
-
-  if (FEATURES.CODING_PLATFORM_INTEGRATION) {
-    [leetcodeUsernameInput, codechefUsernameInput, codeforcesUsernameInput, hackerrankUsernameInput, codingBonusToggle].forEach(el => {
-      el.addEventListener("change", saveCodingProfileSettings);
-    });
   }
 
   // Load timer settings
@@ -129,21 +101,34 @@ document.addEventListener("DOMContentLoaded", function () {
   // Load all settings from storage
   browser.storage.local.get([
     "thumbnailMode",
+    "blurAmount",
     "shortsRemovalEnabled",
     "pauseOnHoverEnabled",
     "popupRemovalEnabled",
     "timeReminderEnabled",
     "leetcodeUsername",
-    "codechefUsername",
-    "codeforcesUsername",
-    "hackerrankUsername",
     "codingBonusEnabled",
-    "dailySolvedProblems",
-    "bonusYouTubeTime",
+    "solvedProblemsHistory",
+    "totalWatchTimeToday",
+    "continueCountToday",
+    "dailyWatchStats"
   ]).then((result) => {
+    const focusModeEnabled = result.focusModeEnabled || false;
+    focusModeToggle.checked = focusModeEnabled;
+    updateDeepFocusUI(focusModeEnabled);
+
     const thumbnailMode = result.thumbnailMode || "blur";
     const thumbnailModeRadio = document.querySelector(`input[name="thumbnail-mode"][value="${thumbnailMode}"]`);
     if (thumbnailModeRadio) thumbnailModeRadio.checked = true;
+
+    const blurAmount = result.blurAmount || 10;
+    blurRangeInput.value = blurAmount;
+    blurValueDisplay.textContent = `${blurAmount}px`;
+
+    // Show/hide blur intensity config
+    if (thumbnailMode === "blur") {
+      blurIntensityConfig.classList.remove("hidden");
+    }
 
     shortsToggle.checked = result.shortsRemovalEnabled !== undefined ? result.shortsRemovalEnabled : true;
     pauseToggle.checked = result.pauseOnHoverEnabled !== undefined ? result.pauseOnHoverEnabled : true;
@@ -151,38 +136,163 @@ document.addEventListener("DOMContentLoaded", function () {
     timeReminderToggle.checked = result.timeReminderEnabled !== undefined ? result.timeReminderEnabled : true;
 
     leetcodeUsernameInput.value = result.leetcodeUsername || "";
-    codechefUsernameInput.value = result.codechefUsername || "";
-    codeforcesUsernameInput.value = result.codeforcesUsername || "";
-    hackerrankUsernameInput.value = result.hackerrankUsername || "";
     codingBonusToggle.checked = result.codingBonusEnabled !== undefined ? result.codingBonusEnabled : true;
+    
+    dailyWatchStats = result.dailyWatchStats || {};
 
-    // Update display for solved problems and bonus time
-    const dailySolvedProblems = result.dailySolvedProblems || { leetcode: 0, codechef: 0, codeforces: 0 };
-    const totalSolved = dailySolvedProblems.leetcode + dailySolvedProblems.codechef + dailySolvedProblems.codeforces;
-    solvedProblemsCountSpan.textContent = totalSolved;
-    bonusTimeSpan.textContent = result.bonusYouTubeTime !== undefined ? result.bonusYouTubeTime : 0;
+    // Hide pause on hover card if thumbnails are hidden
+    if (thumbnailMode === "hide") {
+      pauseOnHoverCard.classList.add("hidden");
+    }
 
-    // Initial dynamic UI update
-    updateDynamicUI(thumbnailMode, codingBonusToggle.checked, timeReminderToggle.checked);
+    // Toggle timer config
+    if (!timeReminderToggle.checked) {
+      timerConfig.classList.add("hidden");
+    }
+
+    const today = new Date().toDateString();
+    const stats = (result.solvedProblemsHistory && result.solvedProblemsHistory[today]) || {
+      easy: 0,
+      medium: 0,
+      hard: 0,
+      totalMinutes: 0,
+    };
+    
+    updateUIStats({
+      remainingTime: result.remainingTime || 0,
+      earnedMinutesToday: stats.totalMinutes,
+      solvedToday: stats,
+      totalWatchTimeToday: result.totalWatchTimeToday || 0,
+      continueCountToday: result.continueCountToday || 0,
+      breaksTakenToday: result.breaksTakenToday || 0
+    });
+
+    renderWatchHistoryGraph(result.dailyWatchStats || {});
   });
+
+  function renderWatchHistoryGraph(stats) {
+    if (!graphContainer) return;
+    
+    graphContainer.innerHTML = "";
+    graphLabels.innerHTML = "";
+
+    const days = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      days.push(d.toDateString());
+    }
+
+    const maxMinutes = Math.max(...Object.values(stats), 60); // At least 60m scale
+
+    days.forEach(day => {
+      const minutes = stats[day] || 0;
+      const height = (minutes / maxMinutes) * 100;
+      
+      const barContainer = document.createElement("div");
+      barContainer.className = "graph-bar-container";
+      
+      const bar = document.createElement("div");
+      bar.className = "graph-bar";
+      bar.style.height = `${Math.max(height, 2)}%`;
+      bar.setAttribute("data-value", minutes);
+      
+      barContainer.appendChild(bar);
+      graphContainer.appendChild(barContainer);
+
+      const label = document.createElement("div");
+      label.className = "graph-label";
+      const shortDay = day.split(" ")[0]; // Mon, Tue, etc.
+      label.textContent = shortDay;
+      graphLabels.appendChild(label);
+    });
+  }
+
+  function updateBlurAmount(amount) {
+    blurValueDisplay.textContent = `${amount}px`;
+    browser.storage.local.set({ blurAmount: parseInt(amount) });
+
+    browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
+      if (tabs[0]?.url?.includes("youtube.com")) {
+        browser.tabs.sendMessage(tabs[0].id, { 
+          action: "updateBlurAmount", 
+          amount: `${amount}px` 
+        });
+      }
+    });
+  }
+
+  blurRangeInput.addEventListener("input", (e) => {
+    updateBlurAmount(e.target.value);
+  });
+
+  function updateUIStats(data) {
+    if (data.remainingTime !== undefined) {
+      remainingTimeDisplay.textContent = `${Math.round(data.remainingTime / 1000 / 60)}m`;
+    }
+    if (data.earnedMinutesToday !== undefined) {
+      earnedTimeDisplay.textContent = `${data.earnedMinutesToday}m`;
+    }
+    if (data.solvedToday) {
+      solvedEasySpan.textContent = data.solvedToday.easy || 0;
+      solvedMediumSpan.textContent = data.solvedToday.medium || 0;
+      solvedHardSpan.textContent = data.solvedToday.hard || 0;
+    }
+    if (data.totalWatchTimeToday !== undefined) {
+      totalWatchedTodayDisplay.textContent = `${Math.round(data.totalWatchTimeToday / 1000 / 60)}m`;
+    }
+    if (data.continueCountToday !== undefined) {
+      continueCountTodayDisplay.textContent = data.continueCountToday;
+    }
+    if (data.breaksTakenToday !== undefined) {
+      breaksTakenTodayDisplay.textContent = data.breaksTakenToday;
+    }
+  }
 
   // Listen for messages from background script
   browser.runtime.onMessage.addListener((message) => {
-    if (message.action === "updateBonusTime") {
-      bonusTimeSpan.textContent = message.bonusMinutes;
-      if (message.dailySolvedProblems) {
-        const totalSolved = message.dailySolvedProblems.leetcode + message.dailySolvedProblems.codechef + message.dailySolvedProblems.codeforces;
-        solvedProblemsCountSpan.textContent = totalSolved;
-      }
+    if (message.action === "updateStats") {
+      updateUIStats(message);
     }
   });
+
+  function saveCodingProfileSettings() {
+    browser.storage.local
+      .set({
+        leetcodeUsername: leetcodeUsernameInput.value,
+        codingBonusEnabled: codingBonusToggle.checked,
+      })
+      .then(() => {
+        browser.runtime.sendMessage({
+          action: "updateCodingProfiles",
+          leetcodeUsername: leetcodeUsernameInput.value,
+          codingBonusEnabled: codingBonusToggle.checked,
+        });
+      });
+  }
+
+  if (FEATURES.CODING_PLATFORM_INTEGRATION) {
+    leetcodeUsernameInput.addEventListener("change", saveCodingProfileSettings);
+    codingBonusToggle.addEventListener("change", saveCodingProfileSettings);
+  }
 
   // Thumbnail mode handler
   thumbnailModeRadios.forEach((radio) => {
     radio.addEventListener("change", function () {
       const mode = this.value;
       browser.storage.local.set({ thumbnailMode: mode });
-      updateDynamicUI(mode, codingBonusToggle.checked, timeReminderToggle.checked);
+      
+      if (mode === "blur") {
+        blurIntensityConfig.classList.remove("hidden");
+      } else {
+        blurIntensityConfig.classList.add("hidden");
+      }
+
+      if (mode === "hide") {
+        pauseOnHoverCard.classList.add("hidden");
+      } else {
+        pauseOnHoverCard.classList.remove("hidden");
+      }
 
       browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
         if (tabs[0]?.url?.includes("youtube.com")) {
@@ -192,35 +302,47 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   });
 
-  // Other toggle handlers
-  const toggles = [
-    { el: shortsToggle, key: "shortsRemovalEnabled", action: "toggleShorts" },
-    { el: pauseToggle, key: "pauseOnHoverEnabled", action: "togglePauseOnHover" },
-    { el: popupToggle, key: "popupRemovalEnabled", action: "togglePopupRemoval" },
-    { el: timeReminderToggle, key: "timeReminderEnabled", action: "toggleTimeReminder" }
-  ];
-
-  toggles.forEach(({ el, key, action }) => {
-    el.addEventListener("change", function () {
-      browser.storage.local.set({ [key]: this.checked });
-      
-      if (el === timeReminderToggle) {
-        updateDynamicUI(
-          document.querySelector('input[name="thumbnail-mode"]:checked').value,
-          codingBonusToggle.checked,
-          this.checked
-        );
+  shortsToggle.addEventListener("change", function () {
+    browser.storage.local.set({ shortsRemovalEnabled: this.checked });
+    browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
+      if (tabs[0]?.url?.includes("youtube.com")) {
+        browser.tabs.sendMessage(tabs[0].id, { action: "toggleShorts", enabled: this.checked });
       }
-
-      browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
-        if (tabs[0]?.url?.includes("youtube.com")) {
-          browser.tabs.sendMessage(tabs[0].id, { action, enabled: this.checked });
-        }
-      });
     });
   });
 
-  // Timer preset handlers
+  pauseToggle.addEventListener("change", function () {
+    browser.storage.local.set({ pauseOnHoverEnabled: this.checked });
+    browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
+      if (tabs[0]?.url?.includes("youtube.com")) {
+        browser.tabs.sendMessage(tabs[0].id, { action: "togglePauseOnHover", enabled: this.checked });
+      }
+    });
+  });
+
+  popupToggle.addEventListener("change", function () {
+    browser.storage.local.set({ popupRemovalEnabled: this.checked });
+    browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
+      if (tabs[0]?.url?.includes("youtube.com")) {
+        browser.tabs.sendMessage(tabs[0].id, { action: "togglePopupRemoval", enabled: this.checked });
+      }
+    });
+  });
+
+  timeReminderToggle.addEventListener("change", function () {
+    browser.storage.local.set({ timeReminderEnabled: this.checked });
+    if (this.checked) {
+      timerConfig.classList.remove("hidden");
+    } else {
+      timerConfig.classList.add("hidden");
+    }
+    browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
+      if (tabs[0]?.url?.includes("youtube.com")) {
+        browser.tabs.sendMessage(tabs[0].id, { action: "toggleTimeReminder", enabled: this.checked });
+      }
+    });
+  });
+
   timerPresets.forEach((radio) => {
     radio.addEventListener("change", function () {
       const preset = this.value;
@@ -237,7 +359,6 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   });
 
-  // Custom timer input handler
   customTimerInput.addEventListener("change", function () {
     const customRadio = document.querySelector('input[name="timer-preset"][value="custom"]');
     if (customRadio?.checked) {
@@ -254,5 +375,20 @@ document.addEventListener("DOMContentLoaded", function () {
         }
       });
     }
+  });
+
+  focusModeToggle.addEventListener("change", function () {
+    const enabled = this.checked;
+    browser.storage.local.set({ focusModeEnabled: enabled });
+    updateDeepFocusUI(enabled);
+
+    browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
+      if (tabs[0]?.url?.includes("youtube.com")) {
+        browser.tabs.sendMessage(tabs[0].id, { 
+          action: "toggleDeepFocus", 
+          enabled: enabled 
+        });
+      }
+    });
   });
 });
