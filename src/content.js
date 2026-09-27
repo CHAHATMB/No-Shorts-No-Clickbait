@@ -171,6 +171,25 @@ import { MascotController } from './modules/mascot/mascot-controller.js';
       if (mascotController) {
         mascotController.updateSettings({ categories: message.categories });
       }
+    } else if (message.action === "testTriggerMascot") {
+      if (mascotController) {
+        mascotController.testTrigger(message.category, message.pose, message.text, message.entrance);
+      }
+      return Promise.resolve({ response: "Mascot triggered" });
+    } else if (message.action === "testDismissMascot") {
+      if (mascotController) {
+        mascotController.dismiss('close');
+      }
+      return Promise.resolve({ response: "Mascot dismissed" });
+    } else if (message.action === "testShowHardBlock") {
+      showBlock();
+      return Promise.resolve({ response: "Hard block shown" });
+    } else if (message.action === "testHideHardBlock") {
+      removeBlock();
+      return Promise.resolve({ response: "Hard block hidden" });
+    } else if (message.action === "testTriggerBreakReminder") {
+      showTimeReminder();
+      return Promise.resolve({ response: "Break reminder shown" });
     }
     return Promise.resolve({ response: "Updated" });
   });

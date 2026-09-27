@@ -394,6 +394,98 @@ async function broadcastStats(data) {
     });
     return true;
   }
+
+  // ============================================================
+  // DEV / TEST LAB HANDLERS
+  // ============================================================
+  if (message.action === "testAddWatchTime") {
+    const mins = message.minutes || 15;
+    const ms = mins * 60 * 1000;
+    totalWatchTimeToday += ms;
+    const today = new Date().toDateString();
+    dailyWatchStats[today] = Math.round(totalWatchTimeToday / 1000 / 60);
+    addTimeForDomain('youtube.com', mins * 60).then(() => {
+      return browser.storage.local.set({ totalWatchTimeToday, dailyWatchStats });
+    }).then(() => {
+      broadcastStats({ totalWatchTimeToday, remainingTime });
+      sendResponse({ ok: true, totalWatchTimeToday, minsWatched: dailyWatchStats[today] });
+    });
+    return true;
+  }
+
+  if (message.action === "testAddSiteTime") {
+    const domain = message.domain || 'github.com';
+    const seconds = message.seconds || 1800;
+    addTimeForDomain(domain, seconds).then(() => {
+      sendResponse({ ok: true, domain, seconds });
+    });
+    return true;
+  }
+
+  if (message.action === "testResetTodayData") {
+    totalWatchTimeToday = 0;
+    continueCountToday = 0;
+    breaksTakenToday = 0;
+    const today = new Date().toDateString();
+    dailyWatchStats[today] = 0;
+    const siteKey = `siteTime_${today}`;
+    const updates = {
+      totalWatchTimeToday: 0,
+      continueCountToday: 0,
+      breaksTakenToday: 0,
+      dailyWatchStats,
+      lastWasterAlert: {},
+    };
+    updates[siteKey] = {};
+    browser.storage.local.set(updates).then(() => {
+      broadcastStats({ totalWatchTimeToday: 0, continueCountToday: 0, breaksTakenToday: 0 });
+      sendResponse({ ok: true });
+    });
+    return true;
+  }
+
+  if (message.action === "testAddAllowance") {
+    const mins = message.minutes || 30;
+    remainingTime = Math.max(0, remainingTime + (mins * 60 * 1000));
+    browser.storage.local.set({ remainingTime }).then(() => {
+      broadcastStats({ remainingTime });
+      sendResponse({ ok: true, remainingTime });
+    });
+    return true;
+  }
+
+  if (message.action === "testSetAllowance") {
+    const mins = message.minutes || 0;
+    remainingTime = mins * 60 * 1000;
+    browser.storage.local.set({ remainingTime }).then(() => {
+      broadcastStats({ remainingTime });
+      sendResponse({ ok: true, remainingTime });
+    });
+    return true;
+  }
+
+  if (message.action === "testResetOverrides") {
+    const today = new Date().toDateString();
+    browser.storage.local.set({ blockerOverrides: { date: today, count: 0 } }).then(() => {
+      sendResponse({ ok: true, count: 0 });
+    });
+    return true;
+  }
+
+  if (message.action === "testMaxOverrides") {
+    const today = new Date().toDateString();
+    browser.storage.local.set({ blockerOverrides: { date: today, count: MAX_DAILY_OVERRIDES } }).then(() => {
+      sendResponse({ ok: true, count: MAX_DAILY_OVERRIDES });
+    });
+    return true;
+  }
+
+  if (message.action === "testTriggerBannerActiveTab") {
+    sendNotificationBanner(message.bannerType, message.data || {}).then(() => {
+      sendResponse({ ok: true });
+    });
+    return true;
+  }
 });
 
 // ============================================================

@@ -272,9 +272,14 @@ Poses
 /* Default body elements (opacity, initial state) */
 .fg-mascot-character .mascot-brow-left,
 .fg-mascot-character .mascot-brow-right,
-.fg-mascot-character .mascot-blush {
+.fg-mascot-character .mascot-blush,
+.fg-mascot-character .mascot-drink-cup,
+.fg-mascot-character .mascot-book,
+.fg-mascot-character .mascot-party-sparkles,
+.fg-mascot-character .mascot-sleep-zzz {
   opacity: 0;
-  transition: opacity 0.3s;
+  pointer-events: none;
+  transition: opacity 0.3s, transform 0.3s;
 }
 
 .fg-mascot-character .mascot-eye-left,
@@ -312,37 +317,88 @@ Poses
   animation: fg-mascot-wing-wave-small 1s infinite alternate ease-in-out;
 }
 
-/* Stern Pose */
-[data-pose="stern"] {
+/* Drinking Pose (Hydration) */
+[data-pose="drinking"] {
+  animation: fg-mascot-breathe 2.5s infinite ease-in-out;
+}
+[data-pose="drinking"] .mascot-drink-cup {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  animation: fg-mascot-cup-sip 2s infinite ease-in-out;
+  transform-origin: 56px 72px;
+}
+[data-pose="drinking"] .mascot-wing-right {
+  animation: fg-mascot-wing-hold-cup 2s infinite ease-in-out;
+  transform-origin: 80px 60px;
+}
+[data-pose="drinking"] .mascot-wing-left {
+  animation: fg-mascot-wing-support 2s infinite ease-in-out;
+  transform-origin: 20px 60px;
+}
+[data-pose="drinking"] .mascot-blush {
+  opacity: 1;
+}
+[data-pose="drinking"] .mascot-eye-left,
+[data-pose="drinking"] .mascot-eye-right {
+  animation: fg-mascot-drink-eyes 2s infinite ease-in-out;
+}
+[data-pose="drinking"] .mascot-beak {
+  animation: fg-mascot-drink-sip-beak 2s infinite ease-in-out;
+}
+[data-pose="drinking"] .mascot-water-drop {
+  animation: fg-mascot-drop-float 1.5s infinite ease-out;
+}
+[data-pose="drinking"] .mascot-water-drop-2 {
+  animation: fg-mascot-drop-float 1.5s infinite 0.75s ease-out;
+}
+
+/* Stern / Worried Pose */
+[data-pose="stern"],
+[data-pose="worried"] {
   transform: rotate(-3deg);
 }
 [data-pose="stern"] .mascot-brow-left,
-[data-pose="stern"] .mascot-brow-right {
+[data-pose="stern"] .mascot-brow-right,
+[data-pose="worried"] .mascot-brow-left,
+[data-pose="worried"] .mascot-brow-right {
   opacity: 1;
 }
-[data-pose="stern"] .mascot-brow-left {
+[data-pose="stern"] .mascot-brow-left,
+[data-pose="worried"] .mascot-brow-left {
   transform: rotate(15deg) translateY(2px);
 }
-[data-pose="stern"] .mascot-brow-right {
+[data-pose="stern"] .mascot-brow-right,
+[data-pose="worried"] .mascot-brow-right {
   transform: rotate(-15deg) translateY(2px);
 }
-[data-pose="stern"] .mascot-wing-left {
+[data-pose="stern"] .mascot-wing-left,
+[data-pose="worried"] .mascot-wing-left {
   transform: rotate(20deg);
 }
-[data-pose="stern"] .mascot-wing-right {
+[data-pose="stern"] .mascot-wing-right,
+[data-pose="worried"] .mascot-wing-right {
   transform: rotate(-20deg);
 }
 
-/* Sleepy Pose */
-[data-pose="sleepy"] {
+/* Sleepy / Sleeping Pose */
+[data-pose="sleepy"],
+[data-pose="sleeping"] {
   animation: fg-mascot-sway 4s infinite ease-in-out;
 }
 [data-pose="sleepy"] .mascot-eye-left,
-[data-pose="sleepy"] .mascot-eye-right {
+[data-pose="sleepy"] .mascot-eye-right,
+[data-pose="sleeping"] .mascot-eye-left,
+[data-pose="sleeping"] .mascot-eye-right {
   transform: scaleY(0.3);
 }
-[data-pose="sleepy"] .mascot-beak {
+[data-pose="sleepy"] .mascot-beak,
+[data-pose="sleeping"] .mascot-beak {
   animation: fg-mascot-yawn 6s infinite;
+}
+[data-pose="sleepy"] .mascot-sleep-zzz,
+[data-pose="sleeping"] .mascot-sleep-zzz {
+  opacity: 1;
+  animation: fg-mascot-zzz-float 2.5s infinite ease-in-out;
 }
 
 /* Waving Pose */
@@ -354,6 +410,43 @@ Poses
 }
 [data-pose="waving"] .mascot-wing-right {
   animation: fg-mascot-wave-high 0.5s infinite alternate ease-in-out;
+}
+
+/* Celebrating Pose */
+[data-pose="celebrating"] {
+  animation: fg-mascot-bounce-continuous 0.6s infinite cubic-bezier(0.28, 0.84, 0.42, 1);
+}
+[data-pose="celebrating"] .mascot-blush {
+  opacity: 1;
+}
+[data-pose="celebrating"] .mascot-wing-left {
+  animation: fg-mascot-wave-high 0.4s infinite alternate ease-in-out;
+}
+[data-pose="celebrating"] .mascot-wing-right {
+  animation: fg-mascot-wave-high 0.4s infinite alternate ease-in-out 0.2s;
+}
+[data-pose="celebrating"] .mascot-party-sparkles {
+  opacity: 1;
+  animation: fg-mascot-sparkles-pulse 1s infinite alternate ease-in-out;
+}
+
+/* Reading Pose */
+[data-pose="reading"] {
+  animation: fg-mascot-breathe 3s infinite ease-in-out;
+}
+[data-pose="reading"] .mascot-eye-left,
+[data-pose="reading"] .mascot-eye-right {
+  transform: translateY(3px) scaleY(0.85);
+}
+[data-pose="reading"] .mascot-book {
+  opacity: 1;
+  transform: translateY(0);
+}
+[data-pose="reading"] .mascot-wing-left {
+  transform: rotate(20deg) translateY(-2px);
+}
+[data-pose="reading"] .mascot-wing-right {
+  transform: rotate(-20deg) translateY(-2px);
 }
 
 /* Walking Pose */
@@ -419,6 +512,89 @@ Poses
 @keyframes fg-mascot-bounce-continuous {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-20px); }
+}
+
+/* Drinking Animation Keyframes */
+@keyframes fg-mascot-cup-sip {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  30%, 70% {
+    transform: translateY(-9px) rotate(-8deg);
+  }
+}
+
+@keyframes fg-mascot-wing-hold-cup {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  30%, 70% {
+    transform: rotate(-32deg) translateY(-8px) translateX(-10px);
+  }
+}
+
+@keyframes fg-mascot-wing-support {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  30%, 70% {
+    transform: rotate(24deg) translateY(-4px) translateX(6px);
+  }
+}
+
+@keyframes fg-mascot-drink-eyes {
+  0%, 20%, 80%, 100% {
+    transform: scaleY(1);
+  }
+  35%, 65% {
+    transform: scaleY(0.2) translateY(2px);
+  }
+}
+
+@keyframes fg-mascot-drink-sip-beak {
+  0%, 20%, 80%, 100% {
+    transform: translateY(0) scale(1);
+  }
+  35%, 65% {
+    transform: translateY(-1px) scale(0.95);
+  }
+}
+
+@keyframes fg-mascot-drop-float {
+  0% {
+    opacity: 0;
+    transform: translateY(2px) scale(0.4);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-5px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-14px) scale(0.3);
+  }
+}
+
+@keyframes fg-mascot-zzz-float {
+  0%, 100% {
+    transform: translateY(0) translateX(0);
+    opacity: 0.7;
+  }
+  50% {
+    transform: translateY(-6px) translateX(3px);
+    opacity: 1;
+  }
+}
+
+@keyframes fg-mascot-sparkles-pulse {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
 }
 
 
