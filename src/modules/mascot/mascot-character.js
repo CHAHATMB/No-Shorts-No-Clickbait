@@ -50,6 +50,40 @@ export function getCharacterSVG() {
       
       <!-- Beak -->
       <path class="mascot-beak" d="M 45 52 L 55 52 L 50 62 Z" fill="#E67E22" />
+
+      <!-- Water cup & straw for drinking pose (hidden by default via CSS) -->
+      <g class="mascot-drink-cup">
+        <!-- Cup body -->
+        <path class="mascot-cup-body" d="M 52 58 L 54 78 Q 54 82 58 82 L 68 82 Q 72 82 72 78 L 74 58 Z" fill="rgba(186, 230, 253, 0.85)" stroke="#38bdf8" stroke-width="1.5" />
+        <!-- Water level inside cup -->
+        <path class="mascot-cup-water" d="M 53.5 64 L 55 78 Q 55 81 58 81 L 68 81 Q 71 81 71 78 L 72.5 64 Z" fill="#0284c7" />
+        <!-- Straw extending towards beak -->
+        <path class="mascot-cup-straw" d="M 48 50 L 56 59 L 60 76" stroke="#f43f5e" stroke-width="2.5" stroke-linecap="round" fill="none" />
+        <!-- Water droplets / bubbles -->
+        <circle class="mascot-water-drop" cx="47" cy="48" r="2" fill="#38bdf8" />
+        <circle class="mascot-water-drop-2" cx="64" cy="46" r="1.5" fill="#38bdf8" />
+      </g>
+
+      <!-- Book for reading pose -->
+      <g class="mascot-book">
+        <path class="mascot-book-cover" d="M 34 72 Q 50 77 66 72 L 68 84 Q 50 89 32 84 Z" fill="#6366f1" />
+        <path class="mascot-book-pages" d="M 35 71 Q 50 76 65 71 L 66 82 Q 50 87 34 82 Z" fill="#ffffff" />
+        <line x1="50" y1="73" x2="50" y2="85" stroke="#a5b4fc" stroke-width="1.5" />
+      </g>
+
+      <!-- Sparkles for celebrating pose -->
+      <g class="mascot-party-sparkles">
+        <polygon points="20,25 22,29 26,30 22,31 20,35 18,31 14,30 18,29" fill="#facc15" />
+        <polygon points="80,25 82,29 86,30 82,31 80,35 78,31 74,30 78,29" fill="#facc15" />
+        <polygon points="50,12 51.5,15 55,16 51.5,17 50,20 48.5,17 45,16 48.5,15" fill="#ec4899" />
+      </g>
+
+      <!-- Zzz for sleeping pose -->
+      <g class="mascot-sleep-zzz">
+        <text x="74" y="32" font-family="-apple-system, sans-serif" font-weight="bold" font-size="11" fill="#818cf8">Z</text>
+        <text x="82" y="24" font-family="-apple-system, sans-serif" font-weight="bold" font-size="9" fill="#a5b4fc">z</text>
+        <text x="88" y="17" font-family="-apple-system, sans-serif" font-weight="bold" font-size="7" fill="#c7d2fe">z</text>
+      </g>
     </svg>
   `;
 }
@@ -65,8 +99,13 @@ export const MASCOT_POSES = [
   'sliding',
   'talking',
   'stern',
+  'worried',
   'sleepy',
-  'waving'
+  'sleeping',
+  'waving',
+  'drinking',
+  'celebrating',
+  'reading'
 ];
 
 /**

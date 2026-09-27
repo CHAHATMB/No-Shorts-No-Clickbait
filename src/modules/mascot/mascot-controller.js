@@ -55,7 +55,7 @@ const CATEGORY_LABELS = {
  * Maps message category to the character pose to use.
  */
 const CATEGORY_POSES = {
-  [MESSAGE_CATEGORIES.HYDRATION]: 'talking',
+  [MESSAGE_CATEGORIES.HYDRATION]: 'drinking',
   [MESSAGE_CATEGORIES.EYE_STRAIN]: 'talking',
   [MESSAGE_CATEGORIES.BREAK]: 'waving',
   [MESSAGE_CATEGORIES.STOP_WATCHING]: 'stern',
@@ -153,6 +153,7 @@ export class MascotController {
       entrance = getRandomEntrance(),
       displayDuration = 8000,
       pauseVideo = false,
+      pose = options.pose || CATEGORY_POSES[category] || 'talking',
     } = options;
 
     // Queue if already visible
@@ -172,9 +173,9 @@ export class MascotController {
       this._pauseVideo();
     }
 
-    // Set pose based on category
-    const pose = CATEGORY_POSES[category] || 'talking';
-    this._setPose(pose);
+    // Set pose based on options or category
+    const initialPose = pose || CATEGORY_POSES[category] || 'talking';
+    this._setPose(initialPose);
 
     // Listen for entrance animation end
     const onEnterEnd = () => {
@@ -186,8 +187,20 @@ export class MascotController {
         if (this.speechBubble) {
           this.speechBubble.classList.add('visible');
 
-          // Switch to talking pose after bubble appears
-          if (pose !== 'stern') {
+          // Maintain the pose if explicitly set or for special poses, otherwise default to talking
+          if (options.pose) {
+            this._setPose(options.pose);
+          } else if (
+            initialPose === 'drinking' ||
+            initialPose === 'stern' ||
+            initialPose === 'worried' ||
+            initialPose === 'sleepy' ||
+            initialPose === 'sleeping' ||
+            initialPose === 'celebrating' ||
+            initialPose === 'reading'
+          ) {
+            this._setPose(initialPose);
+          } else {
             this._setPose('talking');
           }
         }
@@ -532,5 +545,36 @@ export class MascotController {
     this.container = null;
     this.speechBubble = null;
     this.characterEl = null;
+  }
+
+  /**
+   * Directly trigger the mascot for testing and development.
+   *
+   * @param {string} [category] - Message category (break, hydration, eye_strain, stop_watching, late_night)
+   * @param {string} [pose] - Character pose
+   * @param {string} [customText] - Custom bubble text
+   * @param {string} [entrance] - Entrance animation (slide, walk, jump, pop)
+   */
+  testTrigger(category, pose, customText, entrance) {
+    if (this.autoDismissTimer) {
+      clearTimeout(this.autoDismissTimer);
+      this.autoDismissTimer = null;
+    }
+    this._cleanup();
+    this.state = MascotState.OFFSCREEN;
+    this.messageQueue = [];
+
+    const cat = category || MESSAGE_CATEGORIES.BREAK;
+    const chosenPose = pose || (cat === MESSAGE_CATEGORIES.HYDRATION ? 'drinking' : (CATEGORY_POSES[cat] || 'talking'));
+    const text = customText || `[Test Lab] Testing ${cat} trigger! Keep up the focus.`;
+
+    this.show(text, {
+      category: cat,
+      pose: chosenPose,
+      behavior: 'transient',
+      entrance: entrance || 'slide',
+      displayDuration: 8000,
+      pauseVideo: false,
+    });
   }
 }

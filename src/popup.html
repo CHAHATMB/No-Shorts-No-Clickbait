@@ -468,6 +468,190 @@
         height: 1px; background: var(--border);
         margin: 12px 0;
       }
+
+      /* ===== TEST LAB (DEV ONLY) ===== */
+      .tab-btn.test-lab-btn {
+        color: #c084fc;
+      }
+      .tab-btn.test-lab-btn:hover {
+        color: #e9d5ff;
+      }
+      .tab-btn.test-lab-btn.active {
+        color: #c084fc;
+        border-bottom-color: #a855f7;
+      }
+
+      .test-header-card {
+        background: linear-gradient(135deg, #1b0e2b 0%, #12091d 100%);
+        border: 1px solid rgba(168, 85, 247, 0.3);
+        border-radius: var(--radius);
+        padding: 12px;
+        margin-bottom: 10px;
+      }
+      .test-badge {
+        display: inline-block;
+        padding: 2px 7px;
+        border-radius: 4px;
+        font-size: 9px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        background: rgba(168, 85, 247, 0.25);
+        color: #d8b4fe;
+        border: 1px solid rgba(168, 85, 247, 0.4);
+      }
+      .test-status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 3px 8px;
+        border-radius: 12px;
+        font-size: 10px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        color: var(--text);
+      }
+      .test-status-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #22c55e;
+      }
+      .test-status-dot.inactive {
+        background: #f59e0b;
+      }
+      .test-grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+        margin-top: 8px;
+      }
+      .test-grid-3 {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 6px;
+        margin-top: 8px;
+      }
+      .test-grid-4 {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr 1fr;
+        gap: 4px;
+        margin-top: 8px;
+      }
+      .test-btn {
+        padding: 7px 8px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: var(--text);
+        font-size: 11px;
+        font-weight: 600;
+        cursor: pointer;
+        text-align: center;
+        transition: all 0.2s;
+        font-family: inherit;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+      }
+      .test-btn:hover {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: rgba(255, 255, 255, 0.2);
+        transform: translateY(-1px);
+      }
+      .test-btn:active {
+        transform: translateY(0);
+      }
+      .test-btn.dev-btn {
+        border-color: rgba(168, 85, 247, 0.35);
+        color: #d8b4fe;
+      }
+      .test-btn.dev-btn:hover {
+        background: rgba(168, 85, 247, 0.15);
+        border-color: #a855f7;
+      }
+      .test-btn.warn-btn {
+        border-color: rgba(245, 158, 11, 0.3);
+        color: #fcd34d;
+      }
+      .test-btn.warn-btn:hover {
+        background: rgba(245, 158, 11, 0.12);
+        border-color: #f59e0b;
+      }
+      .test-btn.danger-btn {
+        border-color: rgba(239, 68, 68, 0.3);
+        color: #fca5a5;
+      }
+      .test-btn.danger-btn:hover {
+        background: rgba(239, 68, 68, 0.12);
+        border-color: #ef4444;
+      }
+      .test-toast {
+        padding: 8px 10px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 500;
+        margin-bottom: 10px;
+        display: none;
+      }
+      .test-toast.visible {
+        display: block;
+        animation: fadeIn 0.2s ease-in-out;
+      }
+      .test-toast.success {
+        background: rgba(34, 197, 94, 0.15);
+        border: 1px solid rgba(34, 197, 94, 0.3);
+        color: #4ade80;
+      }
+      .test-toast.error {
+        background: rgba(239, 68, 68, 0.15);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        color: #f87171;
+      }
+      .test-input-row {
+        display: flex;
+        gap: 6px;
+        margin-top: 8px;
+      }
+      .test-input {
+        flex: 1;
+        padding: 6px 8px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font-size: 11px;
+        background: var(--surface2);
+        color: var(--text);
+        outline: none;
+        font-family: inherit;
+      }
+      .test-input:focus {
+        border-color: #a855f7;
+      }
+      .test-select {
+        padding: 6px 8px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font-size: 11px;
+        background: var(--surface2);
+        color: var(--text);
+        outline: none;
+        font-family: inherit;
+      }
+      .test-json-box {
+        background: #07070b;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 8px;
+        font-family: Consolas, Monaco, monospace;
+        font-size: 10px;
+        color: #a5b4fc;
+        max-height: 140px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+        word-break: break-all;
+        margin-top: 8px;
+      }
     </style>
   </head>
   <body>
@@ -483,6 +667,9 @@
       <button class="tab-btn active" data-tab="customization">YouTube</button>
       <button class="tab-btn" data-tab="productivity">Productivity</button>
       <button class="tab-btn" data-tab="insights">Insights</button>
+      <!-- DEV_ONLY_START -->
+      <button class="tab-btn test-lab-btn" data-tab="test" id="tab-btn-test">🧪 Test Lab</button>
+      <!-- DEV_ONLY_END -->
     </nav>
 
     <!-- ===== TAB 1: CUSTOMIZATION (YouTube) ===== -->
@@ -753,6 +940,173 @@
         <div style="text-align:center;color:var(--text-sec);font-size:11px;padding:24px 0">Loading insights...</div>
       </div>
     </div>
+
+    <!-- DEV_ONLY_START -->
+    <!-- ===== TAB 4: TEST LAB (DEV ONLY) ===== -->
+    <div id="tab-test" class="tab-content">
+      <!-- Dev Banner & Status Card -->
+      <div class="test-header-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span style="font-size:16px;">🧪</span>
+            <span style="font-weight:700;font-size:13px;color:#f3e8ff;">Test Lab</span>
+          </div>
+          <span class="test-badge">DEV BUILD</span>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--text-sec);margin-bottom:8px;">
+          <span>Active Tab: <strong id="test-active-domain" style="color:var(--text)">Loading...</strong></span>
+          <span class="test-status-pill" id="test-tab-status-pill">
+            <span class="test-status-dot" id="test-tab-dot"></span>
+            <span id="test-tab-label">Checking tab...</span>
+          </span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px;text-align:center;">
+          <div style="background:rgba(255,255,255,0.04);border-radius:6px;padding:5px;">
+            <div style="font-size:9px;color:var(--text-sec)">Watch Today</div>
+            <div id="test-stat-watch" style="font-weight:700;font-size:11px;color:#f0f0f5">0m</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.04);border-radius:6px;padding:5px;">
+            <div style="font-size:9px;color:var(--text-sec)">Allowance</div>
+            <div id="test-stat-allowance" style="font-weight:700;font-size:11px;color:#22c55e">0m</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.04);border-radius:6px;padding:5px;">
+            <div style="font-size:9px;color:var(--text-sec)">Overrides</div>
+            <div id="test-stat-overrides" style="font-weight:700;font-size:11px;color:#f59e0b">0/3</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.04);border-radius:6px;padding:5px;">
+            <div style="font-size:9px;color:var(--text-sec)">Rate</div>
+            <div id="test-stat-rate" style="font-weight:700;font-size:11px;color:#3b82f6">₹500</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Toast Alert -->
+      <div id="test-toast" class="test-toast"></div>
+
+      <!-- 1. MASCOT COMPANION -->
+      <div class="card">
+        <h2>🦊 Mascot Companion (YouTube)</h2>
+        <p>Trigger mascot prompts, poses, and animations on YouTube.</p>
+        
+        <div style="font-size:10px;font-weight:600;color:var(--text-sec);margin-bottom:4px;">Quick Triggers:</div>
+        <div class="test-grid-3">
+          <button class="test-btn dev-btn" id="btn-test-mascot-break">🧘 Break</button>
+          <button class="test-btn dev-btn" id="btn-test-mascot-water">💧 Water</button>
+          <button class="test-btn dev-btn" id="btn-test-mascot-eye">👀 Eye Strain</button>
+          <button class="test-btn dev-btn" id="btn-test-mascot-stop">🛑 Stop Now</button>
+          <button class="test-btn dev-btn" id="btn-test-mascot-night">🌙 Late Night</button>
+          <button class="test-btn warn-btn" id="btn-test-mascot-dismiss">✕ Dismiss</button>
+        </div>
+
+        <div style="font-size:10px;font-weight:600;color:var(--text-sec);margin-top:10px;margin-bottom:4px;">Custom Pose & Animation:</div>
+        <div style="display:flex;gap:6px;">
+          <select class="test-select" id="test-mascot-pose" style="flex:1;">
+            <option value="drinking">Pose: Drinking 💧</option>
+            <option value="talking">Pose: Talking 💬</option>
+            <option value="waving">Pose: Waving 👋</option>
+            <option value="celebrating">Pose: Celebrating 🎉</option>
+            <option value="worried">Pose: Worried / Stern 🛑</option>
+            <option value="sleeping">Pose: Sleeping 🌙</option>
+            <option value="reading">Pose: Reading 📖</option>
+            <option value="idle">Pose: Idle 🧘</option>
+            <option value="walking">Pose: Walking 🚶</option>
+            <option value="jumping">Pose: Jumping 🦘</option>
+          </select>
+          <select class="test-select" id="test-mascot-entrance" style="flex:1;">
+            <option value="slide">Entrance: Slide</option>
+            <option value="walk">Entrance: Walk</option>
+            <option value="jump">Entrance: Jump</option>
+            <option value="pop">Entrance: Pop</option>
+          </select>
+        </div>
+        <div class="test-input-row">
+          <input type="text" class="test-input" id="test-mascot-text" placeholder="Custom message text..." />
+          <button class="test-btn dev-btn" id="btn-test-mascot-custom" style="white-space:nowrap;">Test Mascot</button>
+        </div>
+      </div>
+
+      <!-- 2. NOTIFICATION BANNERS -->
+      <div class="card">
+        <h2>🔔 In-Page Notification Banners</h2>
+        <p>Fire non-intrusive banner alerts on whatever tab is currently open.</p>
+        <div class="test-grid-2">
+          <button class="test-btn" id="btn-test-banner-time">⏱️ Time Alert (45m)</button>
+          <button class="test-btn" id="btn-test-banner-milestone">🎉 Milestone (2h Focus)</button>
+          <button class="test-btn" id="btn-test-banner-summary">📊 Daily Summary</button>
+          <button class="test-btn" id="btn-test-banner-suggestion">💡 Smart Suggestion</button>
+        </div>
+      </div>
+
+      <!-- 3. DISTRACTION BLOCKER & OVERLAYS -->
+      <div class="card">
+        <h2>🚫 Blockers & Overlays</h2>
+        <p>Simulate full-screen lockups and test the emergency override.</p>
+        <div class="test-grid-2">
+          <button class="test-btn warn-btn" id="btn-test-blocker-overlay">🚫 Distracting Site Block</button>
+          <button class="test-btn danger-btn" id="btn-test-hard-block">🛑 YouTube Hard Lock</button>
+        </div>
+        <div class="test-grid-3" style="margin-top:6px;">
+          <button class="test-btn dev-btn" id="btn-test-clear-overlays">🔓 Unlock / Clear</button>
+          <button class="test-btn" id="btn-test-reset-overrides">🔄 Reset Overrides (0)</button>
+          <button class="test-btn" id="btn-test-max-overrides">⚠️ Max Overrides (3)</button>
+        </div>
+      </div>
+
+      <!-- 4. WATCH TIME & MONEY SIMULATOR -->
+      <div class="card">
+        <h2>⏱️ Time & Money Simulator</h2>
+        <p>Manipulate time values instantly to observe Money Meter & Weekly Reports.</p>
+        <div class="test-grid-2">
+          <button class="test-btn" id="btn-test-time-yt15">➕ +15m YouTube Watch</button>
+          <button class="test-btn" id="btn-test-time-yt60">➕ +60m YouTube Watch</button>
+          <button class="test-btn" id="btn-test-time-prod">➕ +30m GitHub (Prod)</button>
+          <button class="test-btn" id="btn-test-time-waste">➕ +30m Instagram (Waste)</button>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;">
+          <button class="test-btn danger-btn" id="btn-test-reset-time" style="flex:1;margin-right:6px;">🧹 Reset Today's Time</button>
+          <button class="test-btn" id="btn-test-break-reminder" style="flex:1;">⏰ Break Popup</button>
+        </div>
+        <div style="font-size:10px;color:var(--text-sec);margin-top:8px;margin-bottom:4px;">Set Hourly Rate:</div>
+        <div class="test-grid-4">
+          <button class="test-btn" data-test-rate="300">₹300</button>
+          <button class="test-btn" data-test-rate="500">₹500</button>
+          <button class="test-btn" data-test-rate="1000">₹1,000</button>
+          <button class="test-btn" data-test-rate="2000">₹2,000</button>
+        </div>
+      </div>
+
+      <!-- 5. CODING BONUS & ALLOWANCE -->
+      <div class="card">
+        <h2>⚡ Allowance & LeetCode Bonus</h2>
+        <p>Test watch allowance balance and mock LeetCode problem solves.</p>
+        <div class="test-grid-3">
+          <button class="test-btn" id="btn-test-allowance-add30">🎁 +30m Allow</button>
+          <button class="test-btn" id="btn-test-allowance-add60">🎁 +60m Allow</button>
+          <button class="test-btn danger-btn" id="btn-test-allowance-drain">🔒 Drain to 0</button>
+        </div>
+        <div style="font-size:10px;color:var(--text-sec);margin-top:8px;margin-bottom:4px;">Mock Solved LeetCode:</div>
+        <div class="test-grid-3">
+          <button class="test-btn" id="btn-test-solve-easy" style="color:#22c55e;">🟢 Easy (+10m)</button>
+          <button class="test-btn" id="btn-test-solve-med" style="color:#f59e0b;">🟡 Med (+20m)</button>
+          <button class="test-btn" id="btn-test-solve-hard" style="color:#ef4444;">🔴 Hard (+45m)</button>
+        </div>
+      </div>
+
+      <!-- 6. STORAGE INSPECTOR & SYSTEM TOOLS -->
+      <div class="card">
+        <h2>🧰 Storage Inspector & Tools</h2>
+        <p>Inspect local extension data or reset everything.</p>
+        <div class="test-grid-3">
+          <button class="test-btn dev-btn" id="btn-test-refresh-storage">🔄 Refresh</button>
+          <button class="test-btn" id="btn-test-copy-storage">📋 Copy JSON</button>
+          <button class="test-btn warn-btn" id="btn-test-reload-tab">🔄 Reload Tab</button>
+        </div>
+        <button class="test-btn danger-btn" id="btn-test-clear-storage" style="width:100%;margin-top:6px;">🗑️ Clear All Storage Data</button>
+        <div id="test-storage-viewer" class="test-json-box">Click "Refresh" to load storage snapshot...</div>
+      </div>
+
+    </div>
+    <!-- DEV_ONLY_END -->
 
     <footer>
       <p>FocusGuard v4.0 · <span id="ext-version">Productivity &amp; YouTube Tools</span></p>
