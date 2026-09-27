@@ -14,6 +14,7 @@ module.exports = (env, argv) => {
         : './src/background.js',
       content: './src/content.js',
       popup: './src/popup.js',
+      'productivity-content': './src/productivity-content.js',
     },
     output: {
       path: path.resolve(__dirname, 'dist', browser),
@@ -31,6 +32,7 @@ module.exports = (env, argv) => {
             to: 'manifest.json',
           },
           { from: 'src/styles.css', to: 'styles.css' },
+          { from: 'src/modules/mascot/mascot-styles.css', to: 'mascot-styles.css' },
           { from: 'src/popup.html', to: 'popup.html' },
           { from: 'src/index.html', to: 'index.html' },
           { from: 'src/icons', to: 'icons' },

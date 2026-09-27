@@ -1,9 +1,14 @@
 // background.js
 import './browser-polyfill.js';
 import { FEATURES } from './features.js';
+import { initUniversalTracker, addTimeForDomain, extractDomain } from './modules/time-tracker.js';
+import { checkUrlBlocked, getOverrideCount, incrementOverrideCount, MAX_DAILY_OVERRIDES } from './modules/url-blocker.js';
 
 console.log("Background service worker started.");
 
+// ============================================================
+// CODING BONUS SYSTEM (existing)
+// ============================================================
 const REWARD_MINUTES = {
   EASY: 10,
   MEDIUM: 20,
@@ -15,15 +20,14 @@ let codingProfiles = {
   codingBonusEnabled: false,
 };
 
-let solvedProblemsHistory = {}; // Daily stats: { "date": { easy: 0, medium: 0, hard: 0, totalMinutes: 0 } }
-let dailyBaselines = {}; // Snapshot at start of day: { "date": { easy: 0, medium: 0, hard: 0 } }
-let remainingTime = 0; // Current available watch time in milliseconds
-let dailyWatchStats = {}; // { "date": minutes }
-let totalWatchTimeToday = 0; // in milliseconds
+let solvedProblemsHistory = {};
+let dailyBaselines = {};
+let remainingTime = 0;
+let dailyWatchStats = {};
+let totalWatchTimeToday = 0;
 let continueCountToday = 0;
 let breaksTakenToday = 0;
 
-// Load coding profiles and state from storage
 async function loadCodingSettings() {
   const result = await browser.storage.local.get([
     "leetcodeUsername",
@@ -46,20 +50,19 @@ async function loadCodingSettings() {
   dailyBaselines = result.dailyBaselines || {};
   remainingTime = result.remainingTime || 0;
   dailyWatchStats = result.dailyWatchStats || {};
-  
+
   const today = new Date().toDateString();
   const lastUpdateDate = result.lastUpdateDate;
 
-  // Reset daily stats if it's a new day
   if (lastUpdateDate !== today) {
     totalWatchTimeToday = 0;
     continueCountToday = 0;
     breaksTakenToday = 0;
-    await browser.storage.local.set({ 
-      totalWatchTimeToday, 
+    await browser.storage.local.set({
+      totalWatchTimeToday,
       continueCountToday,
       breaksTakenToday,
-      lastUpdateDate: today 
+      lastUpdateDate: today
     });
   } else {
     totalWatchTimeToday = result.totalWatchTimeToday || 0;
@@ -70,11 +73,8 @@ async function loadCodingSettings() {
   if (!solvedProblemsHistory[today]) {
     solvedProblemsHistory[today] = { easy: 0, medium: 0, hard: 0, totalMinutes: 0 };
   }
-
-  console.log("Settings loaded. Remaining:", Math.round(remainingTime / 1000 / 60), "min, Watched today:", Math.round(totalWatchTimeToday / 1000 / 60), "min");
 }
 
-// Badge status logic
 browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === "complete" && tab.url) {
     if (tab.url.includes("youtube.com")) {
@@ -83,19 +83,117 @@ browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     } else {
       browser.action.setBadgeText({ text: "", tabId: tabId });
     }
+
+    // URL blocker check
+    if (FEATURES.URL_BLOCKER) {
+      handleUrlBlockerCheck(tabId, tab.url);
+    }
   }
 });
 
-// Function to fetch LeetCode solved problems breakdown
+// ============================================================
+// URL BLOCKER
+// ============================================================
+async function handleUrlBlockerCheck(tabId, url) {
+  try {
+    const { matched, pattern } = await checkUrlBlocked(url);
+    if (matched) {
+      // Notify content script to show block overlay
+      try {
+        await browser.tabs.sendMessage(tabId, {
+          action: 'showBlockOverlay',
+          pattern: pattern,
+        });
+      } catch (e) {
+        // Content script might not be loaded yet, retry
+        setTimeout(async () => {
+          try {
+            await browser.tabs.sendMessage(tabId, {
+              action: 'showBlockOverlay',
+              pattern: pattern,
+            });
+          } catch (e2) { /* ignore */ }
+        }, 1000);
+      }
+    }
+  } catch (e) {
+    console.error('[Blocker] Error checking URL:', e);
+  }
+}
+
+// ============================================================
+// NOTIFICATION BANNER SYSTEM
+// ============================================================
+async function sendNotificationBanner(type, data = {}) {
+  try {
+    const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+    if (tabs[0]) {
+      await browser.tabs.sendMessage(tabs[0].id, {
+        action: 'showBanner',
+        type,
+        data,
+      });
+    }
+  } catch (e) { /* ignore */ }
+}
+
+// Check if we should send time-waster alert
+async function checkTimeWasterAlert() {
+  try {
+    const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+    if (!tabs[0]?.url) return;
+    
+    const domain = extractDomain(tabs[0].url);
+    if (!domain) return;
+    
+    const catResult = await browser.storage.local.get(['siteCategories', 'bannerSettings']);
+    const cats = catResult.siteCategories || {};
+    const bannerSettings = catResult.bannerSettings || { timeAlerts: true, dailySummary: true, milestones: true };
+    
+    if (!bannerSettings.timeAlerts) return;
+    
+    // Check if it's a waste site
+    const { DEFAULT_CATEGORIES } = await import('./modules/site-categories.js');
+    const allCats = { ...DEFAULT_CATEGORIES, ...cats };
+    if (allCats[domain] !== 'waste') return;
+    
+    // Check how long on this site today
+    const key = `siteTime_${new Date().toDateString()}`;
+    const result = await browser.storage.local.get([key, 'lastWasterAlert']);
+    const siteData = result[key] || {};
+    const secs = siteData[domain] || 0;
+    
+    // Alert thresholds: 30min, 60min, 90min
+    const thresholds = [1800, 3600, 5400];
+    const lastAlert = result.lastWasterAlert || {};
+    const lastAlertForDomain = lastAlert[domain] || 0;
+    
+    for (const threshold of thresholds) {
+      if (secs >= threshold && lastAlertForDomain < threshold) {
+        const mins = Math.round(secs / 60);
+        // Update last alert
+        lastAlert[domain] = threshold;
+        await browser.storage.local.set({ lastWasterAlert: lastAlert });
+        
+        await sendNotificationBanner('timeAlert', {
+          domain,
+          minutes: mins,
+        });
+        break;
+      }
+    }
+  } catch (e) { /* ignore */ }
+}
+
+// ============================================================
+// LEETCODE API (existing)
+// ============================================================
 async function fetchLeetCodeStats(username) {
   if (!username) return null;
-  console.log(`Fetching LeetCode stats for ${username}`);
   try {
     const response = await fetch("https://leetcode.com/graphql", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         query: `
           query getUserProfile($username: String!) {
@@ -109,11 +207,11 @@ async function fetchLeetCodeStats(username) {
             }
           }
         `,
-        variables: { username: username },
+        variables: { username },
       }),
     });
     const data = await response.json();
-    if (data.data && data.data.matchedUser && data.data.matchedUser.submitStats.acSubmissionNum) {
+    if (data.data?.matchedUser?.submitStats?.acSubmissionNum) {
       const stats = data.data.matchedUser.submitStats.acSubmissionNum;
       return {
         easy: stats.find(s => s.difficulty === "Easy")?.count || 0,
@@ -128,27 +226,19 @@ async function fetchLeetCodeStats(username) {
   }
 }
 
-// Main function to update solved problems and calculate bonus
 async function updateSolvedProblems() {
-  if (!FEATURES.CODING_PLATFORM_INTEGRATION) {
-    return;
-  }
+  if (!FEATURES.CODING_PLATFORM_INTEGRATION) return;
   await loadCodingSettings();
-
-  if (!codingProfiles.codingBonusEnabled || !codingProfiles.leetcodeUsername) {
-    return;
-  }
+  if (!codingProfiles.codingBonusEnabled || !codingProfiles.leetcodeUsername) return;
 
   const currentStats = await fetchLeetCodeStats(codingProfiles.leetcodeUsername);
   if (!currentStats) return;
 
   const today = new Date().toDateString();
-  
-  // If no baseline for today, set it to current stats
+
   if (!dailyBaselines[today]) {
     dailyBaselines[today] = currentStats;
     await browser.storage.local.set({ dailyBaselines });
-    console.log("Set daily baseline for LeetCode:", dailyBaselines[today]);
   }
 
   const baseline = dailyBaselines[today];
@@ -158,55 +248,52 @@ async function updateSolvedProblems() {
     hard: Math.max(0, currentStats.hard - baseline.hard),
   };
 
-  const earnedMinutes = 
-    (solvedToday.easy * REWARD_MINUTES.EASY) +
-    (solvedToday.medium * REWARD_MINUTES.MEDIUM) +
-    (solvedToday.hard * REWARD_MINUTES.HARD);
+  const earnedMinutes =
+    solvedToday.easy * REWARD_MINUTES.EASY +
+    solvedToday.medium * REWARD_MINUTES.MEDIUM +
+    solvedToday.hard * REWARD_MINUTES.HARD;
 
-  // Calculate if we need to add new time to remainingTime
   const previousEarnedMinutes = solvedProblemsHistory[today].totalMinutes || 0;
   if (earnedMinutes > previousEarnedMinutes) {
     const newMinutes = earnedMinutes - previousEarnedMinutes;
-    remainingTime += (newMinutes * 60 * 1000);
-    console.log(`Earned ${newMinutes} new minutes! Total remaining: ${remainingTime / 1000 / 60} min`);
+    remainingTime += newMinutes * 60 * 1000;
   }
 
-  solvedProblemsHistory[today] = {
-    ...solvedToday,
-    totalMinutes: earnedMinutes
-  };
-
-  await browser.storage.local.set({ 
-    solvedProblemsHistory,
-    remainingTime 
-  });
+  solvedProblemsHistory[today] = { ...solvedToday, totalMinutes: earnedMinutes };
+  await browser.storage.local.set({ solvedProblemsHistory, remainingTime });
 
   try {
     await browser.runtime.sendMessage({
       action: "updateStats",
-      remainingTime: remainingTime,
+      remainingTime,
       earnedMinutesToday: earnedMinutes,
-      solvedToday: solvedToday
+      solvedToday,
     });
-  } catch (e) {
-    // Ignore message errors
-  }
+  } catch (e) { /* ignore */ }
 }
 
-// Alarm listener for periodic updates
+// ============================================================
+// ALARM HANDLER
+// ============================================================
 browser.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === "updateSolvedProblems") {
     updateSolvedProblems();
   }
+  if (alarm.name === "universalTimeTracker") {
+    // Time tracker flushes itself; we do the banner check here
+    if (FEATURES.NOTIFICATION_BANNERS) {
+      checkTimeWasterAlert();
+    }
+  }
 });
 
-// Listen for messages from popup.js and content.js
+// ============================================================
+// MESSAGE HANDLER
+// ============================================================
 browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "updateCodingProfiles") {
-    console.log("Received updateCodingProfiles message:", message);
     codingProfiles.leetcodeUsername = message.leetcodeUsername;
     codingProfiles.codingBonusEnabled = message.codingBonusEnabled;
-
     browser.storage.local
       .set({
         leetcodeUsername: message.leetcodeUsername,
@@ -216,83 +303,113 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
         updateSolvedProblems();
         sendResponse({ status: "Profile update initiated" });
       });
-    return true; // Keep channel open for async response
+    return true;
   }
 
+async function broadcastStats(data) {
+  try {
+    await browser.runtime.sendMessage({ action: "updateStats", ...data });
+  } catch (e) {}
+  try {
+    const tabs = await browser.tabs.query({ url: "*://*.youtube.com/*" });
+    for (const tab of tabs) {
+      browser.tabs.sendMessage(tab.id, { action: "updateStats", ...data }).catch(() => {});
+    }
+  } catch (e) {}
+}
+
   if (message.action === "deductTime") {
-    const deduction = message.amount; // in milliseconds
-    
-    // 1. Update Coding Bonus remaining time
+    const deduction = message.amount;
     remainingTime = Math.max(0, remainingTime - deduction);
-    
-    // 2. Update Productivity total watch time
     totalWatchTimeToday += deduction;
-    
-    // 3. Update Daily Stats for graph
     const today = new Date().toDateString();
-    dailyWatchStats[today] = Math.round(totalWatchTimeToday / 1000 / 60); // Store in minutes
-    
-    browser.storage.local.set({ 
-      remainingTime, 
+    dailyWatchStats[today] = Math.round(totalWatchTimeToday / 1000 / 60);
+    browser.storage.local.set({ remainingTime, totalWatchTimeToday, dailyWatchStats });
+    broadcastStats({
+      remainingTime,
       totalWatchTimeToday,
-      dailyWatchStats
+      continueCountToday,
     });
-    
-    // Broadcast updated stats to all tabs and popup
-    try {
-      browser.runtime.sendMessage({
-        action: "updateStats",
-        remainingTime: remainingTime,
-        totalWatchTimeToday: totalWatchTimeToday,
-        continueCountToday: continueCountToday
-      });
-    } catch (e) {}
     return false;
   }
 
   if (message.action === "continueReminder") {
     continueCountToday++;
     browser.storage.local.set({ continueCountToday });
-    
-    // Broadcast updated count
-    try {
-      browser.runtime.sendMessage({
-        action: "updateStats",
-        continueCountToday: continueCountToday
-      });
-    } catch (e) {}
+    broadcastStats({ continueCountToday });
     return false;
   }
 
   if (message.action === "takeBreak") {
     breaksTakenToday++;
     browser.storage.local.set({ breaksTakenToday });
-    
-    // Broadcast updated stats
-    try {
-      browser.runtime.sendMessage({
-        action: "updateStats",
-        breaksTakenToday: breaksTakenToday
-      });
-    } catch (e) {}
-
-    // Close the tab
-    if (sender.tab) {
-      browser.tabs.remove(sender.tab.id);
-    }
+    broadcastStats({ breaksTakenToday });
+    if (sender.tab) browser.tabs.remove(sender.tab.id);
     return false;
+  }
+
+  // URL Blocker messages
+  if (message.action === "getOverrideCount") {
+    getOverrideCount().then(count => sendResponse({ count }));
+    return true;
+  }
+
+  if (message.action === "useOverride") {
+    incrementOverrideCount().then(count => sendResponse({ count }));
+    return true;
+  }
+
+  if (message.action === "getBlockedPatterns") {
+    browser.storage.local.get('blockedPatterns').then(result => {
+      sendResponse({ patterns: result.blockedPatterns || [] });
+    });
+    return true;
+  }
+
+  if (message.action === "saveBlockedPatterns") {
+    browser.storage.local.set({ blockedPatterns: message.patterns }).then(() => {
+      sendResponse({ ok: true });
+    });
+    return true;
+  }
+
+  // Time tracker queries
+  if (message.action === "getSiteTimeToday") {
+    const key = `siteTime_${new Date().toDateString()}`;
+    browser.storage.local.get(key).then(result => {
+      sendResponse({ data: result[key] || {} });
+    });
+    return true;
+  }
+
+  if (message.action === "getSiteTimeRange") {
+    const keys = [];
+    for (let i = 0; i < (message.days || 7); i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      keys.push(`siteTime_${d.toDateString()}`);
+    }
+    browser.storage.local.get(keys).then(result => {
+      sendResponse({ data: result });
+    });
+    return true;
   }
 });
 
-// Initial setup
+// ============================================================
+// INITIALIZATION
+// ============================================================
 if (FEATURES.CODING_PLATFORM_INTEGRATION) {
   loadCodingSettings().then(() => {
     updateSolvedProblems();
-    // Create alarm for periodic tracking (every 60 minutes)
     browser.alarms.get("updateSolvedProblems").then((alarm) => {
       if (!alarm) {
         browser.alarms.create("updateSolvedProblems", { periodInMinutes: 60 });
       }
     });
   });
+}
+
+if (FEATURES.UNIVERSAL_TIME_TRACKER) {
+  initUniversalTracker();
 }
