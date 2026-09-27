@@ -1,442 +1,515 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>YouTube Thumbnail Blur & Shorts Remover</title>
+    <title>FocusGuard – Productivity & YouTube Tools</title>
     <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
       :root {
-        --primary-color: #cc0000;
+        --primary: #cc0000;
         --primary-hover: #aa0000;
-        --bg-color: #ffffff;
-        --surface-color: #f8f8f8;
-        --border-color: #e0e0e0;
-        --text-color: #333333;
-        --text-secondary: #666666;
-        --shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-        --radius: 8px;
-        --tab-hover-bg: rgba(0, 0, 0, 0.02);
+        --primary-glow: rgba(204, 0, 0, 0.2);
+        --success: #22c55e;
+        --warning: #f59e0b;
+        --danger: #ef4444;
+        --info: #3b82f6;
+        --bg: #0a0a0f;
+        --surface: #12121a;
+        --surface2: #1a1a25;
+        --border: rgba(255, 255, 255, 0.08);
+        --text: #f0f0f5;
+        --text-sec: rgba(240, 240, 245, 0.55);
+        --radius: 10px;
+        --shadow: 0 4px 24px rgba(0,0,0,0.5);
       }
 
-      @media (prefers-color-scheme: dark) {
-        :root {
-          --bg-color: #0f0f0f;
-          --surface-color: #1f1f1f;
-          --border-color: #333333;
-          --text-color: #f1f1f1;
-          --text-secondary: #aaaaaa;
-          --shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-          --tab-hover-bg: rgba(255, 255, 255, 0.05);
-        }
-      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
 
       body {
-        width: 320px;
-        padding: 0;
-        margin: 0;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        color: var(--text-color);
-        background-color: var(--bg-color);
+        width: 380px;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        font-size: 13px;
+        line-height: 1.5;
+        overflow-x: hidden;
       }
 
+      /* ===== HEADER ===== */
       .header {
-        padding: 16px;
-        background-color: var(--bg-color);
-        border-bottom: 1px solid var(--border-color);
-        text-align: center;
+        padding: 16px 16px 12px;
+        background: linear-gradient(135deg, #0f0f1a 0%, #1a0a0a 100%);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .header-icon { font-size: 22px; }
+      .header-text h1 {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--text);
+        margin-bottom: 1px;
+      }
+      .header-text p {
+        font-size: 10px;
+        color: var(--text-sec);
       }
 
-      h1 {
-        font-size: 16px;
-        margin: 0;
-        color: var(--primary-color);
-      }
-
-      /* Tabs Navigation */
+      /* ===== TABS ===== */
       .tabs {
         display: flex;
-        background-color: var(--surface-color);
-        border-bottom: 1px solid var(--border-color);
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        padding: 0 4px;
       }
-
       .tab-btn {
         flex: 1;
-        padding: 12px;
+        padding: 10px 4px;
         border: none;
         background: none;
-        font-size: 13px;
+        font-size: 11px;
         font-weight: 600;
-        color: var(--text-secondary);
+        color: var(--text-sec);
         cursor: pointer;
         transition: all 0.2s;
         border-bottom: 2px solid transparent;
+        letter-spacing: 0.02em;
+        font-family: inherit;
       }
-
-      .tab-btn:hover {
-        color: var(--text-color);
-        background-color: rgba(0, 0, 0, 0.02);
-      }
-
+      .tab-btn:hover { color: var(--text); }
       .tab-btn.active {
-        color: var(--primary-color);
-        border-bottom-color: var(--primary-color);
-        background-color: var(--bg-color);
+        color: var(--primary);
+        border-bottom-color: var(--primary);
       }
 
-      /* Tab Content */
-      .tab-content {
-        display: none;
-        padding: 12px;
-        max-height: 450px;
-        overflow-y: auto;
-      }
+      /* ===== TAB CONTENT ===== */
+      .tab-content { display: none; padding: 12px; max-height: 500px; overflow-y: auto; }
+      .tab-content.active { display: block; }
+      .tab-content::-webkit-scrollbar { width: 4px; }
+      .tab-content::-webkit-scrollbar-track { background: transparent; }
+      .tab-content::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
 
-      .tab-content.active {
-        display: block;
-      }
-
-      /* Feature Cards */
-      .feature-card {
-        background-color: var(--bg-color);
-        border: 1px solid var(--border-color);
+      /* ===== CARDS ===== */
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
         border-radius: var(--radius);
-        padding: 12px;
-        margin-bottom: 12px;
-        box-shadow: var(--shadow);
+        padding: 14px;
+        margin-bottom: 10px;
       }
-
-      .feature-card h2 {
-        font-size: 14px;
-        margin-top: 0;
-        margin-bottom: 8px;
-        color: var(--text-color);
-      }
-
-      .feature-card p {
-        margin: 0 0 10px 0;
+      .card h2 {
         font-size: 12px;
-        color: var(--text-secondary);
-        line-height: 1.4;
-      }
-
-      .focus-mode-card {
-        background: linear-gradient(135deg, var(--primary-color), #ff4d4d);
-        color: white;
-        border: none;
-      }
-
-      .focus-mode-card h2,
-      .focus-mode-card p,
-      .focus-mode-card span {
-        color: white;
-      }
-
-      .focus-title {
+        font-weight: 700;
+        color: var(--text);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-bottom: 10px;
         display: flex;
         align-items: center;
-        gap: 8px;
-        font-weight: bold;
-        font-size: 15px;
+        gap: 6px;
+      }
+      .card p {
+        font-size: 11px;
+        color: var(--text-sec);
+        line-height: 1.5;
+        margin-bottom: 10px;
       }
 
-      .focus-mode-card .toggle-switch .slider {
-        background-color: rgba(255, 255, 255, 0.3);
+      .focus-card {
+        background: linear-gradient(135deg, #1a0000, #2a0505);
+        border-color: rgba(204,0,0,0.3);
       }
+      .focus-card h2, .focus-card p, .focus-card span { color: rgba(255,200,200,0.9); }
+      .focus-card .toggle-switch .slider { background: rgba(255,255,255,0.15); }
+      .focus-card .toggle-switch input:checked + .slider { background: var(--primary); }
 
-      .focus-mode-card .toggle-switch input:checked + .slider {
-        background-color: white;
-      }
-
-      .focus-mode-card .toggle-switch input:checked + .slider:before {
-        background-color: var(--primary-color);
-      }
-
-      /* Controls */
+      /* ===== TOGGLE ===== */
       .toggle {
         display: flex;
         align-items: center;
         justify-content: space-between;
         margin-top: 8px;
       }
-
-      .toggle span {
-        font-size: 13px;
-        font-weight: 500;
-      }
-
+      .toggle-label { font-size: 12px; font-weight: 500; color: var(--text); }
       .toggle-switch {
         position: relative;
         display: inline-block;
         width: 36px;
-        height: 18px;
+        height: 20px;
+        flex-shrink: 0;
       }
-
-      .toggle-switch input {
-        opacity: 0;
-        width: 0;
-        height: 0;
-      }
-
+      .toggle-switch input { opacity: 0; width: 0; height: 0; }
       .slider {
         position: absolute;
         cursor: pointer;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-color: #ccc;
+        inset: 0;
+        background: rgba(255,255,255,0.1);
+        border-radius: 20px;
         transition: 0.3s;
-        border-radius: 18px;
       }
-
       .slider:before {
+        content: '';
         position: absolute;
-        content: "";
-        height: 14px;
-        width: 14px;
-        left: 2px;
-        bottom: 2px;
-        background-color: white;
-        transition: 0.3s;
+        height: 14px; width: 14px;
+        left: 3px; bottom: 3px;
+        background: white;
         border-radius: 50%;
+        transition: 0.3s;
       }
+      input:checked + .slider { background: var(--primary); }
+      input:checked + .slider:before { transform: translateX(16px); }
 
-      input:checked + .slider {
-        background-color: var(--primary-color);
-      }
-
-      input:checked + .slider:before {
-        transform: translateX(18px);
-      }
-
-      /* Thumbnail Options */
-      .thumbnail-options {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        margin-top: 8px;
-      }
-
-      .thumbnail-option {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 8px;
-        border: 1px solid var(--border-color);
-        border-radius: 6px;
+      /* ===== THUMBNAIL OPTIONS ===== */
+      .thumb-options { display: flex; flex-direction: column; gap: 5px; margin-top: 8px; }
+      .thumb-option {
+        display: flex; align-items: center; gap: 8px;
+        padding: 7px 10px;
+        border: 1px solid var(--border);
+        border-radius: 7px;
         cursor: pointer;
         transition: all 0.2s;
-        background-color: var(--surface-color);
-      }
-
-      .thumbnail-option:hover {
-        border-color: var(--primary-color);
-      }
-
-      .thumbnail-option input[type="radio"] {
-        margin: 0;
-        cursor: pointer;
-      }
-
-      .thumbnail-option span {
+        background: var(--surface2);
         font-size: 12px;
-        color: var(--text-color);
       }
+      .thumb-option:hover { border-color: rgba(204,0,0,0.4); }
+      .thumb-option input[type=radio] { accent-color: var(--primary); cursor: pointer; }
 
-      /* Configuration Sections */
+      /* ===== BLUR SLIDER ===== */
       .config-section {
-        margin-top: 8px;
-        padding: 10px;
-        background-color: var(--surface-color);
-        border-radius: 6px;
-        border: 1px solid var(--border-color);
+        margin-top: 8px; padding: 10px;
+        background: var(--surface2);
+        border-radius: 7px;
+        border: 1px solid var(--border);
       }
-
       .config-label {
-        display: flex;
-        justify-content: space-between;
-        font-size: 12px;
-        margin-bottom: 8px;
-        color: var(--text-color);
-        font-weight: 500;
+        display: flex; justify-content: space-between;
+        font-size: 11px; margin-bottom: 8px; font-weight: 500;
       }
-
-      input[type="range"] {
-        width: 100%;
-        height: 4px;
-        background: #ccc;
-        border-radius: 2px;
-        outline: none;
+      input[type=range] {
+        width: 100%; height: 4px;
+        background: rgba(255,255,255,0.1);
+        border-radius: 2px; outline: none;
         -webkit-appearance: none;
       }
-
-      input[type="range"]::-webkit-slider-thumb {
+      input[type=range]::-webkit-slider-thumb {
         -webkit-appearance: none;
-        width: 14px;
-        height: 14px;
-        background: var(--primary-color);
-        border-radius: 50%;
-        cursor: pointer;
+        width: 14px; height: 14px;
+        background: var(--primary);
+        border-radius: 50%; cursor: pointer;
       }
 
-      /* Timer Config */
+      /* ===== TIMER CONFIG ===== */
       .timer-config {
-        margin-top: 10px;
-        padding: 10px;
-        background-color: var(--surface-color);
-        border-radius: 6px;
-        border: 1px solid var(--border-color);
+        margin-top: 10px; padding: 10px;
+        background: var(--surface2);
+        border-radius: 7px; border: 1px solid var(--border);
       }
-
-      .timer-options {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-      }
-
+      .timer-options { display: flex; flex-direction: column; gap: 5px; }
       .timer-option {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 12px;
+        display: flex; align-items: center; gap: 6px;
+        font-size: 12px; cursor: pointer;
+      }
+      .timer-option input[type=number] {
+        width: 48px; padding: 2px 4px;
+        border: 1px solid var(--border);
+        border-radius: 4px; font-size: 12px;
+        background: var(--surface); color: var(--text);
+      }
+
+      /* ===== WATCH HISTORY GRAPH ===== */
+      .watch-history-container {
+        margin-top: 10px; padding: 12px;
+        background: var(--surface2);
+        border-radius: 8px; border: 1px solid var(--border);
+      }
+      .stats-graph {
+        display: flex; align-items: flex-end;
+        justify-content: space-between;
+        height: 80px; gap: 5px;
+        padding-bottom: 6px;
+        border-bottom: 1px solid var(--border);
+      }
+      .graph-bar-container { flex: 1; display: flex; flex-direction: column; align-items: center; }
+      .graph-bar {
+        width: 100%;
+        background: linear-gradient(180deg, var(--primary), #ff4d4d);
+        border-radius: 3px 3px 0 0;
+        min-height: 2px;
+        transition: height 0.4s ease-out;
+        position: relative;
         cursor: pointer;
       }
-
-      .timer-option input[type="number"] {
-        width: 45px;
-        padding: 2px 4px;
-        border: 1px solid var(--border-color);
-        border-radius: 4px;
-        font-size: 12px;
+      .graph-bar:hover::after {
+        content: attr(data-value) 'm';
+        position: absolute;
+        top: -22px; left: 50%;
+        transform: translateX(-50%);
+        font-size: 10px;
+        background: var(--text); color: var(--bg);
+        padding: 2px 5px; border-radius: 4px;
+        white-space: nowrap;
+      }
+      .graph-labels { display: flex; justify-content: space-between; margin-top: 6px; }
+      .graph-label { flex: 1; text-align: center; font-size: 9px; color: var(--text-sec); }
+      .graph-placeholder {
+        width: 100%; height: 100%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 11px; color: var(--text-sec); font-style: italic;
       }
 
-      /* Coding Profile Integration styles */
-      .coding-profile-inputs {
-        margin-top: 12px;
-        padding: 12px;
-        background-color: var(--surface-color);
-        border-radius: 6px;
-        border: 1px solid var(--border-color);
-      }
-
-      .coding-profile-inputs label {
-        font-size: 12px;
-        margin-bottom: 4px;
-        display: block;
-        color: var(--text-secondary);
-      }
-
-      .coding-profile-inputs input[type="text"] {
-        width: 100%;
-        padding: 8px;
-        border: 1px solid var(--border-color);
-        border-radius: 4px;
-        font-size: 12px;
-        box-sizing: border-box;
-      }
-
-      .coding-stats-container {
-        margin-top: 16px;
-        padding: 12px;
-        background-color: var(--bg-color);
-        border-radius: 8px;
-        border: 1px solid var(--border-color);
-      }
-
-      .time-stat-row {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: 8px;
-        font-size: 12px;
-      }
-
-      .time-stat-row.primary {
-        font-weight: bold;
-        font-size: 14px;
-        border-bottom: 1px solid var(--border-color);
-        padding-bottom: 8px;
-        margin-bottom: 12px;
-      }
-
-      .stat-value.highlight {
-        color: var(--primary-color);
-      }
-
-      .stats-breakdown {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 8px;
-        margin-top: 12px;
-      }
-
-      .stat-item {
-        display: flex;
-        flex-direction: column;
+      /* ===== STAT ROWS ===== */
+      .stat-row {
+        display: flex; justify-content: space-between;
         align-items: center;
-        padding: 8px;
-        background-color: var(--surface-color);
-        border-radius: 6px;
-        border: 1px solid var(--border-color);
+        padding: 5px 0;
+        font-size: 12px;
+        border-bottom: 1px solid var(--border);
       }
+      .stat-row:last-child { border-bottom: none; }
+      .stat-row .val { font-weight: 600; }
+      .stat-row .val.pos { color: var(--success); }
+      .stat-row .val.neg { color: var(--danger); }
+      .stat-row .val.warn { color: var(--warning); }
+      .stat-row .val.red { color: var(--primary); }
 
+      /* ===== STATS BREAKDOWN (coding bonus) ===== */
+      .stats-breakdown {
+        display: grid; grid-template-columns: repeat(3, 1fr);
+        gap: 6px; margin-top: 10px;
+      }
+      .stat-item {
+        display: flex; flex-direction: column;
+        align-items: center; padding: 8px;
+        background: var(--surface2);
+        border-radius: 7px; border: 1px solid var(--border);
+      }
       .stat-item .label {
+        font-size: 9px; color: var(--text-sec);
+        text-transform: uppercase; letter-spacing: 0.05em;
+      }
+      .stat-item .value { font-weight: 700; font-size: 15px; }
+
+      /* ===== CODING PROFILE ===== */
+      .profile-input-wrap { margin-top: 10px; }
+      .profile-input-wrap label { font-size: 11px; color: var(--text-sec); display: block; margin-bottom: 4px; }
+      .profile-input-wrap input[type=text] {
+        width: 100%; padding: 8px 10px;
+        border: 1px solid var(--border); border-radius: 7px;
+        font-size: 12px; background: var(--surface2);
+        color: var(--text); outline: none; transition: border 0.2s;
+      }
+      .profile-input-wrap input[type=text]:focus { border-color: var(--primary); }
+
+      /* ===== TIME TRACKER (new) ===== */
+      .site-row {
+        display: flex; align-items: center;
+        gap: 8px; padding: 5px 0;
+        font-size: 11px;
+      }
+      .site-row .domain { flex: 1; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .site-row .duration { color: var(--text-sec); font-size: 10px; min-width: 36px; text-align: right; }
+      .site-bar-bg {
+        height: 5px; flex: 2;
+        background: rgba(255,255,255,0.06);
+        border-radius: 3px; overflow: hidden;
+      }
+      .site-bar-fill {
+        height: 100%; border-radius: 3px;
+        transition: width 0.5s ease-out;
+      }
+      .site-cat-dot {
+        width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+      }
+
+      /* ===== MONEY METER (new) ===== */
+      .money-grid {
+        display: grid; grid-template-columns: 1fr 1fr;
+        gap: 8px; margin-top: 10px;
+      }
+      .money-card {
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 8px; padding: 10px; text-align: center;
+      }
+      .money-card .label { font-size: 10px; color: var(--text-sec); margin-bottom: 4px; }
+      .money-card .amount { font-size: 18px; font-weight: 700; }
+      .money-net-row {
+        display: flex; justify-content: space-between;
+        align-items: center;
+        margin-top: 10px; padding: 10px;
+        background: var(--surface2);
+        border-radius: 8px; border: 1px solid var(--border);
+      }
+      .money-net-row .net-label { font-size: 11px; font-weight: 600; }
+      .money-net-row .net-val { font-size: 16px; font-weight: 700; }
+      .rate-row {
+        display: flex; align-items: center;
+        gap: 8px; margin-bottom: 12px;
+      }
+      .rate-row label { font-size: 11px; color: var(--text-sec); white-space: nowrap; }
+      .rate-row input[type=number] {
+        flex: 1; padding: 6px 8px;
+        border: 1px solid var(--border); border-radius: 7px;
+        font-size: 12px; background: var(--surface2);
+        color: var(--text); outline: none;
+      }
+
+      /* ===== URL BLOCKER (new) ===== */
+      .blocker-list { margin-top: 10px; display: flex; flex-direction: column; gap: 5px; }
+      .blocker-item {
+        display: flex; align-items: center;
+        gap: 8px; padding: 7px 10px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 7px;
+      }
+      .blocker-item .label { flex: 1; font-size: 11px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .blocker-item .mode-badge {
+        font-size: 9px; padding: 2px 5px;
+        border-radius: 4px; font-weight: 600;
+        background: rgba(204,0,0,0.15); color: #ff6666;
+      }
+      .blocker-item .mode-badge.soft {
+        background: rgba(245,158,11,0.15); color: #fbbf24;
+      }
+      .blocker-add-row {
+        display: flex; gap: 6px; margin-top: 8px;
+      }
+      .blocker-add-row input[type=text] {
+        flex: 1; padding: 6px 8px;
+        border: 1px solid var(--border); border-radius: 7px;
+        font-size: 11px; background: var(--surface2); color: var(--text);
+      }
+      .btn-small {
+        padding: 6px 12px;
+        border: none; border-radius: 7px;
+        font-size: 11px; font-weight: 600;
+        cursor: pointer; transition: all 0.2s;
+        font-family: inherit;
+      }
+      .btn-primary { background: var(--primary); color: white; }
+      .btn-primary:hover { background: var(--primary-hover); }
+      .btn-danger { background: rgba(239,68,68,0.12); color: var(--danger); border: 1px solid rgba(239,68,68,0.2); }
+      .btn-danger:hover { background: rgba(239,68,68,0.2); }
+
+      /* ===== ACHIEVEMENTS (new) ===== */
+      .badges-grid {
+        display: flex; flex-wrap: wrap;
+        gap: 8px; margin-top: 10px;
+      }
+      .badge {
+        display: flex; flex-direction: column;
+        align-items: center; gap: 3px;
+        padding: 10px 8px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 10px; min-width: 64px;
+        opacity: 0.4;
+        transition: all 0.2s;
+      }
+      .badge.earned {
+        opacity: 1;
+        border-color: rgba(255,215,0,0.3);
+        background: rgba(255,215,0,0.05);
+      }
+      .badge .emoji { font-size: 22px; }
+      .badge .badge-label { font-size: 9px; color: var(--text-sec); text-align: center; font-weight: 600; }
+
+      /* ===== INSIGHTS TAB (new) ===== */
+      .insight-card {
+        background: linear-gradient(135deg, var(--surface), var(--surface2));
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 14px;
+        margin-bottom: 10px;
+      }
+      .insight-card .insight-header {
+        display: flex; align-items: center;
+        gap: 8px; margin-bottom: 8px;
+      }
+      .insight-card .insight-icon { font-size: 20px; }
+      .insight-card .insight-title { font-size: 12px; font-weight: 700; }
+      .insight-card .insight-body {
+        font-size: 11px; color: var(--text-sec); line-height: 1.6;
+      }
+      .insight-card .insight-cta {
+        margin-top: 10px;
+        display: inline-block; padding: 5px 12px;
+        background: var(--primary); color: white;
+        border-radius: 6px; font-size: 11px; font-weight: 600;
+        cursor: pointer; border: none; font-family: inherit;
+        text-decoration: none;
+      }
+
+      /* ===== WEEKLY REPORT ===== */
+      .week-bar-row {
+        display: flex; align-items: center;
+        gap: 8px; margin-bottom: 5px;
         font-size: 10px;
-        color: var(--text-secondary);
-        text-transform: uppercase;
       }
+      .week-day-label { width: 26px; color: var(--text-sec); flex-shrink: 0; }
+      .week-bar-wrap { flex: 1; height: 10px; background: rgba(255,255,255,0.05); border-radius: 5px; overflow: hidden; display: flex; }
+      .week-bar-prod { background: var(--success); height: 100%; border-radius: 5px 0 0 5px; transition: width 0.5s; }
+      .week-bar-waste { background: var(--danger); height: 100%; border-radius: 0 5px 5px 0; transition: width 0.5s; }
+      .week-total { width: 32px; text-align: right; color: var(--text-sec); flex-shrink: 0; }
 
-      .stat-item .value {
-        font-weight: bold;
-        font-size: 14px;
-        color: var(--text-color);
-      }
-
+      /* ===== FOOTER ===== */
       footer {
-        padding: 12px;
-        font-size: 10px;
-        color: var(--text-secondary);
+        padding: 10px 16px;
+        font-size: 10px; color: var(--text-sec);
         text-align: center;
-        border-top: 1px solid var(--border-color);
+        border-top: 1px solid var(--border);
       }
 
-      .hidden {
-        display: none !important;
+      .hidden { display: none !important; }
+      .section-divider {
+        height: 1px; background: var(--border);
+        margin: 12px 0;
       }
     </style>
   </head>
   <body>
     <div class="header">
-      <h1>YouTube Thumbnail Blur & Shorts Remover</h1>
+      <span class="header-icon">🛡️</span>
+      <div class="header-text">
+        <h1>FocusGuard</h1>
+        <p>Productivity & YouTube Tools</p>
+      </div>
     </div>
 
     <nav class="tabs">
-      <button class="tab-btn active" data-tab="customization">Customization</button>
+      <button class="tab-btn active" data-tab="customization">YouTube</button>
       <button class="tab-btn" data-tab="productivity">Productivity</button>
+      <button class="tab-btn" data-tab="insights">Insights</button>
     </nav>
 
+    <!-- ===== TAB 1: CUSTOMIZATION (YouTube) ===== -->
     <div id="tab-customization" class="tab-content active">
-      <div class="feature-card focus-mode-card">
+      <div class="card focus-card">
         <div class="toggle">
-          <div class="focus-title">
-            <span class="icon">🚀</span>
-            <span>Deep Focus Mode</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span>🚀</span>
+            <span style="font-weight:700;font-size:14px;">Deep Focus Mode</span>
           </div>
           <label class="toggle-switch">
             <input type="checkbox" id="focus-mode-toggle" />
             <span class="slider"></span>
           </label>
         </div>
-        <p>Instantly applies the strictest focus settings.</p>
+        <p style="margin-top:8px;">Instantly applies the strictest focus settings.</p>
       </div>
 
-      <div class="feature-card">
-        <h2>Thumbnail Control</h2>
+      <div class="card">
+        <h2>🖼️ Thumbnail Control</h2>
         <p>Manage how thumbnails appear to stay focused.</p>
-        <div class="thumbnail-options">
-          <label class="thumbnail-option">
+        <div class="thumb-options">
+          <label class="thumb-option">
             <input type="radio" name="thumbnail-mode" value="show" />
             <span>Show Normally</span>
           </label>
-          <label class="thumbnail-option">
+          <label class="thumb-option">
             <input type="radio" name="thumbnail-mode" value="blur" checked />
             <span>Blur (Unblur on hover)</span>
           </label>
@@ -447,22 +520,22 @@
             </div>
             <input type="range" id="blur-range" min="1" max="30" value="10" />
           </div>
-          <label class="thumbnail-option">
+          <label class="thumb-option">
             <input type="radio" name="thumbnail-mode" value="screenshot" />
             <span>De-clickbait (Screenshots)</span>
           </label>
-          <label class="thumbnail-option">
+          <label class="thumb-option">
             <input type="radio" name="thumbnail-mode" value="hide" />
             <span>Hide Completely</span>
           </label>
         </div>
       </div>
 
-      <div class="feature-card" id="pause-on-hover-card">
-        <h2>Block Video Previews</h2>
-        <p>Stop auto-playing video previews when hovering over thumbnails.</p>
+      <div class="card" id="pause-on-hover-card">
+        <h2>🎬 Block Video Previews</h2>
+        <p>Stop auto-playing video previews on hover.</p>
         <div class="toggle">
-          <span>Enabled</span>
+          <span class="toggle-label">Enabled</span>
           <label class="toggle-switch">
             <input type="checkbox" id="pause-toggle" checked />
             <span class="slider"></span>
@@ -470,11 +543,11 @@
         </div>
       </div>
 
-      <div class="feature-card">
-        <h2>Shorts Removal</h2>
+      <div class="card">
+        <h2>✂️ Shorts Removal</h2>
         <p>Hide all YouTube Shorts from your experience.</p>
         <div class="toggle">
-          <span>Remove Shorts</span>
+          <span class="toggle-label">Remove Shorts</span>
           <label class="toggle-switch">
             <input type="checkbox" id="shorts-toggle" checked />
             <span class="slider"></span>
@@ -482,25 +555,63 @@
         </div>
       </div>
 
-      <div class="feature-card">
-        <h2>Ad Blocker Popup</h2>
+      <div class="card">
+        <h2>🛡️ Ad Blocker Popup</h2>
         <p>Remove the ad blocker detection popup automatically.</p>
         <div class="toggle">
-          <span>Remove Popup</span>
+          <span class="toggle-label">Remove Popup</span>
           <label class="toggle-switch">
             <input type="checkbox" id="popup-toggle" checked />
             <span class="slider"></span>
           </label>
         </div>
       </div>
+
+      <div class="card" id="mascot-companion-card">
+        <h2>🐾 Mascot Companion</h2>
+        <p>A friendly owl character that nudges you to take breaks, drink water, and rest your eyes.</p>
+        <div class="toggle">
+          <span class="toggle-label">Enable Guardie</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="mascot-toggle" checked />
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div id="mascot-categories-config" class="timer-config" style="margin-top:10px">
+          <p style="font-size:11px;color:var(--text-sec);margin-bottom:8px;">Choose which reminders Guardie shows:</p>
+          <label class="timer-option" style="margin-bottom:4px">
+            <input type="checkbox" class="mascot-cat-toggle" value="HYDRATION" checked />
+            <span>💧 Hydration reminders</span>
+          </label>
+          <label class="timer-option" style="margin-bottom:4px">
+            <input type="checkbox" class="mascot-cat-toggle" value="EYE_STRAIN" checked />
+            <span>👀 Eye strain alerts</span>
+          </label>
+          <label class="timer-option" style="margin-bottom:4px">
+            <input type="checkbox" class="mascot-cat-toggle" value="BREAK" checked />
+            <span>🧘 Break reminders</span>
+          </label>
+          <label class="timer-option" style="margin-bottom:4px">
+            <input type="checkbox" class="mascot-cat-toggle" value="STOP_WATCHING" checked />
+            <span>🛑 Stop watching intervention</span>
+          </label>
+          <label class="timer-option" style="margin-bottom:4px">
+            <input type="checkbox" class="mascot-cat-toggle" value="LATE_NIGHT" checked />
+            <span>🌙 Late night warnings</span>
+          </label>
+        </div>
+      </div>
     </div>
 
+    <!-- ===== TAB 2: PRODUCTIVITY ===== -->
     <div id="tab-productivity" class="tab-content">
-      <div class="feature-card">
-        <h2>Time Reminder</h2>
+
+      <!-- Time Reminder (existing) -->
+      <div class="card">
+        <h2>⏰ YouTube Break Reminder</h2>
         <p>Get notified after a set period of continuous watching.</p>
         <div class="toggle">
-          <span>Enable Reminder</span>
+          <span class="toggle-label">Enable Reminder</span>
           <label class="toggle-switch">
             <input type="checkbox" id="time-reminder-toggle" checked />
             <span class="slider"></span>
@@ -526,74 +637,125 @@
         </div>
       </div>
 
-      <div class="feature-card">
-        <h2>Watch Time History</h2>
-        <p>Your daily YouTube watch time for the last 7 days.</p>
+      <!-- YouTube Watch History (existing) -->
+      <div class="card">
+        <h2>📺 YouTube Watch History</h2>
+        <p>Daily YouTube playback for the last 7 days.</p>
         <div class="watch-history-container">
           <div id="watch-stats-graph" class="stats-graph">
-            <!-- Graph bars will be injected here -->
-            <div class="graph-placeholder">No data available yet</div>
+            <div class="graph-placeholder">No data yet</div>
           </div>
           <div class="graph-labels" id="graph-labels"></div>
         </div>
-        <div class="time-stat-row" style="margin-top: 12px;">
-          <span>Watched Today:</span>
-          <span id="total-watched-today" class="stat-value">0m</span>
-        </div>
-        <div class="time-stat-row">
-          <span>Reminders Canceled:</span>
-          <span id="continue-count-today" class="stat-value">0</span>
-        </div>
-        <div class="time-stat-row">
-          <span>Breaks Taken:</span>
-          <span id="breaks-taken-today" class="stat-value">0</span>
+        <div style="margin-top:10px">
+          <div class="stat-row"><span>Watched Today</span><span id="total-watched-today" class="val red">0m</span></div>
+          <div class="stat-row"><span>Reminders Canceled</span><span id="continue-count-today" class="val">0</span></div>
+          <div class="stat-row"><span>Breaks Taken</span><span id="breaks-taken-today" class="val pos">0</span></div>
         </div>
       </div>
 
-      <div class="feature-card" id="coding-integration-feature">
-        <h2>Coding Profile Integration</h2>
-        <p>Link your LeetCode profile to earn YouTube watch time!</p>
-        <div class="coding-profile-inputs">
+      <!-- Universal Time Tracker (new) -->
+      <div class="card">
+        <h2>🌐 Today's Web Activity</h2>
+        <p>Active time on all websites today.</p>
+        <div id="site-time-list">
+          <div style="text-align:center;color:var(--text-sec);font-size:11px;padding:16px 0">Loading...</div>
+        </div>
+        <div style="margin-top:8px">
+          <div class="stat-row"><span>Total Active Time</span><span id="total-active-time" class="val">0m</span></div>
+        </div>
+      </div>
+
+      <!-- Money Meter (new) -->
+      <div class="card">
+        <h2>💰 Money Meter</h2>
+        <p>How much is your time worth today?</p>
+        <div class="rate-row">
+          <label for="hourly-rate-input">Your hourly rate (₹)</label>
+          <input type="number" id="hourly-rate-input" min="1" max="99999" value="500" />
+        </div>
+        <div class="money-grid">
+          <div class="money-card">
+            <div class="label">🔴 Wasted</div>
+            <div class="amount neg" id="money-wasted">₹0</div>
+          </div>
+          <div class="money-card">
+            <div class="label">🟢 Invested</div>
+            <div class="amount pos" id="money-invested">₹0</div>
+          </div>
+        </div>
+        <div class="money-net-row">
+          <span class="net-label">📊 Net Impact Today</span>
+          <span class="net-val" id="money-net">₹0</span>
+        </div>
+        <div style="margin-top:8px;font-size:11px;color:var(--text-sec);font-style:italic;" id="money-insight"></div>
+      </div>
+
+      <!-- URL Blocker (new) -->
+      <div class="card">
+        <h2>🚫 URL Blocker</h2>
+        <p>Block specific pages and see your productivity stats instead.</p>
+        <div id="blocker-list" class="blocker-list"></div>
+        <div class="blocker-add-row">
+          <input type="text" id="blocker-url-input" placeholder="e.g. instagram.com/reels" />
+          <button class="btn-small btn-primary" id="blocker-add-btn">Add</button>
+        </div>
+      </div>
+
+      <!-- Weekly Report (new) -->
+      <div class="card">
+        <h2>📊 Weekly Report</h2>
+        <p>Productive vs wasted time this week. Green = productive, Red = wasted.</p>
+        <div id="weekly-report-bars" style="margin-top:10px"></div>
+        <div style="margin-top:10px">
+          <div class="stat-row"><span>Week Net Impact</span><span id="weekly-net" class="val">₹0</span></div>
+        </div>
+      </div>
+
+      <!-- Coding Profile Integration (existing) -->
+      <div class="card" id="coding-integration-feature">
+        <h2>⚡ LeetCode Coding Bonus</h2>
+        <p>Earn YouTube watch time by solving LeetCode problems!</p>
+        <div class="profile-input-wrap">
           <label for="leetcode-username">LeetCode Username</label>
           <input type="text" id="leetcode-username" placeholder="username" />
         </div>
-        <div class="toggle">
-          <span>Enable Coding Bonus</span>
+        <div class="toggle" style="margin-top:10px">
+          <span class="toggle-label">Enable Coding Bonus</span>
           <label class="toggle-switch">
             <input type="checkbox" id="coding-bonus-toggle" checked />
             <span class="slider"></span>
           </label>
         </div>
-        
-        <div class="coding-stats-container" id="coding-stats-container">
-          <div class="time-stat-row primary">
-            <span>Time Remaining:</span>
-            <span id="remaining-time-display" class="stat-value highlight">0m</span>
-          </div>
-          <div class="time-stat-row">
-            <span>Earned Today:</span>
-            <span id="earned-time-display" class="stat-value">0m</span>
-          </div>
-          <div class="stats-breakdown">
-            <div class="stat-item">
-              <span class="label">Easy</span>
-              <span id="solved-easy" class="value">0</span>
-            </div>
-            <div class="stat-item">
-              <span class="label">Medium</span>
-              <span id="solved-medium" class="value">0</span>
-            </div>
-            <div class="stat-item">
-              <span class="label">Hard</span>
-              <span id="solved-hard" class="value">0</span>
-            </div>
-          </div>
+        <div style="margin-top:10px">
+          <div class="stat-row"><span>Time Remaining</span><span id="remaining-time-display" class="val red">0m</span></div>
+          <div class="stat-row"><span>Earned Today</span><span id="earned-time-display" class="val pos">0m</span></div>
         </div>
+        <div class="stats-breakdown">
+          <div class="stat-item"><span class="label">Easy</span><span id="solved-easy" class="value" style="color:#22c55e">0</span></div>
+          <div class="stat-item"><span class="label">Medium</span><span id="solved-medium" class="value" style="color:#f59e0b">0</span></div>
+          <div class="stat-item"><span class="label">Hard</span><span id="solved-hard" class="value" style="color:#ef4444">0</span></div>
+        </div>
+      </div>
+
+      <!-- Achievements (new) -->
+      <div class="card">
+        <h2>🏆 Achievements</h2>
+        <p>Earn badges by building productive habits.</p>
+        <div id="badges-grid" class="badges-grid"></div>
+      </div>
+
+    </div>
+
+    <!-- ===== TAB 3: INSIGHTS ===== -->
+    <div id="tab-insights" class="tab-content">
+      <div id="insights-container">
+        <div style="text-align:center;color:var(--text-sec);font-size:11px;padding:24px 0">Loading insights...</div>
       </div>
     </div>
 
     <footer>
-      <p>YouTube Thumbnail Blur & Shorts Remover v3.0</p>
+      <p>FocusGuard v4.0 · <span id="ext-version">Productivity &amp; YouTube Tools</span></p>
     </footer>
 
     <script src="browser-polyfill.js"></script>

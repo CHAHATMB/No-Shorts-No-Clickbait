@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "YouTube Thumbnail Blur & Shorts Remover",
-  "version": "3.0.5",
-  "description": "Blurs YouTube thumbnails and removes Shorts videos from the YouTube interface",
+  "name": "FocusGuard – Productivity & YouTube Tools",
+  "version": "4.0.0",
+  "description": "Track time, block distractions, and measure the real cost of your browsing habits.",
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",
@@ -12,24 +12,22 @@
   "permissions": [
     "activeTab",
     "storage",
-    "alarms"
+    "alarms",
+    "tabs"
   ],
   "host_permissions": [
-    "*://*.youtube.com/*",
-    "https://leetcode.com/graphql",
-    "https://codeforces.com/api/*"
+    "<all_urls>"
   ],
   "content_scripts": [
     {
-      "matches": [
-        "*://*.youtube.com/*"
-      ],
-      "js": [
-        "content.js"
-      ],
-      "css": [
-        "styles.css"
-      ],
+      "matches": ["*://*.youtube.com/*"],
+      "js": ["content.js"],
+      "css": ["styles.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["<all_urls>"],
+      "js": ["productivity-content.js"],
       "run_at": "document_idle"
     }
   ],
@@ -40,7 +38,13 @@
     "default_icon": {
       "48": "icons/icon48.png"
     },
-    "default_title": "YouTube Thumbnail Blur & Shorts Remover",
+    "default_title": "FocusGuard – Productivity & YouTube Tools",
     "default_popup": "popup.html"
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["mascot-styles.css"],
+      "matches": ["*://*.youtube.com/*"]
+    }
+  ]
 }

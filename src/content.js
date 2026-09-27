@@ -1,6 +1,7 @@
 // Main functionality for the extension
 import "./browser-polyfill.js";
 import { FEATURES } from './features.js';
+import { MascotController } from './modules/mascot/mascot-controller.js';
 
 (function () {
   "use strict";
@@ -33,6 +34,25 @@ import { FEATURES } from './features.js';
   let continueCountToday = 0;
   let breaksTakenToday = 0;
   let reminderTimer = null;
+  let lastReminderWatchTime = 0;
+
+  // Mascot companion
+  let mascotController = null;
+  if (FEATURES.MASCOT_COMPANION) {
+    mascotController = new MascotController();
+    mascotController.init();
+
+    // Wire mascot user actions into existing stats system
+    mascotController.onUserAction = (action) => {
+      if (action === 'break') {
+        breaksTakenToday++;
+        browser.runtime.sendMessage({ action: "takeBreak" });
+      } else if (action === 'continue') {
+        continueCountToday++;
+        browser.runtime.sendMessage({ action: "continueReminder" });
+      }
+    };
+  }
 
   // Create a MutationObserver for popup and ad detection
   const popupObserver = new MutationObserver((mutations) => {
@@ -79,7 +99,9 @@ import { FEATURES } from './features.js';
       "timerInterval",
       "totalWatchTimeToday",
       "continueCountToday",
-      "breaksTakenToday"
+      "breaksTakenToday",
+      "mascotEnabled",
+      "mascotCategories"
     ])
     .then((result) => {
       settings.thumbnailMode = result.thumbnailMode || "blur";
@@ -96,6 +118,15 @@ import { FEATURES } from './features.js';
       totalWatchTimeToday = result.totalWatchTimeToday || 0;
       continueCountToday = result.continueCountToday || 0;
       breaksTakenToday = result.breaksTakenToday || 0;
+      lastReminderWatchTime = totalWatchTimeToday;
+
+      // Apply mascot settings
+      if (mascotController) {
+        mascotController.updateSettings({
+          enabled: result.mascotEnabled !== false,
+          categories: result.mascotCategories || {},
+        });
+      }
 
       applyModifications();
       checkBlocking();
@@ -125,12 +156,21 @@ import { FEATURES } from './features.js';
       if (!timeReminderEnabled) dismissReminder();
     } else if (message.action === "updateTimerInterval") {
       timerInterval = message.interval;
+      lastReminderWatchTime = totalWatchTimeToday;
     } else if (message.action === "updateStats") {
       if (message.remainingTime !== undefined) remainingTime = message.remainingTime;
       if (message.totalWatchTimeToday !== undefined) totalWatchTimeToday = message.totalWatchTimeToday;
       if (message.continueCountToday !== undefined) continueCountToday = message.continueCountToday;
       if (message.breaksTakenToday !== undefined) breaksTakenToday = message.breaksTakenToday;
       checkBlocking();
+    } else if (message.action === "toggleMascot") {
+      if (mascotController) {
+        mascotController.updateSettings({ enabled: message.enabled });
+      }
+    } else if (message.action === "updateMascotCategories") {
+      if (mascotController) {
+        mascotController.updateSettings({ categories: message.categories });
+      }
     }
     return Promise.resolve({ response: "Updated" });
   });
@@ -188,6 +228,8 @@ import { FEATURES } from './features.js';
         if (lastDeductionTime) {
           const elapsed = now - lastDeductionTime;
           if (elapsed >= 5000) { // Update every 5 seconds
+            totalWatchTimeToday += elapsed;
+
             browser.runtime.sendMessage({
               action: "deductTime",
               amount: elapsed
@@ -196,6 +238,17 @@ import { FEATURES } from './features.js';
             
             // Check for periodic reminder
             checkPeriodicReminder();
+
+            // Evaluate mascot triggers
+            if (mascotController) {
+              mascotController.evaluate({
+                totalWatchTimeToday,
+                continueCountToday,
+                breaksTakenToday,
+                timerInterval,
+                moneyWasted: 0, // Will be computed in evaluate()
+              });
+            }
           }
         } else {
           lastDeductionTime = now;
@@ -210,16 +263,18 @@ import { FEATURES } from './features.js';
     if (!timeReminderEnabled || document.getElementById("youtube-time-reminder")) return;
 
     const intervalMs = timerInterval * 60 * 1000;
-    const lastReminderTime = totalWatchTimeToday % intervalMs;
     
-    // If we just crossed an interval threshold
-    if (lastReminderTime < 5000) { 
+    // Only trigger if watched at least timerInterval minutes total today,
+    // AND at least timerInterval minutes have elapsed since last reminder
+    if (totalWatchTimeToday >= intervalMs && (totalWatchTimeToday - lastReminderWatchTime) >= intervalMs) {
       showTimeReminder();
     }
   }
 
   function showTimeReminder() {
     if (document.getElementById("youtube-time-reminder")) return;
+
+    lastReminderWatchTime = totalWatchTimeToday;
 
     // Pause the video
     const video = document.querySelector("video");
@@ -250,10 +305,12 @@ import { FEATURES } from './features.js';
     // Add event listeners
     reminderDiv.querySelector(".reminder-close").addEventListener("click", dismissReminder);
     reminderDiv.querySelector(".take-break").addEventListener("click", () => {
+      breaksTakenToday++;
       browser.runtime.sendMessage({ action: "takeBreak" });
       dismissReminder();
     });
     reminderDiv.querySelector(".continue").addEventListener("click", () => {
+      continueCountToday++;
       browser.runtime.sendMessage({ action: "continueReminder" });
       dismissReminder();
     });

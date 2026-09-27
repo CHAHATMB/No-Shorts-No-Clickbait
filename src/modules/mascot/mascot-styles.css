@@ -1,0 +1,481 @@
+/* Mascot Container */
+#fg-mascot-container {
+  position: fixed !important;
+  bottom: 10vh !important;
+  right: -200px !important;
+  z-index: 2147483640 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-end !important;
+  pointer-events: none !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+}
+
+/* Character Base */
+.fg-mascot-character {
+  position: relative;
+  width: 80px;
+  height: 96px;
+  transform-origin: bottom center;
+}
+
+/* 
+========================================
+Speech Bubble 
+========================================
+*/
+.fg-mascot-speech-bubble {
+  position: relative;
+  background: rgba(15, 15, 25, 0.92) !important;
+  backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 16px !important;
+  padding: 16px 20px !important;
+  max-width: 300px !important;
+  min-width: 200px !important;
+  color: white !important;
+  font-size: 13px !important;
+  line-height: 1.6 !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
+  margin-bottom: 12px !important;
+  pointer-events: all !important;
+  opacity: 0 !important;
+  transform: translateY(10px) scale(0.95) !important;
+  transition: opacity 0.3s ease, transform 0.3s ease !important;
+}
+
+.fg-mascot-speech-bubble.visible {
+  opacity: 1 !important;
+  transform: translateY(0) scale(1) !important;
+}
+
+/* Tail/Arrow */
+.fg-mascot-speech-bubble::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  right: 32px;
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 8px solid rgba(15, 15, 25, 0.92);
+  filter: drop-shadow(0 2px 1px rgba(0,0,0,0.2));
+}
+
+.fg-mascot-speech-text {
+  /* Basic text styling */
+  word-wrap: break-word;
+}
+.fg-mascot-speech-text strong {
+  font-weight: 600;
+  color: #ffcccc;
+}
+
+/* Category */
+.fg-mascot-category {
+  font-size: 11px !important;
+  color: rgba(255, 255, 255, 0.5) !important;
+  margin-bottom: 6px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+}
+
+/* Close Button */
+.fg-mascot-close {
+  position: absolute !important;
+  top: 8px !important;
+  right: 8px !important;
+  width: 20px !important;
+  height: 20px !important;
+  background: none !important;
+  border: none !important;
+  color: rgba(255, 255, 255, 0.4) !important;
+  cursor: pointer !important;
+  font-size: 14px !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.2s !important;
+}
+.fg-mascot-close:hover {
+  color: white !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Buttons */
+.fg-mascot-speech-actions {
+  display: flex !important;
+  gap: 8px !important;
+  margin-top: 12px !important;
+}
+
+.fg-mascot-btn {
+  flex: 1 !important;
+  padding: 8px 12px !important;
+  border: none !important;
+  border-radius: 8px !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: all 0.2s !important;
+  text-align: center !important;
+}
+
+.fg-mascot-btn.primary {
+  background: #cc0000 !important;
+  color: white !important;
+}
+.fg-mascot-btn.primary:hover {
+  background: #aa0000 !important;
+  transform: translateY(-1px) !important;
+}
+
+.fg-mascot-btn.secondary {
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: white !important;
+}
+.fg-mascot-btn.secondary:hover {
+  background: rgba(255, 255, 255, 0.2) !important;
+}
+
+/* 
+========================================
+Entry Animations 
+========================================
+*/
+.fg-mascot-enter-walk {
+  animation: fg-mascot-slide-in-right 1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.fg-mascot-enter-walk .fg-mascot-character {
+  animation: fg-mascot-bob-walk 1s steps(6) forwards;
+}
+
+.fg-mascot-enter-slide {
+  animation: fg-mascot-slide-in-right-smooth 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.fg-mascot-enter-jump {
+  animation: fg-mascot-slide-in-right-jump 1.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.fg-mascot-enter-jump .fg-mascot-character {
+  animation: fg-mascot-bounce-enter 1.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.fg-mascot-enter-pop {
+  right: 30px !important;
+}
+.fg-mascot-enter-pop .fg-mascot-character {
+  animation: fg-mascot-scale-overshoot 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* 
+========================================
+Exit Animations 
+========================================
+*/
+.fg-mascot-exit-walk {
+  animation: fg-mascot-slide-out-right 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.fg-mascot-exit-walk .fg-mascot-character {
+  animation: fg-mascot-bob-walk 0.8s steps(6) forwards;
+}
+
+.fg-mascot-exit-slide {
+  animation: fg-mascot-slide-out-right-smooth 0.5s ease-in forwards;
+}
+
+.fg-mascot-exit-jump {
+  animation: fg-mascot-slide-out-right-jump 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.fg-mascot-exit-jump .fg-mascot-character {
+  animation: fg-mascot-bounce-exit 0.8s ease-in forwards;
+}
+
+.fg-mascot-exit-pop {
+  animation: fg-mascot-slide-out-immediate 0.3s forwards;
+}
+.fg-mascot-exit-pop .fg-mascot-character {
+  animation: fg-mascot-scale-down 0.3s ease-in forwards;
+}
+
+/* Container Keyframes */
+@keyframes fg-mascot-slide-in-right {
+  from { right: -200px; }
+  to { right: 30px; }
+}
+@keyframes fg-mascot-slide-in-right-smooth {
+  from { right: -200px; }
+  to { right: 30px; }
+}
+@keyframes fg-mascot-slide-in-right-jump {
+  from { right: -200px; }
+  to { right: 30px; }
+}
+@keyframes fg-mascot-slide-out-right {
+  from { right: 30px; }
+  to { right: -200px; }
+}
+@keyframes fg-mascot-slide-out-right-smooth {
+  from { right: 30px; }
+  to { right: -200px; }
+}
+@keyframes fg-mascot-slide-out-right-jump {
+  0% { right: 30px; }
+  40% { right: 30px; }
+  100% { right: -200px; }
+}
+@keyframes fg-mascot-slide-out-immediate {
+  0% { right: 30px; }
+  99% { right: 30px; }
+  100% { right: -200px; }
+}
+
+/* Character Keyframes */
+@keyframes fg-mascot-bob-walk {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+  100% { transform: translateY(0); }
+}
+@keyframes fg-mascot-bounce-enter {
+  0% { transform: translateY(0); }
+  25% { transform: translateY(-30px); }
+  50% { transform: translateY(0); }
+  75% { transform: translateY(-12px); }
+  90% { transform: translateY(0); }
+  95% { transform: translateY(-4px); }
+  100% { transform: translateY(0); }
+}
+@keyframes fg-mascot-bounce-exit {
+  0% { transform: translateY(0); }
+  40% { transform: translateY(-15px); }
+  100% { transform: translateY(0); }
+}
+@keyframes fg-mascot-scale-overshoot {
+  0% { transform: scale(0); }
+  100% { transform: scale(1); }
+}
+@keyframes fg-mascot-scale-down {
+  0% { transform: scale(1); }
+  100% { transform: scale(0); }
+}
+
+
+/* 
+========================================
+Poses 
+========================================
+*/
+
+/* Default body elements (opacity, initial state) */
+.fg-mascot-character .mascot-brow-left,
+.fg-mascot-character .mascot-brow-right,
+.fg-mascot-character .mascot-blush {
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.fg-mascot-character .mascot-eye-left,
+.fg-mascot-character .mascot-eye-right {
+  transform-origin: center;
+}
+
+.fg-mascot-character .mascot-wing-right,
+.fg-mascot-character .mascot-wing-left {
+  transform-origin: top center;
+  transition: transform 0.3s;
+}
+
+/* Idle Pose */
+[data-pose="idle"] {
+  animation: fg-mascot-breathe 3s infinite ease-in-out;
+}
+[data-pose="idle"] .mascot-eye-left,
+[data-pose="idle"] .mascot-eye-right {
+  animation: fg-mascot-blink 4s infinite;
+}
+
+/* Talking Pose */
+[data-pose="talking"] {
+  animation: fg-mascot-breathe 3s infinite ease-in-out;
+}
+[data-pose="talking"] .mascot-eye-left,
+[data-pose="talking"] .mascot-eye-right {
+  animation: fg-mascot-blink 4s infinite;
+}
+[data-pose="talking"] .mascot-beak {
+  animation: fg-mascot-beak-talk 0.2s infinite alternate;
+}
+[data-pose="talking"] .mascot-wing-right {
+  animation: fg-mascot-wing-wave-small 1s infinite alternate ease-in-out;
+}
+
+/* Stern Pose */
+[data-pose="stern"] {
+  transform: rotate(-3deg);
+}
+[data-pose="stern"] .mascot-brow-left,
+[data-pose="stern"] .mascot-brow-right {
+  opacity: 1;
+}
+[data-pose="stern"] .mascot-brow-left {
+  transform: rotate(15deg) translateY(2px);
+}
+[data-pose="stern"] .mascot-brow-right {
+  transform: rotate(-15deg) translateY(2px);
+}
+[data-pose="stern"] .mascot-wing-left {
+  transform: rotate(20deg);
+}
+[data-pose="stern"] .mascot-wing-right {
+  transform: rotate(-20deg);
+}
+
+/* Sleepy Pose */
+[data-pose="sleepy"] {
+  animation: fg-mascot-sway 4s infinite ease-in-out;
+}
+[data-pose="sleepy"] .mascot-eye-left,
+[data-pose="sleepy"] .mascot-eye-right {
+  transform: scaleY(0.3);
+}
+[data-pose="sleepy"] .mascot-beak {
+  animation: fg-mascot-yawn 6s infinite;
+}
+
+/* Waving Pose */
+[data-pose="waving"] {
+  animation: fg-mascot-breathe 3s infinite ease-in-out;
+}
+[data-pose="waving"] .mascot-blush {
+  opacity: 1;
+}
+[data-pose="waving"] .mascot-wing-right {
+  animation: fg-mascot-wave-high 0.5s infinite alternate ease-in-out;
+}
+
+/* Walking Pose */
+[data-pose="walking"] {
+  animation: fg-mascot-bob-walk-continuous 0.6s infinite steps(2);
+}
+[data-pose="walking"] .mascot-foot-left {
+  animation: fg-mascot-foot-step-left 0.6s infinite steps(2);
+}
+[data-pose="walking"] .mascot-foot-right {
+  animation: fg-mascot-foot-step-right 0.6s infinite steps(2) 0.3s;
+}
+
+/* Jumping Pose */
+[data-pose="jumping"] {
+  animation: fg-mascot-bounce-continuous 0.6s infinite cubic-bezier(0.28, 0.84, 0.42, 1);
+}
+
+/* Pose Keyframes */
+@keyframes fg-mascot-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
+@keyframes fg-mascot-blink {
+  0%, 96%, 100% { transform: scaleY(1); }
+  98% { transform: scaleY(0.1); }
+}
+@keyframes fg-mascot-beak-talk {
+  from { transform: translateY(0); }
+  to { transform: translateY(2px); }
+}
+@keyframes fg-mascot-wing-wave-small {
+  from { transform: rotate(-5deg); }
+  to { transform: rotate(5deg); }
+}
+@keyframes fg-mascot-sway {
+  0%, 100% { transform: rotate(-3deg); }
+  50% { transform: rotate(3deg); }
+}
+@keyframes fg-mascot-yawn {
+  0%, 90%, 100% { transform: scaleY(1); }
+  95% { transform: scaleY(1.5) translateY(2px); }
+}
+@keyframes fg-mascot-wave-high {
+  from { transform: rotate(-20deg) translateY(-5px); }
+  to { transform: rotate(40deg) translateY(-10px); }
+}
+@keyframes fg-mascot-bob-walk-continuous {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+  100% { transform: translateY(0); }
+}
+@keyframes fg-mascot-foot-step-left {
+  0% { transform: translateY(0) rotate(0); }
+  50% { transform: translateY(-3px) rotate(10deg); }
+  100% { transform: translateY(0) rotate(0); }
+}
+@keyframes fg-mascot-foot-step-right {
+  0% { transform: translateY(0) rotate(0); }
+  50% { transform: translateY(-3px) rotate(-10deg); }
+  100% { transform: translateY(0) rotate(0); }
+}
+@keyframes fg-mascot-bounce-continuous {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-20px); }
+}
+
+
+/* 
+========================================
+Accessibility & Fullscreen 
+========================================
+*/
+@media (prefers-reduced-motion: reduce) {
+  #fg-mascot-container,
+  .fg-mascot-character,
+  .fg-mascot-character *,
+  .fg-mascot-enter-walk,
+  .fg-mascot-enter-slide,
+  .fg-mascot-enter-jump,
+  .fg-mascot-enter-pop,
+  .fg-mascot-exit-walk,
+  .fg-mascot-exit-slide,
+  .fg-mascot-exit-jump,
+  .fg-mascot-exit-pop {
+    animation: none !important;
+    transition: opacity 0.3s ease !important;
+  }
+  
+  .fg-mascot-enter-walk,
+  .fg-mascot-enter-slide,
+  .fg-mascot-enter-jump,
+  .fg-mascot-enter-pop {
+    right: 30px !important;
+    opacity: 1 !important;
+  }
+
+  .fg-mascot-exit-walk,
+  .fg-mascot-exit-slide,
+  .fg-mascot-exit-jump,
+  .fg-mascot-exit-pop {
+    right: -200px !important;
+    opacity: 0 !important;
+  }
+}
+
+:fullscreen #fg-mascot-container, 
+*:fullscreen ~ #fg-mascot-container { 
+  display: none !important; 
+}
+
+/* 
+========================================
+Responsive 
+========================================
+*/
+@media (max-width: 500px) {
+  .fg-mascot-speech-bubble {
+    max-width: 240px !important;
+  }
+  .fg-mascot-character {
+    width: 60px;
+    height: 72px;
+  }
+}
