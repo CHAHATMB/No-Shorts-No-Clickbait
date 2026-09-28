@@ -4,7 +4,13 @@
  * speech bubbles, video control, and user interactions.
  */
 
-import { getCharacterSVG, getRandomEntrance } from './mascot-character.js';
+import {
+  createCharacterElement,
+  MascotAnimator,
+  getRandomEntrance,
+  preloadMascotAssets,
+  DEFAULT_MASCOT_ID,
+} from './mascot-character.js';
 import { MESSAGE_CATEGORIES, buildContext, selectMessage } from './mascot-messages.js';
 import { TriggerManager } from './mascot-triggers.js';
 
@@ -78,6 +84,12 @@ export class MascotController {
     /** @type {MascotState} */
     this.state = MascotState.OFFSCREEN;
 
+    /** @type {string} */
+    this.mascotId = DEFAULT_MASCOT_ID;
+
+    /** @type {MascotAnimator|null} */
+    this.animator = null;
+
     /** @type {HTMLElement|null} */
     this.container = null;
 
@@ -120,6 +132,7 @@ export class MascotController {
    */
   init() {
     this.injectStyles();
+    preloadMascotAssets(this.mascotId);
   }
 
   /**
@@ -150,7 +163,7 @@ export class MascotController {
     const {
       category = MESSAGE_CATEGORIES.BREAK,
       behavior = 'transient',
-      entrance = getRandomEntrance(),
+      entrance = 'grand',
       displayDuration = 8000,
       pauseVideo = false,
       pose = options.pose || CATEGORY_POSES[category] || 'talking',
@@ -173,38 +186,40 @@ export class MascotController {
       this._pauseVideo();
     }
 
-    // Set pose based on options or category
+    // Set initial pose — use 'idle' during grand entrance to avoid conflicts with walk cycle CSS
     const initialPose = pose || CATEGORY_POSES[category] || 'talking';
-    this._setPose(initialPose);
+    this._setPose(entrance === 'grand' ? 'idle' : initialPose);
+
+    // Start walk frame animation for walk-in
+    if (entrance === 'grand' || entrance === 'walk') {
+      this.animator?.startWalk('left');
+    }
 
     // Listen for entrance animation end
-    const onEnterEnd = () => {
+    const onEnterEnd = (e) => {
+      // Ignore animationend events bubbling from child elements (feet, wings, etc.)
+      if (e && e.target !== this.container) return;
       this.container.removeEventListener('animationend', onEnterEnd);
       this.state = MascotState.VISIBLE;
 
-      // Show speech bubble with delay for dramatic effect
+      // Stop walk cycle and switch to idle standing pose facing user
+      this.animator?.setIdle();
+      this._setPose(initialPose);
+
+      // Show speech bubble with delay (longer for grand entrance for dramatic effect)
+      const bubbleDelay = entrance === 'grand' ? 500 : 200;
       setTimeout(() => {
         if (this.speechBubble) {
           this.speechBubble.classList.add('visible');
 
-          // Maintain the pose if explicitly set or for special poses, otherwise default to talking
+          // Set the context pose now that entrance animation is done
           if (options.pose) {
             this._setPose(options.pose);
-          } else if (
-            initialPose === 'drinking' ||
-            initialPose === 'stern' ||
-            initialPose === 'worried' ||
-            initialPose === 'sleepy' ||
-            initialPose === 'sleeping' ||
-            initialPose === 'celebrating' ||
-            initialPose === 'reading'
-          ) {
-            this._setPose(initialPose);
           } else {
-            this._setPose('talking');
+            this._setPose(initialPose);
           }
         }
-      }, 200);
+      }, bubbleDelay);
 
       // Auto-dismiss for transient messages
       if (behavior === 'transient') {
@@ -217,11 +232,12 @@ export class MascotController {
     this.container.addEventListener('animationend', onEnterEnd);
 
     // Fallback: if animation doesn't fire (e.g., reduced motion), force visible
+    const fallbackDelay = entrance === 'grand' ? 3500 : 1500;
     setTimeout(() => {
       if (this.state === MascotState.ENTERING) {
-        onEnterEnd();
+        onEnterEnd(null);
       }
-    }, 1500);
+    }, fallbackDelay);
   }
 
   /**
@@ -259,8 +275,8 @@ export class MascotController {
       this.recentMessageIds.shift();
     }
 
-    // Determine entrance animation
-    const entrance = trigger.behavior === 'persistent' ? 'walk' : getRandomEntrance();
+    // Use grand entrance for all triggered appearances
+    const entrance = 'grand';
 
     // Show the mascot
     this.show(message.text, {
@@ -297,6 +313,9 @@ export class MascotController {
       this.speechBubble.classList.remove('visible');
     }
 
+    // Switch mascot sprite to exit pose (back facing walking away)
+    this.animator?.setExit('right');
+
     // Set exit pose
     const currentCategory = this.container?.dataset.category;
     const exitPose = CATEGORY_EXIT_POSES[currentCategory] || 'waving';
@@ -314,7 +333,9 @@ export class MascotController {
       this.container.id = 'fg-mascot-container';
       this.container.classList.add(exitClass);
 
-      const onExitEnd = () => {
+      const onExitEnd = (e) => {
+        // Ignore animationend events from child elements
+        if (e && e.target !== this.container) return;
         this._cleanup();
         this.state = MascotState.OFFSCREEN;
         this.triggerManager.setPersistentActive(false);
@@ -336,12 +357,13 @@ export class MascotController {
 
       this.container.addEventListener('animationend', onExitEnd);
 
-      // Fallback for reduced motion
+      // Fallback for reduced motion (longer for grand exit)
+      const exitFallback = this.currentEntrance === 'grand' ? 2500 : 1200;
       setTimeout(() => {
         if (this.state === MascotState.EXITING) {
-          onExitEnd();
+          onExitEnd(null);
         }
-      }, 1200);
+      }, exitFallback);
     }, 300); // Delay to let speech bubble fade first
   }
 
@@ -358,6 +380,11 @@ export class MascotController {
       if (!this.enabled && this.state !== MascotState.OFFSCREEN) {
         this.dismiss('close');
       }
+    }
+
+    if (settings.mascotId && settings.mascotId !== this.mascotId) {
+      this.mascotId = settings.mascotId;
+      preloadMascotAssets(this.mascotId);
     }
 
     if (settings.categories) {
@@ -410,7 +437,9 @@ export class MascotController {
     // Character
     this.characterEl = document.createElement('div');
     this.characterEl.className = 'fg-mascot-character';
-    this.characterEl.innerHTML = getCharacterSVG();
+    const imgEl = createCharacterElement(this.mascotId);
+    this.characterEl.appendChild(imgEl);
+    this.animator = new MascotAnimator(imgEl, this.mascotId);
 
     // Assemble
     this.container.appendChild(this.speechBubble);
@@ -538,6 +567,10 @@ export class MascotController {
    * @private
    */
   _cleanup() {
+    if (this.animator) {
+      this.animator.stop();
+      this.animator = null;
+    }
     const existing = document.getElementById('fg-mascot-container');
     if (existing) {
       existing.remove();
@@ -572,7 +605,7 @@ export class MascotController {
       category: cat,
       pose: chosenPose,
       behavior: 'transient',
-      entrance: entrance || 'slide',
+      entrance: entrance || 'grand',
       displayDuration: 8000,
       pauseVideo: false,
     });

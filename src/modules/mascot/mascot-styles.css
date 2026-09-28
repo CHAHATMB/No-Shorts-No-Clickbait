@@ -1,8 +1,8 @@
 /* Mascot Container */
 #fg-mascot-container {
   position: fixed !important;
-  bottom: 10vh !important;
-  right: -200px !important;
+  bottom: 8vh !important;
+  right: -300px !important;
   z-index: 2147483640 !important;
   display: flex !important;
   flex-direction: column !important;
@@ -11,12 +11,37 @@
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
 }
 
-/* Character Base */
+/* Character Base & PNG Image Styling */
 .fg-mascot-character {
   position: relative;
-  width: 80px;
-  height: 96px;
+  width: 140px;
+  height: 180px;
   transform-origin: bottom center;
+  /* Warm vibrant glow for dark theme visibility */
+  filter: drop-shadow(0 0 16px rgba(255, 179, 71, 0.45)) drop-shadow(0 0 35px rgba(255, 179, 71, 0.2));
+  transition: filter 0.3s ease;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.fg-mascot-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+  user-select: none;
+  -webkit-user-drag: none;
+  pointer-events: all;
+  transform-origin: center bottom;
+  transition: transform 0.15s ease;
+}
+
+/* Mirrored sprite when walking towards left */
+.fg-mascot-img.fg-mascot-facing-left {
+  transform: scaleX(-1) !important;
 }
 
 /* 
@@ -26,22 +51,23 @@ Speech Bubble
 */
 .fg-mascot-speech-bubble {
   position: relative;
-  background: rgba(15, 15, 25, 0.92) !important;
-  backdrop-filter: blur(12px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
-  border-radius: 16px !important;
-  padding: 16px 20px !important;
-  max-width: 300px !important;
-  min-width: 200px !important;
+  background: rgba(20, 20, 35, 0.95) !important;
+  backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-left: 4px solid rgba(255, 255, 255, 0.4) !important;
+  border-radius: 18px !important;
+  padding: 18px 24px !important;
+  max-width: 360px !important;
+  min-width: 220px !important;
   color: white !important;
-  font-size: 13px !important;
-  line-height: 1.6 !important;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
-  margin-bottom: 12px !important;
+  font-size: 14px !important;
+  line-height: 1.65 !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 60px rgba(255, 179, 71, 0.08) !important;
+  margin-bottom: 14px !important;
   pointer-events: all !important;
   opacity: 0 !important;
   transform: translateY(10px) scale(0.95) !important;
-  transition: opacity 0.3s ease, transform 0.3s ease !important;
+  transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
 }
 
 .fg-mascot-speech-bubble.visible {
@@ -49,22 +75,38 @@ Speech Bubble
   transform: translateY(0) scale(1) !important;
 }
 
-/* Tail/Arrow */
+/* Category accent colors on speech bubble left border */
+#fg-mascot-container[data-category="HYDRATION"] .fg-mascot-speech-bubble {
+  border-left-color: #38bdf8 !important;
+}
+#fg-mascot-container[data-category="EYE_STRAIN"] .fg-mascot-speech-bubble {
+  border-left-color: #a78bfa !important;
+}
+#fg-mascot-container[data-category="BREAK"] .fg-mascot-speech-bubble {
+  border-left-color: #34d399 !important;
+}
+#fg-mascot-container[data-category="STOP_WATCHING"] .fg-mascot-speech-bubble {
+  border-left-color: #f87171 !important;
+}
+#fg-mascot-container[data-category="LATE_NIGHT"] .fg-mascot-speech-bubble {
+  border-left-color: #818cf8 !important;
+}
+
+/* Speech bubble tail */
 .fg-mascot-speech-bubble::after {
   content: '';
   position: absolute;
-  bottom: -8px;
-  right: 32px;
+  bottom: -10px;
+  right: 40px;
   width: 0;
   height: 0;
-  border-left: 8px solid transparent;
-  border-right: 8px solid transparent;
-  border-top: 8px solid rgba(15, 15, 25, 0.92);
-  filter: drop-shadow(0 2px 1px rgba(0,0,0,0.2));
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-top: 10px solid rgba(20, 20, 35, 0.95);
+  filter: drop-shadow(0 2px 1px rgba(0, 0, 0, 0.2));
 }
 
 .fg-mascot-speech-text {
-  /* Basic text styling */
   word-wrap: break-word;
 }
 .fg-mascot-speech-text strong {
@@ -72,14 +114,17 @@ Speech Bubble
   color: #ffcccc;
 }
 
-/* Category */
+/* Category indicator */
 .fg-mascot-category {
   font-size: 11px !important;
-  color: rgba(255, 255, 255, 0.5) !important;
-  margin-bottom: 6px !important;
+  color: rgba(255, 255, 255, 0.6) !important;
+  margin-bottom: 8px !important;
   display: flex !important;
   align-items: center !important;
-  gap: 4px !important;
+  gap: 5px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+  font-weight: 600 !important;
 }
 
 /* Close Button */
@@ -87,8 +132,8 @@ Speech Bubble
   position: absolute !important;
   top: 8px !important;
   right: 8px !important;
-  width: 20px !important;
-  height: 20px !important;
+  width: 22px !important;
+  height: 22px !important;
   background: none !important;
   border: none !important;
   color: rgba(255, 255, 255, 0.4) !important;
@@ -109,15 +154,15 @@ Speech Bubble
 .fg-mascot-speech-actions {
   display: flex !important;
   gap: 8px !important;
-  margin-top: 12px !important;
+  margin-top: 14px !important;
 }
 
 .fg-mascot-btn {
   flex: 1 !important;
-  padding: 8px 12px !important;
+  padding: 10px 14px !important;
   border: none !important;
-  border-radius: 8px !important;
-  font-size: 12px !important;
+  border-radius: 10px !important;
+  font-size: 13px !important;
   font-weight: 600 !important;
   cursor: pointer !important;
   transition: all 0.2s !important;
@@ -146,15 +191,25 @@ Speech Bubble
 Entry Animations 
 ========================================
 */
+
+/* GRAND entrance — walk-in from far right, travels into the viewport */
+.fg-mascot-enter-grand {
+  animation: fg-mascot-grand-enter 2.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.fg-mascot-enter-grand .fg-mascot-character {
+  animation: fg-mascot-grand-walk-cycle 2.5s ease-out forwards;
+}
+
+/* Fallback entrance animations */
 .fg-mascot-enter-walk {
-  animation: fg-mascot-slide-in-right 1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: fg-mascot-slide-in-right 1.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 .fg-mascot-enter-walk .fg-mascot-character {
-  animation: fg-mascot-bob-walk 1s steps(6) forwards;
+  animation: fg-mascot-bob-walk 1.2s ease-in-out forwards;
 }
 
 .fg-mascot-enter-slide {
-  animation: fg-mascot-slide-in-right-smooth 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: fg-mascot-slide-in-right-smooth 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .fg-mascot-enter-jump {
@@ -165,7 +220,7 @@ Entry Animations
 }
 
 .fg-mascot-enter-pop {
-  right: 30px !important;
+  right: 15vw !important;
 }
 .fg-mascot-enter-pop .fg-mascot-character {
   animation: fg-mascot-scale-overshoot 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
@@ -176,15 +231,24 @@ Entry Animations
 Exit Animations 
 ========================================
 */
+
+/* GRAND exit — walk back off-screen to the right */
+.fg-mascot-exit-grand {
+  animation: fg-mascot-grand-exit 1.8s cubic-bezier(0.55, 0, 1, 0.45) forwards;
+}
+.fg-mascot-exit-grand .fg-mascot-character {
+  animation: fg-mascot-grand-exit-cycle 1.8s ease-in forwards;
+}
+
 .fg-mascot-exit-walk {
-  animation: fg-mascot-slide-out-right 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: fg-mascot-slide-out-right 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 .fg-mascot-exit-walk .fg-mascot-character {
-  animation: fg-mascot-bob-walk 0.8s steps(6) forwards;
+  animation: fg-mascot-bob-walk 0.9s ease-in-out forwards;
 }
 
 .fg-mascot-exit-slide {
-  animation: fg-mascot-slide-out-right-smooth 0.5s ease-in forwards;
+  animation: fg-mascot-slide-out-right-smooth 0.6s ease-in forwards;
 }
 
 .fg-mascot-exit-jump {
@@ -201,402 +265,176 @@ Exit Animations
   animation: fg-mascot-scale-down 0.3s ease-in forwards;
 }
 
-/* Container Keyframes */
-@keyframes fg-mascot-slide-in-right {
-  from { right: -200px; }
-  to { right: 30px; }
-}
-@keyframes fg-mascot-slide-in-right-smooth {
-  from { right: -200px; }
-  to { right: 30px; }
-}
-@keyframes fg-mascot-slide-in-right-jump {
-  from { right: -200px; }
-  to { right: 30px; }
-}
-@keyframes fg-mascot-slide-out-right {
-  from { right: 30px; }
-  to { right: -200px; }
-}
-@keyframes fg-mascot-slide-out-right-smooth {
-  from { right: 30px; }
-  to { right: -200px; }
-}
-@keyframes fg-mascot-slide-out-right-jump {
-  0% { right: 30px; }
-  40% { right: 30px; }
-  100% { right: -200px; }
-}
-@keyframes fg-mascot-slide-out-immediate {
-  0% { right: 30px; }
-  99% { right: 30px; }
-  100% { right: -200px; }
+/* 
+========================================
+Container Keyframes 
+========================================
+*/
+
+/* Grand entrance: travel from off-screen deep into the viewport */
+@keyframes fg-mascot-grand-enter {
+  0% { 
+    right: -300px; 
+  }
+  60% { 
+    right: 15vw;
+  }
+  75% {
+    right: calc(15vw + 12px);
+  }
+  88% {
+    right: calc(15vw - 5px);
+  }
+  100% { 
+    right: 15vw;
+  }
 }
 
-/* Character Keyframes */
+/* Grand exit: walk back off-screen to the right */
+@keyframes fg-mascot-grand-exit {
+  0% { 
+    right: 15vw; 
+  }
+  100% { 
+    right: -300px; 
+  }
+}
+
+@keyframes fg-mascot-slide-in-right {
+  from { right: -300px; }
+  to { right: 15vw; }
+}
+@keyframes fg-mascot-slide-in-right-smooth {
+  from { right: -300px; }
+  to { right: 15vw; }
+}
+@keyframes fg-mascot-slide-in-right-jump {
+  from { right: -300px; }
+  to { right: 15vw; }
+}
+@keyframes fg-mascot-slide-out-right {
+  from { right: 15vw; }
+  to { right: -300px; }
+}
+@keyframes fg-mascot-slide-out-right-smooth {
+  from { right: 15vw; }
+  to { right: -300px; }
+}
+@keyframes fg-mascot-slide-out-right-jump {
+  0% { right: 15vw; }
+  40% { right: 15vw; }
+  100% { right: -300px; }
+}
+@keyframes fg-mascot-slide-out-immediate {
+  0% { right: 15vw; }
+  99% { right: 15vw; }
+  100% { right: -300px; }
+}
+
+/* 
+========================================
+Character Animation Keyframes 
+========================================
+*/
+
+/* Grand walk cycle: walking bobs during travel, then a spring-settle on arrival */
+@keyframes fg-mascot-grand-walk-cycle {
+  0%   { transform: translateY(0) rotate(0deg); }
+  8%   { transform: translateY(-12px) rotate(-2deg); }
+  16%  { transform: translateY(0) rotate(0deg); }
+  24%  { transform: translateY(-12px) rotate(2deg); }
+  32%  { transform: translateY(0) rotate(0deg); }
+  40%  { transform: translateY(-12px) rotate(-2deg); }
+  48%  { transform: translateY(0) rotate(0deg); }
+  56%  { transform: translateY(-12px) rotate(2deg); }
+  /* Settle on arrival */
+  60%  { transform: translateY(0) rotate(0deg); }
+  72%  { transform: translateY(-16px) scale(1.05, 0.95); }
+  82%  { transform: translateY(4px) scale(0.97, 1.03); }
+  92%  { transform: translateY(-3px) scale(1.01, 0.99); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+/* Grand exit walk cycle */
+@keyframes fg-mascot-grand-exit-cycle {
+  0%   { transform: translateY(0) rotate(0deg); }
+  15%  { transform: translateY(-10px) rotate(2deg); }
+  30%  { transform: translateY(0) rotate(0deg); }
+  45%  { transform: translateY(-10px) rotate(-2deg); }
+  60%  { transform: translateY(0) rotate(0deg); }
+  75%  { transform: translateY(-10px) rotate(2deg); }
+  100% { transform: translateY(0) rotate(0deg); }
+}
+
 @keyframes fg-mascot-bob-walk {
   0% { transform: translateY(0); }
   50% { transform: translateY(-8px); }
   100% { transform: translateY(0); }
 }
+
 @keyframes fg-mascot-bounce-enter {
   0% { transform: translateY(0); }
-  25% { transform: translateY(-30px); }
+  25% { transform: translateY(-25px); }
   50% { transform: translateY(0); }
-  75% { transform: translateY(-12px); }
-  90% { transform: translateY(0); }
-  95% { transform: translateY(-4px); }
+  75% { transform: translateY(-10px); }
   100% { transform: translateY(0); }
 }
+
 @keyframes fg-mascot-bounce-exit {
   0% { transform: translateY(0); }
   40% { transform: translateY(-15px); }
   100% { transform: translateY(0); }
 }
+
 @keyframes fg-mascot-scale-overshoot {
   0% { transform: scale(0); }
   100% { transform: scale(1); }
 }
+
 @keyframes fg-mascot-scale-down {
   0% { transform: scale(1); }
   100% { transform: scale(0); }
 }
-
 
 /* 
 ========================================
 Poses 
 ========================================
 */
-
-/* Default body elements (opacity, initial state) */
-.fg-mascot-character .mascot-brow-left,
-.fg-mascot-character .mascot-brow-right,
-.fg-mascot-character .mascot-blush,
-.fg-mascot-character .mascot-drink-cup,
-.fg-mascot-character .mascot-book,
-.fg-mascot-character .mascot-party-sparkles,
-.fg-mascot-character .mascot-sleep-zzz {
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.3s, transform 0.3s;
-}
-
-.fg-mascot-character .mascot-eye-left,
-.fg-mascot-character .mascot-eye-right {
-  transform-origin: center;
-}
-
-.fg-mascot-character .mascot-wing-right,
-.fg-mascot-character .mascot-wing-left {
-  transform-origin: top center;
-  transition: transform 0.3s;
-}
-
-/* Idle Pose */
-[data-pose="idle"] {
-  animation: fg-mascot-breathe 3s infinite ease-in-out;
-}
-[data-pose="idle"] .mascot-eye-left,
-[data-pose="idle"] .mascot-eye-right {
-  animation: fg-mascot-blink 4s infinite;
-}
-
-/* Talking Pose */
+[data-pose="idle"],
 [data-pose="talking"] {
-  animation: fg-mascot-breathe 3s infinite ease-in-out;
-}
-[data-pose="talking"] .mascot-eye-left,
-[data-pose="talking"] .mascot-eye-right {
-  animation: fg-mascot-blink 4s infinite;
-}
-[data-pose="talking"] .mascot-beak {
-  animation: fg-mascot-beak-talk 0.2s infinite alternate;
-}
-[data-pose="talking"] .mascot-wing-right {
-  animation: fg-mascot-wing-wave-small 1s infinite alternate ease-in-out;
+  animation: fg-mascot-breathe 3.5s infinite ease-in-out;
 }
 
-/* Drinking Pose (Hydration) */
-[data-pose="drinking"] {
-  animation: fg-mascot-breathe 2.5s infinite ease-in-out;
-}
-[data-pose="drinking"] .mascot-drink-cup {
-  opacity: 1;
-  transform: translateY(0) scale(1);
-  animation: fg-mascot-cup-sip 2s infinite ease-in-out;
-  transform-origin: 56px 72px;
-}
-[data-pose="drinking"] .mascot-wing-right {
-  animation: fg-mascot-wing-hold-cup 2s infinite ease-in-out;
-  transform-origin: 80px 60px;
-}
-[data-pose="drinking"] .mascot-wing-left {
-  animation: fg-mascot-wing-support 2s infinite ease-in-out;
-  transform-origin: 20px 60px;
-}
-[data-pose="drinking"] .mascot-blush {
-  opacity: 1;
-}
-[data-pose="drinking"] .mascot-eye-left,
-[data-pose="drinking"] .mascot-eye-right {
-  animation: fg-mascot-drink-eyes 2s infinite ease-in-out;
-}
-[data-pose="drinking"] .mascot-beak {
-  animation: fg-mascot-drink-sip-beak 2s infinite ease-in-out;
-}
-[data-pose="drinking"] .mascot-water-drop {
-  animation: fg-mascot-drop-float 1.5s infinite ease-out;
-}
-[data-pose="drinking"] .mascot-water-drop-2 {
-  animation: fg-mascot-drop-float 1.5s infinite 0.75s ease-out;
+[data-pose="celebrating"],
+[data-pose="jumping"] {
+  animation: fg-mascot-celebrate-bounce 0.6s infinite cubic-bezier(0.28, 0.84, 0.42, 1);
 }
 
-/* Stern / Worried Pose */
-[data-pose="stern"],
-[data-pose="worried"] {
-  transform: rotate(-3deg);
-}
-[data-pose="stern"] .mascot-brow-left,
-[data-pose="stern"] .mascot-brow-right,
-[data-pose="worried"] .mascot-brow-left,
-[data-pose="worried"] .mascot-brow-right {
-  opacity: 1;
-}
-[data-pose="stern"] .mascot-brow-left,
-[data-pose="worried"] .mascot-brow-left {
-  transform: rotate(15deg) translateY(2px);
-}
-[data-pose="stern"] .mascot-brow-right,
-[data-pose="worried"] .mascot-brow-right {
-  transform: rotate(-15deg) translateY(2px);
-}
-[data-pose="stern"] .mascot-wing-left,
-[data-pose="worried"] .mascot-wing-left {
-  transform: rotate(20deg);
-}
-[data-pose="stern"] .mascot-wing-right,
-[data-pose="worried"] .mascot-wing-right {
-  transform: rotate(-20deg);
-}
-
-/* Sleepy / Sleeping Pose */
 [data-pose="sleepy"],
 [data-pose="sleeping"] {
   animation: fg-mascot-sway 4s infinite ease-in-out;
 }
-[data-pose="sleepy"] .mascot-eye-left,
-[data-pose="sleepy"] .mascot-eye-right,
-[data-pose="sleeping"] .mascot-eye-left,
-[data-pose="sleeping"] .mascot-eye-right {
-  transform: scaleY(0.3);
-}
-[data-pose="sleepy"] .mascot-beak,
-[data-pose="sleeping"] .mascot-beak {
-  animation: fg-mascot-yawn 6s infinite;
-}
-[data-pose="sleepy"] .mascot-sleep-zzz,
-[data-pose="sleeping"] .mascot-sleep-zzz {
-  opacity: 1;
-  animation: fg-mascot-zzz-float 2.5s infinite ease-in-out;
+
+[data-pose="stern"],
+[data-pose="worried"] {
+  transform: rotate(-3deg);
 }
 
-/* Waving Pose */
-[data-pose="waving"] {
-  animation: fg-mascot-breathe 3s infinite ease-in-out;
-}
-[data-pose="waving"] .mascot-blush {
-  opacity: 1;
-}
-[data-pose="waving"] .mascot-wing-right {
-  animation: fg-mascot-wave-high 0.5s infinite alternate ease-in-out;
-}
-
-/* Celebrating Pose */
-[data-pose="celebrating"] {
-  animation: fg-mascot-bounce-continuous 0.6s infinite cubic-bezier(0.28, 0.84, 0.42, 1);
-}
-[data-pose="celebrating"] .mascot-blush {
-  opacity: 1;
-}
-[data-pose="celebrating"] .mascot-wing-left {
-  animation: fg-mascot-wave-high 0.4s infinite alternate ease-in-out;
-}
-[data-pose="celebrating"] .mascot-wing-right {
-  animation: fg-mascot-wave-high 0.4s infinite alternate ease-in-out 0.2s;
-}
-[data-pose="celebrating"] .mascot-party-sparkles {
-  opacity: 1;
-  animation: fg-mascot-sparkles-pulse 1s infinite alternate ease-in-out;
-}
-
-/* Reading Pose */
-[data-pose="reading"] {
-  animation: fg-mascot-breathe 3s infinite ease-in-out;
-}
-[data-pose="reading"] .mascot-eye-left,
-[data-pose="reading"] .mascot-eye-right {
-  transform: translateY(3px) scaleY(0.85);
-}
-[data-pose="reading"] .mascot-book {
-  opacity: 1;
-  transform: translateY(0);
-}
-[data-pose="reading"] .mascot-wing-left {
-  transform: rotate(20deg) translateY(-2px);
-}
-[data-pose="reading"] .mascot-wing-right {
-  transform: rotate(-20deg) translateY(-2px);
-}
-
-/* Walking Pose */
-[data-pose="walking"] {
-  animation: fg-mascot-bob-walk-continuous 0.6s infinite steps(2);
-}
-[data-pose="walking"] .mascot-foot-left {
-  animation: fg-mascot-foot-step-left 0.6s infinite steps(2);
-}
-[data-pose="walking"] .mascot-foot-right {
-  animation: fg-mascot-foot-step-right 0.6s infinite steps(2) 0.3s;
-}
-
-/* Jumping Pose */
-[data-pose="jumping"] {
-  animation: fg-mascot-bounce-continuous 0.6s infinite cubic-bezier(0.28, 0.84, 0.42, 1);
-}
-
-/* Pose Keyframes */
 @keyframes fg-mascot-breathe {
   0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.02); }
+  50% { transform: scale(1.025, 0.985); }
 }
-@keyframes fg-mascot-blink {
-  0%, 96%, 100% { transform: scaleY(1); }
-  98% { transform: scaleY(0.1); }
-}
-@keyframes fg-mascot-beak-talk {
-  from { transform: translateY(0); }
-  to { transform: translateY(2px); }
-}
-@keyframes fg-mascot-wing-wave-small {
-  from { transform: rotate(-5deg); }
-  to { transform: rotate(5deg); }
-}
-@keyframes fg-mascot-sway {
-  0%, 100% { transform: rotate(-3deg); }
-  50% { transform: rotate(3deg); }
-}
-@keyframes fg-mascot-yawn {
-  0%, 90%, 100% { transform: scaleY(1); }
-  95% { transform: scaleY(1.5) translateY(2px); }
-}
-@keyframes fg-mascot-wave-high {
-  from { transform: rotate(-20deg) translateY(-5px); }
-  to { transform: rotate(40deg) translateY(-10px); }
-}
-@keyframes fg-mascot-bob-walk-continuous {
-  0% { transform: translateY(0); }
-  50% { transform: translateY(-4px); }
-  100% { transform: translateY(0); }
-}
-@keyframes fg-mascot-foot-step-left {
-  0% { transform: translateY(0) rotate(0); }
-  50% { transform: translateY(-3px) rotate(10deg); }
-  100% { transform: translateY(0) rotate(0); }
-}
-@keyframes fg-mascot-foot-step-right {
-  0% { transform: translateY(0) rotate(0); }
-  50% { transform: translateY(-3px) rotate(-10deg); }
-  100% { transform: translateY(0) rotate(0); }
-}
-@keyframes fg-mascot-bounce-continuous {
+
+@keyframes fg-mascot-celebrate-bounce {
   0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-20px); }
+  50% { transform: translateY(-16px); }
 }
 
-/* Drinking Animation Keyframes */
-@keyframes fg-mascot-cup-sip {
-  0%, 100% {
-    transform: translateY(0) rotate(0deg);
-  }
-  30%, 70% {
-    transform: translateY(-9px) rotate(-8deg);
-  }
+@keyframes fg-mascot-sway {
+  0%, 100% { transform: rotate(-2deg); }
+  50% { transform: rotate(2deg); }
 }
-
-@keyframes fg-mascot-wing-hold-cup {
-  0%, 100% {
-    transform: rotate(0deg);
-  }
-  30%, 70% {
-    transform: rotate(-32deg) translateY(-8px) translateX(-10px);
-  }
-}
-
-@keyframes fg-mascot-wing-support {
-  0%, 100% {
-    transform: rotate(0deg);
-  }
-  30%, 70% {
-    transform: rotate(24deg) translateY(-4px) translateX(6px);
-  }
-}
-
-@keyframes fg-mascot-drink-eyes {
-  0%, 20%, 80%, 100% {
-    transform: scaleY(1);
-  }
-  35%, 65% {
-    transform: scaleY(0.2) translateY(2px);
-  }
-}
-
-@keyframes fg-mascot-drink-sip-beak {
-  0%, 20%, 80%, 100% {
-    transform: translateY(0) scale(1);
-  }
-  35%, 65% {
-    transform: translateY(-1px) scale(0.95);
-  }
-}
-
-@keyframes fg-mascot-drop-float {
-  0% {
-    opacity: 0;
-    transform: translateY(2px) scale(0.4);
-  }
-  50% {
-    opacity: 1;
-    transform: translateY(-5px) scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: translateY(-14px) scale(0.3);
-  }
-}
-
-@keyframes fg-mascot-zzz-float {
-  0%, 100% {
-    transform: translateY(0) translateX(0);
-    opacity: 0.7;
-  }
-  50% {
-    transform: translateY(-6px) translateX(3px);
-    opacity: 1;
-  }
-}
-
-@keyframes fg-mascot-sparkles-pulse {
-  0% {
-    transform: scale(0.85);
-    opacity: 0.7;
-  }
-  100% {
-    transform: scale(1.15);
-    opacity: 1;
-  }
-}
-
 
 /* 
 ========================================
@@ -606,11 +444,13 @@ Accessibility & Fullscreen
 @media (prefers-reduced-motion: reduce) {
   #fg-mascot-container,
   .fg-mascot-character,
-  .fg-mascot-character *,
+  .fg-mascot-img,
+  .fg-mascot-enter-grand,
   .fg-mascot-enter-walk,
   .fg-mascot-enter-slide,
   .fg-mascot-enter-jump,
   .fg-mascot-enter-pop,
+  .fg-mascot-exit-grand,
   .fg-mascot-exit-walk,
   .fg-mascot-exit-slide,
   .fg-mascot-exit-jump,
@@ -619,19 +459,21 @@ Accessibility & Fullscreen
     transition: opacity 0.3s ease !important;
   }
   
+  .fg-mascot-enter-grand,
   .fg-mascot-enter-walk,
   .fg-mascot-enter-slide,
   .fg-mascot-enter-jump,
   .fg-mascot-enter-pop {
-    right: 30px !important;
+    right: 15vw !important;
     opacity: 1 !important;
   }
 
+  .fg-mascot-exit-grand,
   .fg-mascot-exit-walk,
   .fg-mascot-exit-slide,
   .fg-mascot-exit-jump,
   .fg-mascot-exit-pop {
-    right: -200px !important;
+    right: -300px !important;
     opacity: 0 !important;
   }
 }
@@ -648,10 +490,12 @@ Responsive
 */
 @media (max-width: 500px) {
   .fg-mascot-speech-bubble {
-    max-width: 240px !important;
+    max-width: 260px !important;
+    font-size: 13px !important;
+    padding: 14px 18px !important;
   }
   .fg-mascot-character {
-    width: 60px;
-    height: 72px;
+    width: 100px;
+    height: 130px;
   }
 }
