@@ -65,7 +65,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["mascot-styles.css"],
+      "resources": ["mascot-styles.css", "mascots/*"],
       "matches": ["*://*.youtube.com/*"]
     }
   ]

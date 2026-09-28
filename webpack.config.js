@@ -53,6 +53,10 @@ module.exports = (env = {}, argv = {}) => {
           },
           { from: 'src/index.html', to: 'index.html' },
           { from: 'src/icons', to: 'icons' },
+          { from: 'mascots/walk_animation_asset', to: 'mascots/finn' },
+          { from: 'mascots/shime1.png', to: 'mascots/shime1.png' },
+          { from: 'mascots/shime2.png', to: 'mascots/shime2.png' },
+          { from: 'mascots/shime3.png', to: 'mascots/shime3.png' },
         ],
       }),
       // Custom plugin to generate a timestamp file for auto-reloading
