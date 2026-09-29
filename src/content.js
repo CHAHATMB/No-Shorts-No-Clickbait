@@ -2,6 +2,7 @@
 import "./browser-polyfill.js";
 import { FEATURES } from './features.js';
 import { MascotController } from './modules/mascot/mascot-controller.js';
+import { MESSAGE_CATEGORIES } from './modules/mascot/mascot-messages.js';
 
 (function () {
   "use strict";
@@ -265,6 +266,7 @@ import { MascotController } from './modules/mascot/mascot-controller.js';
                 continueCountToday,
                 breaksTakenToday,
                 timerInterval,
+                breakReminderManaged: true,
                 moneyWasted: 0, // Will be computed in evaluate()
               });
             }
@@ -291,7 +293,19 @@ import { MascotController } from './modules/mascot/mascot-controller.js';
   }
 
   function showTimeReminder() {
-    if (document.getElementById("youtube-time-reminder")) return;
+    if (document.getElementById("youtube-time-reminder") || document.fullscreenElement || document.hidden) return;
+    if (mascotController?.enabled) {
+      if (!mascotController.triggerManager.enabledCategories.has(MESSAGE_CATEGORIES.BREAK)) return;
+      if (mascotController.state !== 'offscreen') return;
+      lastReminderWatchTime = totalWatchTimeToday;
+      const minutesWatched = Math.round(totalWatchTimeToday / (60 * 1000));
+      mascotController.show(`You've watched for ${minutesWatched} minutes today. Ready to stretch, grab some water, or rest your eyes?`, {
+        category: MESSAGE_CATEGORIES.BREAK,
+        behavior: 'persistent',
+        entrance: 'walk',
+      });
+      return;
+    }
 
     lastReminderWatchTime = totalWatchTimeToday;
 
@@ -336,6 +350,9 @@ import { MascotController } from './modules/mascot/mascot-controller.js';
   }
 
   function dismissReminder() {
+    if (mascotController?.container?.dataset.category === MESSAGE_CATEGORIES.BREAK) {
+      mascotController.dismiss('close');
+    }
     const reminder = document.getElementById("youtube-time-reminder");
     if (reminder) reminder.remove();
   }
