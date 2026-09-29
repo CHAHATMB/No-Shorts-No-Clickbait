@@ -177,7 +177,7 @@ export class TriggerManager {
     }
 
     // --- BREAK REMINDER ---
-    if (this.enabledCategories.has(MESSAGE_CATEGORIES.BREAK)) {
+    if (!context.breakReminderManaged && this.enabledCategories.has(MESSAGE_CATEGORIES.BREAK)) {
       const intervalMs = (context.timerInterval || 15) * 60 * 1000;
       const cooldown = intervalMs;
 

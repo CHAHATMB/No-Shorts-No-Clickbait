@@ -7,7 +7,7 @@
 import {
   createCharacterElement,
   MascotAnimator,
-  getRandomEntrance,
+  ENTRANCE_ANIMATIONS,
   preloadMascotAssets,
   DEFAULT_MASCOT_ID,
 } from './mascot-character.js';
@@ -125,6 +125,10 @@ export class MascotController {
 
     /** @type {Function|null} Callback for when user takes an action */
     this.onUserAction = null;
+    this.timers = new Set();
+    this.reducedMotion = false;
+    this.hovered = false;
+    this.previousFocus = null;
   }
 
   /**
@@ -160,10 +164,11 @@ export class MascotController {
    * @param {MascotShowOptions} options - Display options
    */
   show(messageText, options = {}) {
+    if (!this.enabled) return;
+    const entrance = ENTRANCE_ANIMATIONS.includes(options.entrance) ? options.entrance : 'grand';
     const {
       category = MESSAGE_CATEGORIES.BREAK,
       behavior = 'transient',
-      entrance = 'grand',
       displayDuration = 8000,
       pauseVideo = false,
       pose = options.pose || CATEGORY_POSES[category] || 'talking',
@@ -171,7 +176,9 @@ export class MascotController {
 
     // Queue if already visible
     if (this.state !== MascotState.OFFSCREEN) {
-      this.messageQueue.push({ messageText, options });
+      if (!this.messageQueue.some(item => (item.options.category || MESSAGE_CATEGORIES.BREAK) === category)) {
+        this.messageQueue.push({ messageText, options });
+      }
       return;
     }
 
@@ -180,6 +187,10 @@ export class MascotController {
 
     // Create DOM structure
     this._createDOM(messageText, category, behavior, entrance);
+    const container = this.container;
+    this.previousFocus = document.activeElement;
+    this.reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    this.triggerManager.setPersistentActive(behavior === 'persistent');
 
     // Pause video if requested
     if (pauseVideo || behavior === 'persistent') {
@@ -191,15 +202,17 @@ export class MascotController {
     this._setPose(entrance === 'grand' ? 'idle' : initialPose);
 
     // Start walk frame animation for walk-in
-    if (entrance === 'grand' || entrance === 'walk') {
+    if (!this.reducedMotion && (entrance === 'grand' || entrance === 'walk')) {
       this.animator?.startWalk('left');
     }
 
     // Listen for entrance animation end
     const onEnterEnd = (e) => {
       // Ignore animationend events bubbling from child elements (feet, wings, etc.)
-      if (e && e.target !== this.container) return;
-      this.container.removeEventListener('animationend', onEnterEnd);
+      if (this.container !== container || this.state !== MascotState.ENTERING) return;
+      if (e && e.target !== container) return;
+      container.removeEventListener('animationend', onEnterEnd);
+      container.className = 'fg-mascot-visible';
       this.state = MascotState.VISIBLE;
 
       // Stop walk cycle and switch to idle standing pose facing user
@@ -207,10 +220,13 @@ export class MascotController {
       this._setPose(initialPose);
 
       // Show speech bubble with delay (longer for grand entrance for dramatic effect)
-      const bubbleDelay = entrance === 'grand' ? 500 : 200;
-      setTimeout(() => {
+      const bubbleDelay = this.reducedMotion ? 0 : (entrance === 'grand' ? 500 : 200);
+      this._schedule(() => {
         if (this.speechBubble) {
           this.speechBubble.classList.add('visible');
+          this.speechBubble.inert = false;
+          // Auto-dismiss for transient messages
+          if (behavior === 'transient') this._startAutoDismiss(displayDuration);
 
           // Set the context pose now that entrance animation is done
           if (options.pose) {
@@ -221,20 +237,14 @@ export class MascotController {
         }
       }, bubbleDelay);
 
-      // Auto-dismiss for transient messages
-      if (behavior === 'transient') {
-        this.autoDismissTimer = setTimeout(() => {
-          this.dismiss();
-        }, displayDuration);
-      }
     };
 
     this.container.addEventListener('animationend', onEnterEnd);
 
     // Fallback: if animation doesn't fire (e.g., reduced motion), force visible
-    const fallbackDelay = entrance === 'grand' ? 3500 : 1500;
-    setTimeout(() => {
-      if (this.state === MascotState.ENTERING) {
+    const fallbackDelay = this.reducedMotion ? 0 : (entrance === 'grand' ? 3500 : (entrance === 'pop' ? 500 : 1500));
+    this._schedule(() => {
+      if (this.container === container && this.state === MascotState.ENTERING) {
         onEnterEnd(null);
       }
     }, fallbackDelay);
@@ -251,7 +261,7 @@ export class MascotController {
     if (this.state !== MascotState.OFFSCREEN) return;
 
     // Don't show in fullscreen
-    if (document.fullscreenElement) return;
+    if (document.fullscreenElement || document.hidden || document.getElementById('youtube-time-reminder')) return;
 
     const trigger = this.triggerManager.evaluate(watchData);
     if (!trigger) return;
@@ -301,16 +311,17 @@ export class MascotController {
     if (this.state === MascotState.OFFSCREEN || this.state === MascotState.EXITING) return;
 
     // Clear auto-dismiss timer
-    if (this.autoDismissTimer) {
-      clearTimeout(this.autoDismissTimer);
-      this.autoDismissTimer = null;
-    }
-
+    this._clearTimers();
+    const container = this.container;
     this.state = MascotState.EXITING;
 
     // Hide speech bubble first
     if (this.speechBubble) {
       this.speechBubble.classList.remove('visible');
+      if (this.container.contains(document.activeElement) && this.previousFocus?.isConnected) {
+        this.previousFocus.focus({ preventScroll: true });
+      }
+      this.speechBubble.inert = true;
     }
 
     // Switch mascot sprite to exit pose (back facing walking away)
@@ -325,8 +336,11 @@ export class MascotController {
     const exitClass = `fg-mascot-exit-${this.currentEntrance || 'slide'}`;
 
     // Remove entrance class, add exit class
-    setTimeout(() => {
-      if (!this.container) return;
+    this._schedule(() => {
+      if (this.container !== container) return;
+      if (!this.reducedMotion && ['grand', 'walk'].includes(this.currentEntrance)) {
+        this.animator?.startWalk('right');
+      }
 
       // Remove all entrance/exit classes
       this.container.className = '';
@@ -335,7 +349,8 @@ export class MascotController {
 
       const onExitEnd = (e) => {
         // Ignore animationend events from child elements
-        if (e && e.target !== this.container) return;
+        if (this.container !== container || this.state !== MascotState.EXITING) return;
+        if (e && e.target !== container) return;
         this._cleanup();
         this.state = MascotState.OFFSCREEN;
         this.triggerManager.setPersistentActive(false);
@@ -343,13 +358,12 @@ export class MascotController {
         // Fire callback
         if (this.onUserAction) {
           this.onUserAction(action);
-          this.onUserAction = null;
         }
 
         // Process queue
-        if (this.messageQueue.length > 0) {
+        if (this.enabled && this.messageQueue.length > 0) {
           const next = this.messageQueue.shift();
-          setTimeout(() => {
+          this._schedule(() => {
             this.show(next.messageText, next.options);
           }, 500);
         }
@@ -358,13 +372,13 @@ export class MascotController {
       this.container.addEventListener('animationend', onExitEnd);
 
       // Fallback for reduced motion (longer for grand exit)
-      const exitFallback = this.currentEntrance === 'grand' ? 2500 : 1200;
-      setTimeout(() => {
+      const exitFallback = this.reducedMotion ? 0 : (this.currentEntrance === 'grand' ? 2500 : 1200);
+      this._schedule(() => {
         if (this.state === MascotState.EXITING) {
           onExitEnd(null);
         }
       }, exitFallback);
-    }, 300); // Delay to let speech bubble fade first
+    }, this.reducedMotion ? 0 : 300); // Delay to let speech bubble fade first
   }
 
   /**
@@ -377,8 +391,11 @@ export class MascotController {
   updateSettings(settings) {
     if (settings.enabled !== undefined) {
       this.enabled = settings.enabled;
-      if (!this.enabled && this.state !== MascotState.OFFSCREEN) {
-        this.dismiss('close');
+      if (!this.enabled) {
+        this.messageQueue = [];
+        this._cleanup();
+        this.state = MascotState.OFFSCREEN;
+        this.triggerManager.setPersistentActive(false);
       }
     }
 
@@ -396,6 +413,33 @@ export class MascotController {
     if (settings.triggerConfig) {
       this.triggerManager.updateConfig(settings.triggerConfig);
     }
+  }
+
+  _schedule(callback, delay) {
+    const timer = setTimeout(() => {
+      this.timers.delete(timer);
+      callback();
+    }, delay);
+    this.timers.add(timer);
+    return timer;
+  }
+
+  _cancelAutoDismiss() {
+    clearTimeout(this.autoDismissTimer);
+    this.timers.delete(this.autoDismissTimer);
+    this.autoDismissTimer = null;
+  }
+
+  _startAutoDismiss(duration) {
+    this._cancelAutoDismiss();
+    if (this.state !== MascotState.VISIBLE || this.hovered || this.container?.contains(document.activeElement)) return;
+    this.autoDismissTimer = this._schedule(() => this.dismiss(), duration);
+  }
+
+  _clearTimers() {
+    this.timers.forEach(timer => clearTimeout(timer));
+    this.timers.clear();
+    this.autoDismissTimer = null;
   }
 
   // ========================================
@@ -419,20 +463,22 @@ export class MascotController {
     // Speech bubble
     this.speechBubble = document.createElement('div');
     this.speechBubble.className = 'fg-mascot-speech-bubble';
+    this.speechBubble.inert = true;
+    this.speechBubble.setAttribute('role', 'region');
+    this.speechBubble.setAttribute('aria-label', CATEGORY_LABELS[category] || 'Reminder');
     this.speechBubble.innerHTML = `
-      <button class="fg-mascot-close" aria-label="Close">✕</button>
+      <button type="button" class="fg-mascot-close" aria-label="Dismiss reminder">✕</button>
       <div class="fg-mascot-category">
         <span>${CATEGORY_ICONS[category] || '💬'}</span>
         <span>${CATEGORY_LABELS[category] || 'Message'}</span>
       </div>
-      <div class="fg-mascot-speech-text">${messageText}</div>
-      ${behavior === 'persistent' ? `
-        <div class="fg-mascot-speech-actions">
-          <button class="fg-mascot-btn primary" data-action="break">Take a Break</button>
-          <button class="fg-mascot-btn secondary" data-action="continue">Continue</button>
-        </div>
-      ` : ''}
+      <div class="fg-mascot-speech-text" role="status" aria-live="polite" aria-atomic="true"></div>
+      <div class="fg-mascot-speech-actions">
+        <button type="button" class="fg-mascot-btn primary" data-action="break">Take a Break</button>
+        <button type="button" class="fg-mascot-btn secondary" data-action="${behavior === 'persistent' ? 'continue' : 'close'}">${behavior === 'persistent' ? 'Continue Watching' : 'Got it'}</button>
+      </div>
     `;
+    this.speechBubble.querySelector('.fg-mascot-speech-text').textContent = messageText;
 
     // Character
     this.characterEl = document.createElement('div');
@@ -447,7 +493,8 @@ export class MascotController {
 
     // Add pointer events
     this.characterEl.style.pointerEvents = 'all';
-    this.characterEl.style.cursor = 'pointer';
+    this.characterEl.style.cursor = behavior === 'transient' ? 'pointer' : 'default';
+    if (behavior === 'transient') this.characterEl.title = 'Dismiss reminder';
 
     // Event listeners
     this._attachEventListeners(behavior);
@@ -471,26 +518,33 @@ export class MascotController {
     }
 
     // Action buttons (persistent mode)
-    if (behavior === 'persistent') {
-      const breakBtn = this.speechBubble?.querySelector('[data-action="break"]');
-      const continueBtn = this.speechBubble?.querySelector('[data-action="continue"]');
+    const breakBtn = this.speechBubble?.querySelector('[data-action="break"]');
+    const continueBtn = this.speechBubble?.querySelector('[data-action="continue"]');
 
-      if (breakBtn) {
-        breakBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          this.dismiss('break');
-        });
-      }
-
-      if (continueBtn) {
-        continueBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          // Resume video before dismissing
-          this._resumeVideo();
-          this.dismiss('continue');
-        });
-      }
+    if (breakBtn) {
+      breakBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this._pauseVideo();
+        this.dismiss('break');
+      });
     }
+
+    if (continueBtn) {
+      continueBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        // Resume video before dismissing
+        this._resumeVideo();
+        this.dismiss('continue');
+      });
+    }
+
+    this.speechBubble?.querySelector('[data-action="close"]')?.addEventListener('click', () => this.dismiss('close'));
+    this.container.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        event.stopPropagation();
+        this.dismiss('close');
+      }
+    });
 
     // Character click — dismiss transient messages
     if (this.characterEl && behavior === 'transient') {
@@ -502,18 +556,16 @@ export class MascotController {
     // Pause auto-dismiss on hover
     if (this.container && behavior === 'transient') {
       this.container.addEventListener('mouseenter', () => {
-        if (this.autoDismissTimer) {
-          clearTimeout(this.autoDismissTimer);
-          this.autoDismissTimer = null;
-        }
+        this.hovered = true;
+        this._cancelAutoDismiss();
       });
-
       this.container.addEventListener('mouseleave', () => {
-        if (this.state === MascotState.VISIBLE) {
-          this.autoDismissTimer = setTimeout(() => {
-            this.dismiss('close');
-          }, 3000);
-        }
+        this.hovered = false;
+        this._startAutoDismiss(3000);
+      });
+      this.container.addEventListener('focusin', () => this._cancelAutoDismiss());
+      this.container.addEventListener('focusout', () => {
+        this._schedule(() => this._startAutoDismiss(3000), 0);
       });
     }
   }
@@ -567,6 +619,8 @@ export class MascotController {
    * @private
    */
   _cleanup() {
+    this._clearTimers();
+    this.hovered = false;
     if (this.animator) {
       this.animator.stop();
       this.animator = null;
@@ -597,7 +651,7 @@ export class MascotController {
     this.state = MascotState.OFFSCREEN;
     this.messageQueue = [];
 
-    const cat = category || MESSAGE_CATEGORIES.BREAK;
+    const cat = MESSAGE_CATEGORIES[category?.toUpperCase()] || MESSAGE_CATEGORIES.BREAK;
     const chosenPose = pose || (cat === MESSAGE_CATEGORIES.HYDRATION ? 'drinking' : (CATEGORY_POSES[cat] || 'talking'));
     const text = customText || `[Test Lab] Testing ${cat} trigger! Keep up the focus.`;
 

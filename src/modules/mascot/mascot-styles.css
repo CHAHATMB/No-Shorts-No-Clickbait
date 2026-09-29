@@ -1,24 +1,62 @@
 /* Mascot Container */
 #fg-mascot-container {
   position: fixed !important;
-  bottom: 8vh !important;
-  right: -300px !important;
+  --fg-mascot-inset: clamp(16px, 3vw, 48px);
+  --fg-mascot-top: calc(var(--ytd-masthead-height, 56px) + 16px);
+  --fg-mascot-available-height: calc(100dvh - var(--fg-mascot-top) - 16px);
+  --fg-mascot-character-width: 140px;
+  --fg-mascot-character-height: 180px;
+  --fg-mascot-surface: rgba(255, 255, 255, 0.98);
+  --fg-mascot-text: #0f0f0f;
+  --fg-mascot-muted: #606060;
+  --fg-mascot-border: rgba(0, 0, 0, 0.14);
+  --fg-mascot-secondary: rgba(0, 0, 0, 0.06);
+  --fg-mascot-hover: rgba(0, 0, 0, 0.12);
+  --fg-mascot-shadow: 0 8px 28px rgba(0, 0, 0, 0.16);
+  --fg-mascot-primary: #087f5b;
+  --fg-mascot-primary-text: #ffffff;
+  --fg-mascot-primary-hover: #066649;
+  --fg-mascot-focus: #087f5b;
+  --fg-mascot-glow: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.2));
+  color-scheme: light;
+  top: var(--fg-mascot-top) !important;
+  bottom: auto !important;
+  right: var(--fg-mascot-inset);
+  width: min(360px, calc(100vw - 2 * var(--fg-mascot-inset)));
+  max-height: var(--fg-mascot-available-height);
   z-index: 2147483640 !important;
   display: flex !important;
-  flex-direction: column !important;
+  flex-direction: column-reverse !important;
   align-items: flex-end !important;
   pointer-events: none !important;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
 }
 
+html[dark] #fg-mascot-container {
+  --fg-mascot-surface: rgba(33, 33, 33, 0.98);
+  --fg-mascot-text: #f1f1f1;
+  --fg-mascot-muted: #aaaaaa;
+  --fg-mascot-border: rgba(255, 255, 255, 0.18);
+  --fg-mascot-secondary: rgba(255, 255, 255, 0.1);
+  --fg-mascot-hover: rgba(255, 255, 255, 0.18);
+  --fg-mascot-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --fg-mascot-primary: #34d399;
+  --fg-mascot-primary-text: #07271c;
+  --fg-mascot-primary-hover: #6ee7b7;
+  --fg-mascot-focus: #a7f3d0;
+  --fg-mascot-glow: drop-shadow(0 0 16px rgba(255, 179, 71, 0.45)) drop-shadow(0 0 35px rgba(255, 179, 71, 0.2));
+  color-scheme: dark;
+}
+
 /* Character Base & PNG Image Styling */
 .fg-mascot-character {
   position: relative;
-  width: 140px;
-  height: 180px;
+  width: var(--fg-mascot-character-width);
+  height: var(--fg-mascot-character-height);
+  flex-shrink: 0;
   transform-origin: bottom center;
   /* Warm vibrant glow for dark theme visibility */
-  filter: drop-shadow(0 0 16px rgba(255, 179, 71, 0.45)) drop-shadow(0 0 35px rgba(255, 179, 71, 0.2));
+  filter: var(--fg-mascot-glow);
   transition: filter 0.3s ease;
   display: flex;
   align-items: flex-end;
@@ -51,19 +89,27 @@ Speech Bubble
 */
 .fg-mascot-speech-bubble {
   position: relative;
-  background: rgba(20, 20, 35, 0.95) !important;
+  box-sizing: border-box !important;
+  width: 100%;
+  max-height: calc(var(--fg-mascot-available-height) - var(--fg-mascot-character-height) - 14px);
+  display: flex;
+  flex-direction: column;
+  visibility: hidden;
+  background: var(--fg-mascot-surface) !important;
   backdrop-filter: blur(16px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
-  border-left: 4px solid rgba(255, 255, 255, 0.4) !important;
+  border: 1px solid var(--fg-mascot-border) !important;
+  border-left: 4px solid var(--fg-mascot-border) !important;
   border-radius: 18px !important;
   padding: 18px 24px !important;
   max-width: 360px !important;
-  min-width: 220px !important;
-  color: white !important;
+  min-width: 0 !important;
+  flex-shrink: 1;
+  color: var(--fg-mascot-text) !important;
   font-size: 14px !important;
   line-height: 1.65 !important;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 60px rgba(255, 179, 71, 0.08) !important;
-  margin-bottom: 14px !important;
+  box-shadow: var(--fg-mascot-shadow) !important;
+  margin-top: 14px !important;
+  margin-bottom: 0 !important;
   pointer-events: all !important;
   opacity: 0 !important;
   transform: translateY(10px) scale(0.95) !important;
@@ -71,6 +117,7 @@ Speech Bubble
 }
 
 .fg-mascot-speech-bubble.visible {
+  visibility: visible;
   opacity: 1 !important;
   transform: translateY(0) scale(1) !important;
 }
@@ -96,28 +143,34 @@ Speech Bubble
 .fg-mascot-speech-bubble::after {
   content: '';
   position: absolute;
-  bottom: -10px;
+  top: -10px;
   right: 40px;
   width: 0;
   height: 0;
   border-left: 10px solid transparent;
   border-right: 10px solid transparent;
-  border-top: 10px solid rgba(20, 20, 35, 0.95);
+  border-bottom: 10px solid var(--fg-mascot-surface);
   filter: drop-shadow(0 2px 1px rgba(0, 0, 0, 0.2));
 }
 
 .fg-mascot-speech-text {
   word-wrap: break-word;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--fg-mascot-muted) transparent;
 }
 .fg-mascot-speech-text strong {
   font-weight: 600;
-  color: #ffcccc;
+  color: var(--fg-mascot-text);
 }
 
 /* Category indicator */
 .fg-mascot-category {
+  flex-shrink: 0;
   font-size: 11px !important;
-  color: rgba(255, 255, 255, 0.6) !important;
+  padding-right: 20px;
+  color: var(--fg-mascot-muted) !important;
   margin-bottom: 8px !important;
   display: flex !important;
   align-items: center !important;
@@ -132,11 +185,11 @@ Speech Bubble
   position: absolute !important;
   top: 8px !important;
   right: 8px !important;
-  width: 22px !important;
-  height: 22px !important;
+  width: 32px !important;
+  height: 32px !important;
   background: none !important;
   border: none !important;
-  color: rgba(255, 255, 255, 0.4) !important;
+  color: var(--fg-mascot-muted) !important;
   cursor: pointer !important;
   font-size: 14px !important;
   border-radius: 50% !important;
@@ -145,13 +198,20 @@ Speech Bubble
   justify-content: center !important;
   transition: all 0.2s !important;
 }
+.fg-mascot-close:focus-visible,
+.fg-mascot-btn:focus-visible {
+  outline: 2px solid var(--fg-mascot-focus) !important;
+  outline-offset: 3px !important;
+}
+
 .fg-mascot-close:hover {
-  color: white !important;
-  background: rgba(255, 255, 255, 0.1) !important;
+  color: var(--fg-mascot-text) !important;
+  background: var(--fg-mascot-hover) !important;
 }
 
 /* Buttons */
 .fg-mascot-speech-actions {
+  flex-shrink: 0;
   display: flex !important;
   gap: 8px !important;
   margin-top: 14px !important;
@@ -170,20 +230,20 @@ Speech Bubble
 }
 
 .fg-mascot-btn.primary {
-  background: #cc0000 !important;
-  color: white !important;
+  background: var(--fg-mascot-primary) !important;
+  color: var(--fg-mascot-primary-text) !important;
 }
 .fg-mascot-btn.primary:hover {
-  background: #aa0000 !important;
+  background: var(--fg-mascot-primary-hover) !important;
   transform: translateY(-1px) !important;
 }
 
 .fg-mascot-btn.secondary {
-  background: rgba(255, 255, 255, 0.12) !important;
-  color: white !important;
+  background: var(--fg-mascot-secondary) !important;
+  color: var(--fg-mascot-text) !important;
 }
 .fg-mascot-btn.secondary:hover {
-  background: rgba(255, 255, 255, 0.2) !important;
+  background: var(--fg-mascot-hover) !important;
 }
 
 /* 
@@ -220,7 +280,7 @@ Entry Animations
 }
 
 .fg-mascot-enter-pop {
-  right: 15vw !important;
+  right: var(--fg-mascot-inset) !important;
 }
 .fg-mascot-enter-pop .fg-mascot-character {
   animation: fg-mascot-scale-overshoot 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
@@ -274,61 +334,61 @@ Container Keyframes
 /* Grand entrance: travel from off-screen deep into the viewport */
 @keyframes fg-mascot-grand-enter {
   0% { 
-    right: -300px; 
+    right: -420px;
   }
   60% { 
-    right: 15vw;
+    right: var(--fg-mascot-inset);
   }
   75% {
-    right: calc(15vw + 12px);
+    right: calc(var(--fg-mascot-inset) + 12px);
   }
   88% {
-    right: calc(15vw - 5px);
+    right: calc(var(--fg-mascot-inset) - 5px);
   }
   100% { 
-    right: 15vw;
+    right: var(--fg-mascot-inset);
   }
 }
 
 /* Grand exit: walk back off-screen to the right */
 @keyframes fg-mascot-grand-exit {
   0% { 
-    right: 15vw; 
+    right: var(--fg-mascot-inset);
   }
   100% { 
-    right: -300px; 
+    right: -420px;
   }
 }
 
 @keyframes fg-mascot-slide-in-right {
-  from { right: -300px; }
-  to { right: 15vw; }
+  from { right: -420px; }
+  to { right: var(--fg-mascot-inset); }
 }
 @keyframes fg-mascot-slide-in-right-smooth {
-  from { right: -300px; }
-  to { right: 15vw; }
+  from { right: -420px; }
+  to { right: var(--fg-mascot-inset); }
 }
 @keyframes fg-mascot-slide-in-right-jump {
-  from { right: -300px; }
-  to { right: 15vw; }
+  from { right: -420px; }
+  to { right: var(--fg-mascot-inset); }
 }
 @keyframes fg-mascot-slide-out-right {
-  from { right: 15vw; }
-  to { right: -300px; }
+  from { right: var(--fg-mascot-inset); }
+  to { right: -420px; }
 }
 @keyframes fg-mascot-slide-out-right-smooth {
-  from { right: 15vw; }
-  to { right: -300px; }
+  from { right: var(--fg-mascot-inset); }
+  to { right: -420px; }
 }
 @keyframes fg-mascot-slide-out-right-jump {
-  0% { right: 15vw; }
-  40% { right: 15vw; }
-  100% { right: -300px; }
+  0% { right: var(--fg-mascot-inset); }
+  40% { right: var(--fg-mascot-inset); }
+  100% { right: -420px; }
 }
 @keyframes fg-mascot-slide-out-immediate {
-  0% { right: 15vw; }
-  99% { right: 15vw; }
-  100% { right: -300px; }
+  0% { right: var(--fg-mascot-inset); }
+  99% { right: var(--fg-mascot-inset); }
+  100% { right: -420px; }
 }
 
 /* 
@@ -401,23 +461,23 @@ Character Animation Keyframes
 Poses 
 ========================================
 */
-[data-pose="idle"],
-[data-pose="talking"] {
+.fg-mascot-visible .fg-mascot-character[data-pose="idle"],
+.fg-mascot-visible .fg-mascot-character[data-pose="talking"] {
   animation: fg-mascot-breathe 3.5s infinite ease-in-out;
 }
 
-[data-pose="celebrating"],
-[data-pose="jumping"] {
+.fg-mascot-visible .fg-mascot-character[data-pose="celebrating"],
+.fg-mascot-visible .fg-mascot-character[data-pose="jumping"] {
   animation: fg-mascot-celebrate-bounce 0.6s infinite cubic-bezier(0.28, 0.84, 0.42, 1);
 }
 
-[data-pose="sleepy"],
-[data-pose="sleeping"] {
+.fg-mascot-visible .fg-mascot-character[data-pose="sleepy"],
+.fg-mascot-visible .fg-mascot-character[data-pose="sleeping"] {
   animation: fg-mascot-sway 4s infinite ease-in-out;
 }
 
-[data-pose="stern"],
-[data-pose="worried"] {
+.fg-mascot-visible .fg-mascot-character[data-pose="stern"],
+.fg-mascot-visible .fg-mascot-character[data-pose="worried"] {
   transform: rotate(-3deg);
 }
 
@@ -445,6 +505,8 @@ Accessibility & Fullscreen
   #fg-mascot-container,
   .fg-mascot-character,
   .fg-mascot-img,
+  .fg-mascot-speech-bubble,
+  .fg-mascot-btn,
   .fg-mascot-enter-grand,
   .fg-mascot-enter-walk,
   .fg-mascot-enter-slide,
@@ -456,7 +518,7 @@ Accessibility & Fullscreen
   .fg-mascot-exit-jump,
   .fg-mascot-exit-pop {
     animation: none !important;
-    transition: opacity 0.3s ease !important;
+    transition: none !important;
   }
   
   .fg-mascot-enter-grand,
@@ -464,7 +526,7 @@ Accessibility & Fullscreen
   .fg-mascot-enter-slide,
   .fg-mascot-enter-jump,
   .fg-mascot-enter-pop {
-    right: 15vw !important;
+    right: var(--fg-mascot-inset) !important;
     opacity: 1 !important;
   }
 
@@ -473,7 +535,7 @@ Accessibility & Fullscreen
   .fg-mascot-exit-slide,
   .fg-mascot-exit-jump,
   .fg-mascot-exit-pop {
-    right: -300px !important;
+    right: -420px !important;
     opacity: 0 !important;
   }
 }
@@ -489,13 +551,20 @@ Responsive
 ========================================
 */
 @media (max-width: 500px) {
+  #fg-mascot-container {
+    --fg-mascot-character-width: 100px;
+    --fg-mascot-character-height: 130px;
+  }
   .fg-mascot-speech-bubble {
-    max-width: 260px !important;
+    max-width: 100% !important;
     font-size: 13px !important;
     padding: 14px 18px !important;
   }
-  .fg-mascot-character {
-    width: 100px;
-    height: 130px;
+}
+
+@media (max-height: 500px) {
+  #fg-mascot-container {
+    --fg-mascot-character-width: 80px;
+    --fg-mascot-character-height: 104px;
   }
 }
