@@ -13,7 +13,8 @@
     "watch:chrome": "webpack --watch --config webpack.config.js --env browser=chrome --mode development",
     "watch:firefox": "webpack --watch --config webpack.config.js --env browser=firefox --mode development",
     "watch": "webpack --watch --mode development",
-    "lint": "web-ext lint -s dist/firefox"
+    "lint": "web-ext lint -s dist/firefox",
+    "test": "node --test tests/*.test.cjs"
   },
   "keywords": [],
   "author": "",

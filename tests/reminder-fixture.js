@@ -1,3 +1,4 @@
+window.__DEV__ = true;
 const parameters = new URLSearchParams(location.search);
 let now = Date.now();
 Date.now = () => now;
@@ -37,7 +38,7 @@ window.browser = {
     local: {
       async get() {
         return {
-          codingBonusEnabled: false,
+          codingBonusEnabled: parameters.get('coding') === 'true',
           mascotEnabled: parameters.get('mascot') !== 'false',
           timeReminderEnabled: parameters.get('reminders') !== 'false',
           timerInterval: 15,

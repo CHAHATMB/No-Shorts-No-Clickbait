@@ -1,6 +1,7 @@
 // productivity-content.js
 // Runs on ALL URLs - handles banners and URL blocking overlay
 import './browser-polyfill.js';
+import { TEST_PROTOCOL_VERSION } from './modules/test-lab-client.js';
 
 (function () {
   'use strict';
@@ -130,7 +131,12 @@ import './browser-polyfill.js';
     document.body.appendChild(container);
   }
 
-  function showBanner(type, data = {}) {
+  const previewCleanups = new Set();
+
+  function showBanner(type, data = {}, preview = false) {
+    if (!['timeAlert', 'milestone', 'dailySummary', 'suggestion'].includes(type)) {
+      return { ok: false, status: 'failed', message: 'Unknown banner type.' };
+    }
     // Ensure container exists
     if (!document.getElementById('fg-banner-container')) {
       injectBannerContainer();
@@ -182,6 +188,12 @@ import './browser-polyfill.js';
       <div class="fg-progress-bar"><div class="fg-progress-fill" style="width:100%"></div></div>
     `;
 
+    if (preview) {
+      bannerEl.dataset.preview = 'true';
+      bannerEl.querySelector('.fg-banner-title').textContent = `Preview: ${type}`;
+      const blockButton = bannerEl.querySelector('[data-action="block"]');
+      if (blockButton) blockButton.textContent = 'Dismiss preview';
+    }
     container.appendChild(bannerEl);
 
     // Animate in
@@ -191,15 +203,25 @@ import './browser-polyfill.js';
 
     // Progress bar animation
     const fill = bannerEl.querySelector('.fg-progress-fill');
-    if (fill) {
-      setTimeout(() => { fill.style.width = '0%'; }, 100);
-      fill.style.transitionDuration = `${autoDismissMs}ms`;
-    }
+    const progressTimer = setTimeout(() => { if (fill) fill.style.width = '0%'; }, 100);
+    if (fill) fill.style.transitionDuration = `${autoDismissMs}ms`;
+    let timer;
+    let removalTimer;
+    const cleanup = () => {
+      clearTimeout(progressTimer);
+      clearTimeout(timer);
+      clearTimeout(removalTimer);
+      bannerEl.remove();
+      previewCleanups.delete(cleanup);
+    };
+    if (preview) previewCleanups.add(cleanup);
 
     // Event handlers
     const dismissBanner = () => {
+      clearTimeout(timer);
+      clearTimeout(removalTimer);
       bannerEl.classList.add('hiding');
-      setTimeout(() => bannerEl.remove(), 300);
+      removalTimer = setTimeout(cleanup, 300);
     };
 
     bannerEl.querySelector('.fg-banner-close').addEventListener('click', dismissBanner);
@@ -207,7 +229,7 @@ import './browser-polyfill.js';
     bannerEl.querySelectorAll('[data-action]').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const action = e.target.getAttribute('data-action');
-        if (action === 'dismiss') {
+        if (action === 'dismiss' || preview) {
           dismissBanner();
         } else if (action === 'block') {
           dismissBanner();
@@ -218,9 +240,13 @@ import './browser-polyfill.js';
     });
 
     // Auto dismiss
-    const timer = setTimeout(dismissBanner, autoDismissMs);
+    timer = setTimeout(dismissBanner, autoDismissMs);
     bannerEl.addEventListener('mouseenter', () => clearTimeout(timer));
-    bannerEl.addEventListener('mouseleave', () => setTimeout(dismissBanner, 2000));
+    bannerEl.addEventListener('mouseleave', () => {
+      clearTimeout(timer);
+      timer = setTimeout(dismissBanner, 2000);
+    });
+    return { ok: true, status: 'shown', message: 'Banner preview shown on the target page.' };
   }
 
   // ============================================================
@@ -383,13 +409,20 @@ import './browser-polyfill.js';
   ];
 
   let blockOverlayEl = null;
+  let blockOverlayPending = false;
+  let previewRevision = 0;
 
-  async function showBlockOverlay(pattern) {
-    if (blockOverlayEl) return;
+  async function showBlockOverlay(pattern, preview = false) {
+    if (blockOverlayEl || blockOverlayPending) return { ok: false, status: 'skipped', message: 'A blocker is already displayed or loading.' };
+    blockOverlayPending = true;
+    const revision = previewRevision;
+    const previousOverflow = document.body.style.overflow;
 
     // Pause any playing media
-    document.querySelectorAll('video, audio').forEach(m => m.pause());
-    document.body.style.overflow = 'hidden';
+    if (!preview) {
+      document.querySelectorAll('video, audio').forEach(m => m.pause());
+      document.body.style.overflow = 'hidden';
+    }
 
     // Inject styles
     if (!document.getElementById('fg-blocker-styles')) {
@@ -427,6 +460,7 @@ import './browser-polyfill.js';
       
       const overrideResult = await browser.runtime.sendMessage({ action: 'getOverrideCount' });
       overrideCount = overrideResult?.count || 0;
+      if (preview && revision !== previewRevision) return { ok: false, status: 'skipped', message: 'Preview cancelled.' };
       
       const randomQuote = MOTIVATIONAL_QUOTES[Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length)];
       const domain = window.location.hostname.replace(/^www\./, '');
@@ -477,6 +511,21 @@ import './browser-polyfill.js';
         </div>
       `;
 
+      if (preview) {
+        blockOverlayEl.dataset.preview = 'true';
+        blockOverlayEl.querySelectorAll('a').forEach(link => {
+          link.removeAttribute('href');
+          link.setAttribute('aria-disabled', 'true');
+        });
+        blockOverlayEl.querySelector('.fg-block-subtitle').textContent = 'Preview only. No blocked rules or overrides will change.';
+        const closeButton = document.createElement('button');
+        closeButton.className = 'fg-block-btn secondary';
+        closeButton.textContent = 'Close preview';
+        closeButton.addEventListener('click', removeBlockOverlay);
+        blockOverlayEl.querySelector('.fg-block-actions').appendChild(closeButton);
+      } else {
+        blockOverlayEl.dataset.previousOverflow = previousOverflow;
+      }
       document.body.appendChild(blockOverlayEl);
 
       // Set streak badge
@@ -487,6 +536,10 @@ import './browser-polyfill.js';
       const overrideBtn = document.getElementById('fg-override-btn');
       if (overrideBtn) {
         overrideBtn.addEventListener('click', async () => {
+          if (preview) {
+            removeBlockOverlay();
+            return;
+          }
           await browser.runtime.sendMessage({ action: 'useOverride' });
           removeBlockOverlay();
           // Re-block after 5 minutes
@@ -497,16 +550,21 @@ import './browser-polyfill.js';
           }, 5 * 60 * 1000);
         });
       }
+      return { ok: true, status: 'shown', message: 'Blocker preview shown. Override only dismisses this preview.' };
     } catch (e) {
       console.error('[FocusGuard] Block overlay error:', e);
+      if (!preview) document.body.style.overflow = previousOverflow;
+      return { ok: false, status: 'failed', message: e.message };
+    } finally {
+      blockOverlayPending = false;
     }
   }
 
   function removeBlockOverlay() {
     if (blockOverlayEl) {
+      if (blockOverlayEl.dataset.preview !== 'true') document.body.style.overflow = blockOverlayEl.dataset.previousOverflow || '';
       blockOverlayEl.remove();
       blockOverlayEl = null;
-      document.body.style.overflow = '';
     }
   }
 
@@ -515,13 +573,27 @@ import './browser-polyfill.js';
   // ============================================================
   browser.runtime.onMessage.addListener((message) => {
     if (message.action === 'showBanner') {
-      showBanner(message.type, message.data || {});
+      return Promise.resolve(showBanner(message.type, message.data || {}));
     } else if (message.action === 'showBlockOverlay') {
-      showBlockOverlay(message.pattern);
+      return showBlockOverlay(message.pattern);
     } else if (message.action === 'removeBlockOverlay') {
       removeBlockOverlay();
+      return Promise.resolve({ ok: true });
     }
-    return Promise.resolve({ ok: true });
+    if (typeof __DEV__ === 'undefined' || !__DEV__) return;
+    if (message.action === 'testPageStatus') return Promise.resolve({ ok: true, protocolVersion: TEST_PROTOCOL_VERSION });
+    if (message.action === 'testPreviewBanner') {
+      return Promise.resolve(showBanner(message.type, message.data || {}, true));
+    }
+    if (message.action === 'testPreviewBlocker') {
+      return showBlockOverlay({ label: 'Test site' }, true).catch(error => ({ ok: false, status: 'failed', message: error.message }));
+    }
+    if (message.action === 'testClearPagePreviews') {
+      previewRevision++;
+      previewCleanups.forEach(cleanup => cleanup());
+      if (blockOverlayEl?.dataset.preview === 'true') removeBlockOverlay();
+      return Promise.resolve({ ok: true, message: 'Page previews cleared. Real blockers were left unchanged.' });
+    }
   });
 
   // Initialize banner container on page load (defer to avoid blocking)
