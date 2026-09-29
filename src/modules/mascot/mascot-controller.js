@@ -188,12 +188,13 @@ export class MascotController {
     // Create DOM structure
     this._createDOM(messageText, category, behavior, entrance);
     const container = this.container;
+    if (options.preview) container.dataset.preview = 'true';
     this.previousFocus = document.activeElement;
     this.reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     this.triggerManager.setPersistentActive(behavior === 'persistent');
 
     // Pause video if requested
-    if (pauseVideo || behavior === 'persistent') {
+    if (!options.preview && (pauseVideo || behavior === 'persistent')) {
       this._pauseVideo();
     }
 
@@ -356,7 +357,7 @@ export class MascotController {
         this.triggerManager.setPersistentActive(false);
 
         // Fire callback
-        if (this.onUserAction) {
+        if (this.onUserAction && container.dataset.preview !== 'true') {
           this.onUserAction(action);
         }
 
@@ -524,7 +525,7 @@ export class MascotController {
     if (breakBtn) {
       breakBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        this._pauseVideo();
+        if (this.container?.dataset.preview !== 'true') this._pauseVideo();
         this.dismiss('break');
       });
     }
@@ -533,7 +534,7 @@ export class MascotController {
       continueBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         // Resume video before dismissing
-        this._resumeVideo();
+        if (this.container?.dataset.preview !== 'true') this._resumeVideo();
         this.dismiss('continue');
       });
     }
@@ -642,26 +643,37 @@ export class MascotController {
    * @param {string} [customText] - Custom bubble text
    * @param {string} [entrance] - Entrance animation (slide, walk, jump, pop)
    */
-  testTrigger(category, pose, customText, entrance) {
-    if (this.autoDismissTimer) {
-      clearTimeout(this.autoDismissTimer);
-      this.autoDismissTimer = null;
-    }
-    this._cleanup();
-    this.state = MascotState.OFFSCREEN;
-    this.messageQueue = [];
-
+  testTrigger(category, pose, customText, entrance, behavior = 'transient') {
     const cat = MESSAGE_CATEGORIES[category?.toUpperCase()] || MESSAGE_CATEGORIES.BREAK;
+    if (!this.enabled || !this.triggerManager.enabledCategories.has(cat)) {
+      return { ok: false, status: 'skipped', message: 'Enable the mascot and this reminder category in settings first.' };
+    }
+    if (document.hidden || document.fullscreenElement) {
+      return { ok: false, status: 'skipped', message: 'Switch to the target page and exit fullscreen first.' };
+    }
+    if (this.state !== MascotState.OFFSCREEN && this.container?.dataset.preview !== 'true') {
+      return { ok: false, status: 'skipped', message: 'Dismiss the existing reminder before previewing another.' };
+    }
+    this.clearPreview();
     const chosenPose = pose || (cat === MESSAGE_CATEGORIES.HYDRATION ? 'drinking' : (CATEGORY_POSES[cat] || 'talking'));
-    const text = customText || `[Test Lab] Testing ${cat} trigger! Keep up the focus.`;
+    const text = customText || `[Preview] Testing ${cat}. Buttons only dismiss this preview.`;
 
     this.show(text, {
       category: cat,
       pose: chosenPose,
-      behavior: 'transient',
+      behavior,
       entrance: entrance || 'grand',
       displayDuration: 8000,
       pauseVideo: false,
+      preview: true,
     });
+    return { ok: true, status: 'shown', message: 'Mascot preview created. No stats or playback changed.' };
+  }
+
+  clearPreview() {
+    if (this.container?.dataset.preview !== 'true') return;
+    this._cleanup();
+    this.state = MascotState.OFFSCREEN;
+    this.triggerManager.setPersistentActive(false);
   }
 }

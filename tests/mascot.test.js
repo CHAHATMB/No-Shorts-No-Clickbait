@@ -168,6 +168,11 @@ await test('Hover preserves the reminder and leaving starts a single dismissal t
 await test('PNG frames cycle, mirror on entrance, and stop at the idle frame', (controller, clock) => {
   controller.show('Walk in', { entrance: 'walk' });
   const image = controller.characterEl.querySelector('img');
+  if (controller.reducedMotion) {
+    clock.tick(500);
+    assert(image.src.endsWith('front.png') && controller.animator.intervalId === null, 'Reduced motion must use a static idle frame');
+    return;
+  }
   assert(image.src.endsWith('right1.png'), 'Entrance must start with the first walk frame');
   assert(image.classList.contains('fg-mascot-facing-left'), 'Entrance must face left');
   clock.tick(140);
@@ -182,6 +187,10 @@ await test('Walking exit cycles frames facing right', (controller, clock) => {
   finishEntrance(controller, clock);
   controller.dismiss();
   clock.tick(300);
+  if (controller.reducedMotion) {
+    assert(!controller.container && clock.size === 0, 'Reduced-motion exit must clean up without walking');
+    return;
+  }
   const image = controller.characterEl.querySelector('img');
   const firstFrame = image.src;
   clock.tick(140);
@@ -191,9 +200,10 @@ await test('Walking exit cycles frames facing right', (controller, clock) => {
 
 await test('Dismissal during entrance cannot resurrect the bubble', (controller, clock) => {
   controller.show('Early dismissal');
+  const container = controller.container;
   controller.dismiss();
   clock.tick(300);
-  controller.container.dispatchEvent(new Event('animationend'));
+  container.dispatchEvent(new Event('animationend'));
   clock.tick(4000);
   assert(controller.state === 'offscreen' && !controller.container, 'Entrance listener must not run during exit');
   assert(clock.size === 0, 'Dismissed mascot must not retain timers');
@@ -216,7 +226,8 @@ await test('Replacing a preview cancels stale lifecycle timers', (controller, cl
   clock.tick(1000);
   controller.testTrigger('hydration');
   clock.tick(2500);
-  assert(controller.state === 'entering', 'Old entrance fallback must not finish the new mascot');
+  assert(controller.state === (controller.reducedMotion ? 'visible' : 'entering'), 'Old entrance fallback must not change the new mascot lifecycle');
+  assert(controller.container.dataset.category === 'HYDRATION', 'The replacement preview must still be active');
 });
 
 await test('Disabling the mascot clears queued reminders and timers', (controller, clock) => {
@@ -369,6 +380,80 @@ await test('Disabling timer reminders dismisses an active mascot break reminder'
     await fixture.sendExtensionMessage({ action: 'toggleTimeReminder', enabled: false });
     await settle();
     assert(!fixture.document.getElementById('fg-mascot-container'), 'Turning reminders off must dismiss the active break reminder');
+  });
+});
+
+await test('Preview actions never pause playback or invoke real user actions', (controller, clock) => {
+  const video = document.createElement('video');
+  let pauses = 0;
+  video.pause = () => { pauses++; };
+  Object.defineProperty(video, 'paused', { value: false });
+  document.body.appendChild(video);
+  let actions = 0;
+  controller.onUserAction = () => { actions++; };
+  const response = controller.testTrigger('break', 'waving', 'Preview', 'walk', 'persistent');
+  assert(response.ok, response.message);
+  finishEntrance(controller, clock);
+  controller.speechBubble.querySelector('[data-action="break"]').click();
+  clock.tick(4000);
+  assert(pauses === 0 && actions === 0, `Preview invoked ${pauses} pauses and ${actions} real callbacks`);
+});
+
+await test('Clear preview removes timers but leaves real reminders untouched', (controller, clock) => {
+  controller.testTrigger('hydration');
+  controller.clearPreview();
+  clock.tick(10000);
+  assert(!controller.container && clock.size === 0, 'Preview cleanup must cancel pending timers');
+  controller.show('Real reminder', { behavior: 'persistent' });
+  const real = controller.container;
+  controller.clearPreview();
+  assert(controller.container === real && real.isConnected, 'Real reminder must remain');
+  const response = controller.testTrigger('hydration');
+  assert(!response.ok && response.status === 'skipped', 'Preview must not replace a real reminder');
+});
+
+await test('Disabled categories return a skipped result without rendering', controller => {
+  controller.updateSettings({ categories: { HYDRATION: false } });
+  const response = controller.testTrigger('hydration');
+  assert(!response.ok && response.status === 'skipped', response.message);
+  assert(!controller.container, 'Disabled category must not render');
+});
+
+await test('Break previews remain isolated with both mascot and fallback dialog', async () => {
+  for (const parameters of ['', 'mascot=false']) {
+    await withReminderFixture(parameters, async (fixture, settle) => {
+      const response = await fixture.sendExtensionMessage({ action: 'testTriggerBreakReminder' });
+      await settle();
+      assert(response.ok, `${parameters}: ${response.message}`);
+      assert(!fixture.videoPaused, 'Preview must not pause playback');
+      fixture.document.querySelector('[data-action="break"], .take-break').click();
+      await settle();
+      assert(!fixture.sentMessages.some(message => message.action === 'takeBreak'), 'Preview must not request tab closure or saved stats');
+      assert(!fixture.videoPaused, 'Preview button must not pause playback');
+    });
+  }
+});
+
+await test('Hard-lock preview cleanup does not remove a real allowance lock', async () => {
+  await withReminderFixture('', async (fixture, settle) => {
+    let response = await fixture.sendExtensionMessage({ action: 'testShowHardBlock' });
+    assert(response.ok, response.message);
+    assert(!fixture.videoPaused, 'Preview hard lock must not pause playback');
+    assert(!fixture.document.querySelector('#youtube-hard-block a[href]'), 'Preview hard lock must not open external tabs');
+    await fixture.sendExtensionMessage({ action: 'testClearYouTubePreviews' });
+    assert(!fixture.document.getElementById('youtube-hard-block'), 'Preview must clear');
+    await fixture.sendExtensionMessage({ action: 'testTriggerBreakReminder' });
+    await settle();
+    await fixture.sendExtensionMessage({ action: 'testClearYouTubePreviews' });
+    assert(!fixture.document.querySelector('[data-preview="true"]'), 'All YouTube preview UI must clear');
+  });
+  await withReminderFixture('coding=true', async fixture => {
+    const real = fixture.document.getElementById('youtube-hard-block');
+    assert(real && real.dataset.preview !== 'true', 'Fixture must start with a real allowance lock');
+    await fixture.sendExtensionMessage({ action: 'testClearYouTubePreviews' });
+    assert(real.isConnected, 'Clear previews must not unlock a real allowance lock');
+    const response = await fixture.sendExtensionMessage({ action: 'testShowHardBlock' });
+    assert(!response.ok && response.status === 'skipped', 'Preview must not replace the real lock');
   });
 });
 

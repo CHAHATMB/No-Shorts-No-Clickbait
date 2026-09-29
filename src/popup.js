@@ -1,5 +1,6 @@
 import './browser-polyfill.js';
 import { FEATURES } from './features.js';
+import { getTestTarget, sendTestCommand } from './modules/test-lab-client.js';
 
 document.addEventListener('DOMContentLoaded', function () {
 
@@ -827,7 +828,7 @@ document.addEventListener('DOMContentLoaded', function () {
   // ============================================================
   const IS_DEV_MODE = (typeof __DEV__ !== 'undefined' && __DEV__ === true);
 
-  if (document.getElementById('tab-test')) {
+  if (IS_DEV_MODE && document.getElementById('tab-test')) {
     initTestLab();
   } else if (!IS_DEV_MODE) {
     const testBtn = document.getElementById('tab-btn-test');
@@ -836,411 +837,191 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function initTestLab() {
     const testToast = document.getElementById('test-toast');
-    let toastTimeout = null;
+    const root = document.getElementById('tab-test');
+    let busy = false;
+    let target = null;
+    let pageReady = false;
+    let youtubeReady = false;
+    let refreshVersion = 0;
 
-    function showTestToast(msg, isError = false) {
-      if (!testToast) return;
-      if (toastTimeout) clearTimeout(toastTimeout);
-      testToast.textContent = msg;
-      testToast.className = `test-toast visible ${isError ? 'error' : 'success'}`;
-      toastTimeout = setTimeout(() => {
-        testToast.className = 'test-toast';
-      }, 3500);
+    function showTestToast(message, status = 'ready') {
+      testToast.textContent = `${status.toUpperCase()}: ${message}`;
+      testToast.className = `test-toast visible ${status === 'failed' ? 'error' : status === 'skipped' ? 'warning' : ['shown', 'saved', 'done'].includes(status) ? 'success' : ''}`;
     }
 
-    async function getActiveTab() {
-      try {
-        const tabs = await browser.tabs.query({ active: true, currentWindow: true });
-        return tabs[0] || null;
-      } catch {
-        return null;
-      }
+    function updateButtons() {
+      root.querySelectorAll('button').forEach(button => {
+        const scope = button.dataset.testScope;
+        const unavailable = scope === 'youtube' ? !youtubeReady : scope === 'page' ? !pageReady : false;
+        button.disabled = busy || unavailable;
+        button.title = unavailable ? (scope === 'youtube' && !target?.youtube ? 'Requires an active YouTube tab.' : 'Check connection, then refresh the target page if needed.') : '';
+      });
     }
 
-    async function getYouTubeTab() {
-      const activeTab = await getActiveTab();
-      if (activeTab?.url?.includes('youtube.com')) {
-        return activeTab;
-      }
-      try {
-        const ytTabs = await browser.tabs.query({ url: '*://*.youtube.com/*' });
-        if (ytTabs && ytTabs.length > 0) {
-          return ytTabs[0];
-        }
-      } catch { /* ignore */ }
-      return null;
+    async function refreshSavedState() {
+      const stored = await browser.storage.local.get([
+        'totalWatchTimeToday', 'remainingTime', 'blockOverrides', 'hourlyRate', 'dailyWatchStats', 'solvedProblemsHistory',
+      ]);
+      const today = new Date().toDateString();
+      document.getElementById('test-stat-watch').textContent = formatTime((stored.totalWatchTimeToday || 0) / 1000);
+      document.getElementById('test-stat-allowance').textContent = formatTime((stored.remainingTime || 0) / 1000);
+      document.getElementById('test-stat-overrides').textContent = `${stored.blockOverrides?.[today] || 0}/3`;
+      document.getElementById('test-stat-rate').textContent = `₹${stored.hourlyRate || 500}`;
+      dailyWatchStats = stored.dailyWatchStats || {};
+      currentHourlyRate = stored.hourlyRate || 500;
+      if (hourlyRateInput) hourlyRateInput.value = currentHourlyRate;
+      if (remainingTimeDisplay) remainingTimeDisplay.textContent = formatTime((stored.remainingTime || 0) / 1000);
+      const solved = stored.solvedProblemsHistory?.[today] || {};
+      if (solvedEasySpan) solvedEasySpan.textContent = solved.easy || 0;
+      if (solvedMediumSpan) solvedMediumSpan.textContent = solved.medium || 0;
+      if (solvedHardSpan) solvedHardSpan.textContent = solved.hard || 0;
+      if (earnedTimeDisplay) earnedTimeDisplay.textContent = `${solved.totalMinutes || 0}m`;
+      renderWatchHistoryGraph(dailyWatchStats);
     }
 
     updateTestTabLiveState = async function () {
+      const version = ++refreshVersion;
+      pageReady = youtubeReady = false;
+      updateButtons();
       try {
-        const tab = await getActiveTab();
-        const domainEl = document.getElementById('test-active-domain');
-        const pillLabel = document.getElementById('test-tab-label');
-        const dot = document.getElementById('test-tab-dot');
-
-        if (tab && tab.url) {
+        const current = await getTestTarget(browser);
+        const probe = async action => {
           try {
-            const u = new URL(tab.url);
-            const domain = u.hostname.replace(/^www\./, '');
-            if (domainEl) domainEl.textContent = domain || 'Active Page';
-            const isYT = domain.includes('youtube.com');
-            if (pillLabel) pillLabel.textContent = isYT ? '🟢 YouTube Active' : '🟡 Web Tab';
-            if (dot) dot.className = isYT ? 'test-status-dot' : 'test-status-dot inactive';
-          } catch {
-            if (domainEl) domainEl.textContent = 'Special Page';
-            if (pillLabel) pillLabel.textContent = '⚪ System Tab';
-            if (dot) dot.className = 'test-status-dot inactive';
+            return await sendTestCommand(browser, { action }, current.tab.id);
+          } catch (error) { /* ignore */
+            return { ok: false, message: error.message };
           }
-        } else {
-          if (domainEl) domainEl.textContent = 'No Active Tab';
-          if (pillLabel) pillLabel.textContent = '⚪ Inactive';
-          if (dot) dot.className = 'test-status-dot inactive';
-        }
-
-        const stored = await browser.storage.local.get([
-          'totalWatchTimeToday',
-          'remainingTime',
-          'blockerOverrides',
-          'hourlyRate',
+        };
+        const [page, youtube] = await Promise.all([
+          current.supported ? probe('testPageStatus') : { ok: false },
+          current.youtube ? probe('testYouTubeStatus') : { ok: false },
         ]);
-
-        const watchSecs = Math.round((stored.totalWatchTimeToday || 0) / 1000);
-        const allowSecs = Math.round((stored.remainingTime || 0) / 1000);
-        const overridesCount = stored.blockerOverrides?.count || 0;
-        const rate = stored.hourlyRate || 500;
-
-        const watchEl = document.getElementById('test-stat-watch');
-        const allowEl = document.getElementById('test-stat-allowance');
-        const overridesEl = document.getElementById('test-stat-overrides');
-        const rateEl = document.getElementById('test-stat-rate');
-
-        if (watchEl) watchEl.textContent = formatTime(watchSecs);
-        if (allowEl) allowEl.textContent = formatTime(allowSecs);
-        if (overridesEl) overridesEl.textContent = `${overridesCount}/3`;
-        if (rateEl) rateEl.textContent = `₹${rate}`;
-      } catch (e) {
-        console.error('[TestLab] Error updating live state:', e);
+        if (version !== refreshVersion) return;
+        target = current;
+        pageReady = page.ok;
+        youtubeReady = youtube.ok;
+        document.getElementById('test-active-domain').textContent = current.hostname;
+        document.getElementById('test-tab-label').textContent = pageReady && (!current.youtube || youtubeReady) ? 'Connected' : 'Not ready';
+        document.getElementById('test-tab-dot').className = `test-status-dot${pageReady && (!current.youtube || youtubeReady) ? '' : ' inactive'}`;
+        document.getElementById('test-target-help').textContent = !current.supported
+          ? 'Select a normal web page. Browser settings and extension pages cannot run previews.'
+          : !pageReady || (current.youtube && !youtubeReady)
+            ? 'Refresh this page after loading a development build, then check connection again.'
+            : current.youtube ? 'Previews run on this YouTube tab only.' : 'Page previews ready. Mascot and YouTube lock previews require an active YouTube tab.';
+        document.getElementById('test-diagnostics').textContent = `Page receiver: ${pageReady ? 'connected' : 'unavailable'}\nYouTube receiver: ${youtubeReady ? 'connected' : 'unavailable'}${youtubeReady ? `\nMascot: ${youtube.mascotEnabled ? 'enabled' : 'disabled'}\nCoding Bonus: ${youtube.codingBonusEnabled ? 'enabled' : 'disabled'}\nAutomatic reminders: ${youtube.timeReminderEnabled ? 'enabled' : 'disabled'}` : ''}`;
+        await refreshSavedState();
+      } catch (error) {
+        showTestToast(error.message, 'failed');
+      } finally {
+        if (version === refreshVersion) updateButtons();
       }
     };
 
-    updateTestTabLiveState();
+    async function runTest(label, command, scope = 'storage', confirmation) {
+      if (busy) return;
+      if (confirmation && !confirm(confirmation)) {
+        showTestToast('Cancelled. No saved data changed.', 'skipped');
+        return;
+      }
+      busy = true;
+      updateButtons();
+      showTestToast(label, 'running');
+      try {
+        let response;
+        if (scope === 'storage') {
+          response = await sendTestCommand(browser, command);
+        } else {
+          const current = await getTestTarget(browser);
+          if (!current.supported || (scope === 'youtube' && !current.youtube)) {
+            showTestToast(scope === 'youtube' ? 'Select a YouTube tab first.' : 'Select a normal web page first.', 'skipped');
+            return;
+          }
+          if (current.tab.id !== target?.tab?.id || current.tab.url !== target?.tab?.url) {
+            showTestToast('The active page changed. Check connection before trying again.', 'skipped');
+            await updateTestTabLiveState();
+            return;
+          }
+          response = await sendTestCommand(browser, command, current.tab.id);
+          if (command.action === 'testClearPagePreviews' && current.youtube) {
+            const youtubeResponse = await sendTestCommand(browser, { action: 'testClearYouTubePreviews' }, current.tab.id);
+            if (!youtubeResponse.ok) response = youtubeResponse;
+          }
+        }
+        showTestToast(response.message || label, response.status || (response.ok ? 'done' : 'failed'));
+        if (scope === 'storage' && response.ok) {
+          await refreshSavedState();
+          await loadProductivityData();
+        }
+      } catch (error) {
+        showTestToast(error.message, 'failed');
+      } finally {
+        busy = false;
+        updateButtons();
+      }
+    }
+
+    function bindTest(id, command, scope = 'storage', confirmation) {
+      const button = document.getElementById(id);
+      if (!button) return;
+      button.dataset.testScope = scope;
+      button.addEventListener('click', () => runTest(button.textContent.trim(), typeof command === 'function' ? command() : command, scope, confirmation));
+    }
+
+    document.getElementById('btn-test-check-connection').addEventListener('click', updateTestTabLiveState);
 
     // ------------------------------------------------------------
     // 1. MASCOT TESTING
     // ------------------------------------------------------------
-    async function triggerMascot(category, pose, customText) {
-      const targetTab = await getYouTubeTab();
-      if (!targetTab?.id) {
-        showTestToast('⚠️ Open or switch to a YouTube tab to view mascot animations!', true);
-        return;
-      }
-      try {
-        await browser.tabs.sendMessage(targetTab.id, {
-          action: 'testTriggerMascot',
-          category,
-          pose,
-          text: customText,
-        });
-        showTestToast(`✓ Triggered ${category} mascot (${pose}) on YouTube!`);
-      } catch (e) {
-        showTestToast(`Could not send: ${e.message} (Try refreshing YouTube tab)`, true);
-      }
+    for (const [name, category] of Object.entries({ break: 'break', water: 'hydration', eye: 'eye_strain', stop: 'stop_watching', night: 'late_night' })) {
+      bindTest(`btn-test-mascot-${name}`, { action: 'testTriggerMascot', category }, 'youtube');
     }
-
-    document.getElementById('btn-test-mascot-break')?.addEventListener('click', () => {
-      triggerMascot('break', 'waving', 'Time for a break! Take a stretch and drink some water.');
-    });
-
-    document.getElementById('btn-test-mascot-water')?.addEventListener('click', () => {
-      triggerMascot('hydration', 'drinking', 'Have you had some water recently? Stay hydrated! 💧');
-    });
-
-    document.getElementById('btn-test-mascot-eye')?.addEventListener('click', () => {
-      triggerMascot('eye_strain', 'talking', '20-20-20 rule: Look at something 20 feet away for 20 seconds!');
-    });
-
-    document.getElementById('btn-test-mascot-stop')?.addEventListener('click', () => {
-      triggerMascot('stop_watching', 'stern', 'You have been watching for quite a while. Time to wrap it up?');
-    });
-
-    document.getElementById('btn-test-mascot-night')?.addEventListener('click', () => {
-      triggerMascot('late_night', 'sleepy', 'It is late! Late-night screens disrupt sleep. Time to rest.');
-    });
-
-    document.getElementById('btn-test-mascot-dismiss')?.addEventListener('click', async () => {
-      const targetTab = await getYouTubeTab();
-      if (targetTab?.id) {
-        browser.tabs.sendMessage(targetTab.id, { action: 'testDismissMascot' }).catch(() => {});
-        showTestToast('✓ Mascot dismissed');
-      } else {
-        showTestToast('No YouTube tab found', true);
-      }
-    });
-
-    document.getElementById('btn-test-mascot-custom')?.addEventListener('click', async () => {
-      const targetTab = await getYouTubeTab();
-      if (!targetTab?.id) {
-        showTestToast('⚠️ Open or switch to a YouTube tab to view mascot animations!', true);
-        return;
-      }
-      const pose = document.getElementById('test-mascot-pose')?.value || 'drinking';
-      const entrance = document.getElementById('test-mascot-entrance')?.value || 'slide';
-      const text = document.getElementById('test-mascot-text')?.value || 'Testing custom mascot trigger!';
-      try {
-        await browser.tabs.sendMessage(targetTab.id, {
-          action: 'testTriggerMascot',
-          category: 'break',
-          pose,
-          entrance,
-          text,
-        });
-        showTestToast(`✓ Custom mascot triggered (${pose}/${entrance})`);
-      } catch (e) {
-        showTestToast(`Error: ${e.message} (Try refreshing YouTube tab)`, true);
-      }
-    });
+    bindTest('btn-test-mascot-custom', () => ({
+      action: 'testTriggerMascot',
+      category: 'break',
+      pose: document.getElementById('test-mascot-pose').value,
+      entrance: document.getElementById('test-mascot-entrance').value,
+      text: document.getElementById('test-mascot-text').value.trim(),
+    }), 'youtube');
 
     // ------------------------------------------------------------
     // 2. NOTIFICATION BANNERS
     // ------------------------------------------------------------
-    async function triggerBanner(bannerType, data = {}) {
-      try {
-        const tab = await getActiveTab();
-        if (!tab || !tab.id) {
-          showTestToast('No active tab found', true);
-          return;
-        }
-        await browser.tabs.sendMessage(tab.id, {
-          action: 'showBanner',
-          type: bannerType,
-          bannerType,
-          data,
-        });
-        showTestToast(`✓ Sent ${bannerType} banner to active tab!`);
-      } catch (e) {
-        browser.runtime.sendMessage({
-          action: 'testTriggerBannerActiveTab',
-          type: bannerType,
-          bannerType,
-          data,
-        }).then(() => {
-          showTestToast(`✓ Dispatched ${bannerType} banner!`);
-        }).catch(err => {
-          showTestToast(`Error: ${err.message}`, true);
-        });
-      }
-    }
-
-    document.getElementById('btn-test-banner-time')?.addEventListener('click', () => {
-      triggerBanner('timeAlert', { domain: 'youtube.com', minutes: 45 });
-    });
-
-    document.getElementById('btn-test-banner-milestone')?.addEventListener('click', () => {
-      triggerBanner('milestone', { message: '🎯 You reached 2 hours of productive focus today!' });
-    });
-
-    document.getElementById('btn-test-banner-summary')?.addEventListener('click', () => {
-      triggerBanner('dailySummary', { productiveSecs: 5400, wasteSecs: 1800 });
-    });
-
-    document.getElementById('btn-test-banner-suggestion')?.addEventListener('click', () => {
-      triggerBanner('suggestion', { message: '💡 You usually lose focus around now. Try enabling Focus Mode!' });
-    });
+    bindTest('btn-test-banner-time', () => ({ action: 'testPreviewBanner', type: 'timeAlert', data: { domain: target.hostname, minutes: 45 } }), 'page');
+    bindTest('btn-test-banner-milestone', { action: 'testPreviewBanner', type: 'milestone', data: { message: 'Sample: 2 hours of productive focus.' } }, 'page');
+    bindTest('btn-test-banner-summary', { action: 'testPreviewBanner', type: 'dailySummary', data: { productiveSecs: 5400, wasteSecs: 1800 } }, 'page');
+    bindTest('btn-test-banner-suggestion', { action: 'testPreviewBanner', type: 'suggestion', data: { message: 'Sample: try enabling Focus Mode.' } }, 'page');
 
     // ------------------------------------------------------------
     // 3. DISTRACTION BLOCKER & OVERLAYS
     // ------------------------------------------------------------
-    document.getElementById('btn-test-blocker-overlay')?.addEventListener('click', async () => {
-      const tab = await getActiveTab();
-      if (!tab?.id) return;
-      try {
-        await browser.tabs.sendMessage(tab.id, {
-          action: 'showBlockOverlay',
-          pattern: { pattern: 'test-distraction.com', label: 'Distracting Website' },
-        });
-        showTestToast('✓ Distraction block overlay shown on active tab!');
-      } catch (e) {
-        showTestToast(`Failed: ${e.message}`, true);
-      }
-    });
-
-    document.getElementById('btn-test-hard-block')?.addEventListener('click', async () => {
-      const tab = await getActiveTab();
-      if (!tab?.url?.includes('youtube.com')) {
-        showTestToast('⚠️ YouTube hard lock screen requires a YouTube tab!', true);
-        return;
-      }
-      try {
-        await browser.tabs.sendMessage(tab.id, { action: 'testShowHardBlock' });
-        showTestToast('✓ YouTube hard lock screen shown!');
-      } catch (e) {
-        showTestToast(`Failed: ${e.message}`, true);
-      }
-    });
-
-    document.getElementById('btn-test-clear-overlays')?.addEventListener('click', async () => {
-      const tab = await getActiveTab();
-      if (tab?.id) {
-        browser.tabs.sendMessage(tab.id, { action: 'removeBlockOverlay' }).catch(() => {});
-        browser.tabs.sendMessage(tab.id, { action: 'testHideHardBlock' }).catch(() => {});
-      }
-      showTestToast('✓ Cleared all active overlays');
-    });
-
-    document.getElementById('btn-test-reset-overrides')?.addEventListener('click', async () => {
-      const resp = await browser.runtime.sendMessage({ action: 'testResetOverrides' });
-      if (resp?.ok) {
-        showTestToast('✓ Emergency overrides reset to 0 / 3');
-        updateTestTabLiveState();
-      }
-    });
-
-    document.getElementById('btn-test-max-overrides')?.addEventListener('click', async () => {
-      const resp = await browser.runtime.sendMessage({ action: 'testMaxOverrides' });
-      if (resp?.ok) {
-        showTestToast('✓ Overrides set to max (3 / 3)');
-        updateTestTabLiveState();
-      }
-    });
+    bindTest('btn-test-blocker-overlay', { action: 'testPreviewBlocker' }, 'page');
+    bindTest('btn-test-hard-block', { action: 'testShowHardBlock' }, 'youtube');
+    bindTest('btn-test-clear-overlays', { action: 'testClearPagePreviews' }, 'page');
+    bindTest('btn-test-reset-overrides', { action: 'testResetOverrides' }, 'storage', 'Reset saved emergency overrides used today to zero? This changes real extension data.');
+    bindTest('btn-test-max-overrides', { action: 'testMaxOverrides' }, 'storage', 'Use up all saved emergency overrides for today? This affects real blockers.');
 
     // ------------------------------------------------------------
     // 4. WATCH TIME & MONEY SIMULATOR
     // ------------------------------------------------------------
-    document.getElementById('btn-test-time-yt15')?.addEventListener('click', async () => {
-      const resp = await browser.runtime.sendMessage({ action: 'testAddWatchTime', minutes: 15 });
-      if (resp?.ok) {
-        showTestToast(`✓ Added +15m watch time (Total: ${resp.minsWatched}m)`);
-        updateTestTabLiveState();
-        loadProductivityData();
-      }
-    });
-
-    document.getElementById('btn-test-time-yt60')?.addEventListener('click', async () => {
-      const resp = await browser.runtime.sendMessage({ action: 'testAddWatchTime', minutes: 60 });
-      if (resp?.ok) {
-        showTestToast(`✓ Added +60m watch time (Total: ${resp.minsWatched}m)`);
-        updateTestTabLiveState();
-        loadProductivityData();
-      }
-    });
-
-    document.getElementById('btn-test-time-prod')?.addEventListener('click', async () => {
-      const resp = await browser.runtime.sendMessage({
-        action: 'testAddSiteTime',
-        domain: 'github.com',
-        seconds: 1800,
-      });
-      if (resp?.ok) {
-        showTestToast('✓ Added +30m productive time (github.com)');
-        loadProductivityData();
-      }
-    });
-
-    document.getElementById('btn-test-time-waste')?.addEventListener('click', async () => {
-      const resp = await browser.runtime.sendMessage({
-        action: 'testAddSiteTime',
-        domain: 'instagram.com',
-        seconds: 1800,
-      });
-      if (resp?.ok) {
-        showTestToast('✓ Added +30m wasted time (instagram.com)');
-        loadProductivityData();
-      }
-    });
-
-    document.getElementById('btn-test-reset-time')?.addEventListener('click', async () => {
-      const resp = await browser.runtime.sendMessage({ action: 'testResetTodayData' });
-      if (resp?.ok) {
-        showTestToast('✓ Cleared today time tracking data');
-        dailyWatchStats = {};
-        updateTestTabLiveState();
-        loadProductivityData();
-        renderWatchHistoryGraph({});
-      }
-    });
-
-    document.getElementById('btn-test-break-reminder')?.addEventListener('click', async () => {
-      const tab = await getActiveTab();
-      if (!tab?.url?.includes('youtube.com')) {
-        showTestToast('⚠️ Switch to a YouTube tab to see break reminder popup!', true);
-        return;
-      }
-      try {
-        await browser.tabs.sendMessage(tab.id, { action: 'testTriggerBreakReminder' });
-        showTestToast('✓ Break reminder popup triggered on YouTube!');
-      } catch (e) {
-        showTestToast(`Failed: ${e.message}`, true);
-      }
-    });
-
-    document.querySelectorAll('[data-test-rate]').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const rate = parseInt(btn.getAttribute('data-test-rate'));
-        if (rate) {
-          await browser.storage.local.set({ hourlyRate: rate });
-          currentHourlyRate = rate;
-          if (hourlyRateInput) hourlyRateInput.value = rate;
-          showTestToast(`✓ Hourly rate set to ₹${rate}`);
-          updateTestTabLiveState();
-          loadProductivityData();
-        }
-      });
+    bindTest('btn-test-time-yt15', { action: 'testAddWatchTime', minutes: 15 });
+    bindTest('btn-test-time-yt60', { action: 'testAddWatchTime', minutes: 60 });
+    bindTest('btn-test-time-prod', { action: 'testAddSiteTime', domain: 'github.com', seconds: 1800 });
+    bindTest('btn-test-time-waste', { action: 'testAddSiteTime', domain: 'instagram.com', seconds: 1800 });
+    bindTest('btn-test-reset-time', { action: 'testResetTodayData' }, 'storage', 'Permanently reset today’s saved watch time, website time, and reminder counters? Earlier history, settings, and allowance will be kept. Live tracking continues.');
+    bindTest('btn-test-break-reminder', { action: 'testTriggerBreakReminder' }, 'youtube');
+    document.querySelectorAll('[data-test-rate]').forEach(button => {
+      button.addEventListener('click', () => runTest('Update saved hourly rate', { action: 'testSetHourlyRate', rate: Number(button.dataset.testRate) }));
     });
 
     // ------------------------------------------------------------
     // 5. CODING BONUS & ALLOWANCE
     // ------------------------------------------------------------
-    document.getElementById('btn-test-allowance-add30')?.addEventListener('click', async () => {
-      const resp = await browser.runtime.sendMessage({ action: 'testAddAllowance', minutes: 30 });
-      if (resp?.ok) {
-        const mins = Math.round(resp.remainingTime / 60000);
-        showTestToast(`✓ Added 30m allowance (${mins}m remaining)`);
-        if (remainingTimeDisplay) remainingTimeDisplay.textContent = `${mins}m`;
-        updateTestTabLiveState();
-      }
-    });
-
-    document.getElementById('btn-test-allowance-add60')?.addEventListener('click', async () => {
-      const resp = await browser.runtime.sendMessage({ action: 'testAddAllowance', minutes: 60 });
-      if (resp?.ok) {
-        const mins = Math.round(resp.remainingTime / 60000);
-        showTestToast(`✓ Added 60m allowance (${mins}m remaining)`);
-        if (remainingTimeDisplay) remainingTimeDisplay.textContent = `${mins}m`;
-        updateTestTabLiveState();
-      }
-    });
-
-    document.getElementById('btn-test-allowance-drain')?.addEventListener('click', async () => {
-      const resp = await browser.runtime.sendMessage({ action: 'testSetAllowance', minutes: 0 });
-      if (resp?.ok) {
-        showTestToast('✓ Allowance drained to 0m (Screen locks on YouTube)');
-        if (remainingTimeDisplay) remainingTimeDisplay.textContent = '0m';
-        updateTestTabLiveState();
-      }
-    });
-
-    async function mockSolveProblem(difficulty, minutes) {
-      await browser.runtime.sendMessage({ action: 'testAddAllowance', minutes });
-      const today = new Date().toDateString();
-      const res = await browser.storage.local.get('solvedProblemsHistory');
-      const hist = res.solvedProblemsHistory || {};
-      if (!hist[today]) hist[today] = { easy: 0, medium: 0, hard: 0, totalMinutes: 0 };
-      hist[today][difficulty] = (hist[today][difficulty] || 0) + 1;
-      hist[today].totalMinutes = (hist[today].totalMinutes || 0) + minutes;
-      await browser.storage.local.set({ solvedProblemsHistory: hist });
-
-      if (solvedEasySpan) solvedEasySpan.textContent = hist[today].easy;
-      if (solvedMediumSpan) solvedMediumSpan.textContent = hist[today].medium;
-      if (solvedHardSpan) solvedHardSpan.textContent = hist[today].hard;
-      if (earnedTimeDisplay) earnedTimeDisplay.textContent = `${hist[today].totalMinutes}m`;
-
-      showTestToast(`✓ Solved ${difficulty.toUpperCase()} LeetCode (+${minutes}m allowance)`);
-      updateTestTabLiveState();
-    }
-
-    document.getElementById('btn-test-solve-easy')?.addEventListener('click', () => mockSolveProblem('easy', 10));
-    document.getElementById('btn-test-solve-med')?.addEventListener('click', () => mockSolveProblem('medium', 20));
-    document.getElementById('btn-test-solve-hard')?.addEventListener('click', () => mockSolveProblem('hard', 45));
+    bindTest('btn-test-allowance-add30', { action: 'testAddAllowance', minutes: 30 });
+    bindTest('btn-test-allowance-add60', { action: 'testAddAllowance', minutes: 60 });
+    bindTest('btn-test-allowance-drain', { action: 'testSetAllowance', minutes: 0 }, 'storage', 'Set saved allowance to zero? All YouTube tabs with Coding Bonus enabled will lock.');
+    bindTest('btn-test-solve-easy', { action: 'testSolveProblem', difficulty: 'easy' });
+    bindTest('btn-test-solve-med', { action: 'testSolveProblem', difficulty: 'medium' });
+    bindTest('btn-test-solve-hard', { action: 'testSolveProblem', difficulty: 'hard' });
 
     // ------------------------------------------------------------
     // 6. STORAGE INSPECTOR & SYSTEM TOOLS
@@ -1252,7 +1033,7 @@ document.addEventListener('DOMContentLoaded', function () {
       try {
         const allData = await browser.storage.local.get(null);
         storageViewer.textContent = JSON.stringify(allData, null, 2);
-        showTestToast('✓ Storage snapshot refreshed');
+        showTestToast('Storage snapshot refreshed. It may contain browsing history and your username.', 'done');
       } catch (e) {
         storageViewer.textContent = `Error reading storage: ${e.message}`;
       }
@@ -1263,30 +1044,20 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('btn-test-copy-storage')?.addEventListener('click', async () => {
       if (!storageViewer) return;
       try {
+        JSON.parse(storageViewer.textContent);
         await navigator.clipboard.writeText(storageViewer.textContent);
-        showTestToast('✓ Storage JSON copied to clipboard!');
-      } catch (e) {
-        showTestToast('Failed to copy to clipboard', true);
+        showTestToast('Storage snapshot copied. Review it before sharing.', 'done');
+      } catch (error) {
+        showTestToast(error instanceof SyntaxError ? 'Refresh the storage snapshot before copying.' : `Clipboard unavailable: ${error.message}`, 'failed');
       }
     });
 
-    document.getElementById('btn-test-reload-tab')?.addEventListener('click', async () => {
-      const tab = await getActiveTab();
-      if (tab?.id) {
-        browser.tabs.reload(tab.id);
-        showTestToast('✓ Reloaded active tab');
+    browser.storage.onChanged.addListener((changes, area) => {
+      if (area === 'local' && root.classList.contains('active')) {
+        refreshSavedState().catch(error => showTestToast(error.message, 'failed'));
       }
     });
-
-    document.getElementById('btn-test-clear-storage')?.addEventListener('click', async () => {
-      if (confirm('Clear ALL extension storage? This will reset all your settings, stats, and overrides.')) {
-        await browser.storage.local.clear();
-        showTestToast('✓ All storage cleared! Reset to factory defaults.');
-        updateTestTabLiveState();
-        loadProductivityData();
-        refreshStorageViewer();
-      }
-    });
+    updateTestTabLiveState();
   }
 
 });

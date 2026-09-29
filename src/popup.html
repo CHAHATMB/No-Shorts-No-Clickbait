@@ -28,6 +28,7 @@
 
       body {
         width: 380px;
+        max-width: 100vw;
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         background: var(--bg);
         color: var(--text);
@@ -488,6 +489,25 @@
         padding: 12px;
         margin-bottom: 10px;
       }
+      .test-heading-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+      .test-heading-row h2 { font-size: 15px; }
+      #test-active-domain { overflow-wrap: anywhere; }
+      #tab-test p { font-size: 12px; color: #b8b8c8; line-height: 1.55; margin: 8px 0; }
+      #tab-test h3 { font-size: 12px; margin-top: 18px; }
+      #tab-test summary { cursor: pointer; font-weight: 600; font-size: 13px; }
+      #tab-test summary:focus-visible, #tab-test button:focus-visible, #tab-test select:focus-visible, #tab-test input:focus-visible { outline: 2px solid #c084fc; outline-offset: 3px; }
+      .test-section-hint { display: block; color: #b8b8c8; font-weight: 400; font-size: 11px; margin-top: 2px; }
+      .test-custom { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 10px; }
+      .test-custom label { display: block; font-size: 11px; color: #b8b8c8; margin-top: 8px; }
+      .test-custom select { display: block; width: 100%; margin-top: 4px; }
+      .test-wide { width: 100%; margin-top: 8px; }
+      .test-stats > div { background: var(--surface2); border-radius: 6px; padding: 6px 3px; text-align: center; overflow-wrap: anywhere; }
+      .test-stats span { display: block; font-size: 10px; color: #b8b8c8; }
+      .test-stats strong { display: block; font-size: 12px; }
+      #tab-test .test-caution { border-left: 2px solid var(--warning); padding-left: 8px; color: #fcd34d; }
+      #tab-test button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+      #tab-test .test-input, #tab-test .test-select { min-width: 0; }
+      #tab-test .test-btn { min-height: 36px; }
       .test-badge {
         display: inline-block;
         padding: 2px 7px;
@@ -588,6 +608,14 @@
         border-color: #ef4444;
       }
       .test-toast {
+        position: sticky;
+        top: -12px;
+        z-index: 2;
+        background: #1a1a25;
+        border: 1px solid var(--border);
+        overflow-wrap: anywhere;
+        max-height: 110px;
+        overflow-y: auto;
         padding: 8px 10px;
         border-radius: 6px;
         font-size: 11px;
@@ -599,13 +627,14 @@
         display: block;
         animation: fadeIn 0.2s ease-in-out;
       }
+      .test-toast.warning { background: #302713; color: #fcd34d; border-color: #7d622a; }
       .test-toast.success {
-        background: rgba(34, 197, 94, 0.15);
+        background: #142b22;
         border: 1px solid rgba(34, 197, 94, 0.3);
         color: #4ade80;
       }
       .test-toast.error {
-        background: rgba(239, 68, 68, 0.15);
+        background: #351b20;
         border: 1px solid rgba(239, 68, 68, 0.3);
         color: #f87171;
       }
@@ -946,165 +975,142 @@
     <div id="tab-test" class="tab-content">
       <!-- Dev Banner & Status Card -->
       <div class="test-header-card">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-          <div style="display:flex;align-items:center;gap:6px;">
-            <span style="font-size:16px;">🧪</span>
-            <span style="font-weight:700;font-size:13px;color:#f3e8ff;">Test Lab</span>
-          </div>
-          <span class="test-badge">DEV BUILD</span>
+        <div class="test-heading-row"><h2>Test Lab</h2><span class="test-badge">Development only</span></div>
+        <div class="test-heading-row">
+          <span>Target: <strong id="test-active-domain">Checking active tab...</strong></span>
+          <span class="test-status-pill" id="test-tab-status-pill"><span class="test-status-dot inactive" id="test-tab-dot"></span><span id="test-tab-label">Checking</span></span>
         </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--text-sec);margin-bottom:8px;">
-          <span>Active Tab: <strong id="test-active-domain" style="color:var(--text)">Loading...</strong></span>
-          <span class="test-status-pill" id="test-tab-status-pill">
-            <span class="test-status-dot" id="test-tab-dot"></span>
-            <span id="test-tab-label">Checking tab...</span>
-          </span>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px;text-align:center;">
-          <div style="background:rgba(255,255,255,0.04);border-radius:6px;padding:5px;">
-            <div style="font-size:9px;color:var(--text-sec)">Watch Today</div>
-            <div id="test-stat-watch" style="font-weight:700;font-size:11px;color:#f0f0f5">0m</div>
-          </div>
-          <div style="background:rgba(255,255,255,0.04);border-radius:6px;padding:5px;">
-            <div style="font-size:9px;color:var(--text-sec)">Allowance</div>
-            <div id="test-stat-allowance" style="font-weight:700;font-size:11px;color:#22c55e">0m</div>
-          </div>
-          <div style="background:rgba(255,255,255,0.04);border-radius:6px;padding:5px;">
-            <div style="font-size:9px;color:var(--text-sec)">Overrides</div>
-            <div id="test-stat-overrides" style="font-weight:700;font-size:11px;color:#f59e0b">0/3</div>
-          </div>
-          <div style="background:rgba(255,255,255,0.04);border-radius:6px;padding:5px;">
-            <div style="font-size:9px;color:var(--text-sec)">Rate</div>
-            <div id="test-stat-rate" style="font-weight:700;font-size:11px;color:#3b82f6">₹500</div>
-          </div>
-        </div>
+        <p id="test-target-help">Checking the active page’s extension connection.</p>
+        <button class="test-btn" id="btn-test-check-connection">Check connection</button>
       </div>
 
       <!-- Live Toast Alert -->
-      <div id="test-toast" class="test-toast"></div>
+      <div id="test-toast" class="test-toast visible" role="status" aria-live="polite" aria-atomic="true">READY: Choose a preview below. Results stay here until the next action.</div>
 
-      <!-- 1. MASCOT COMPANION -->
-      <div class="card">
-        <h2>🦊 Mascot Companion (YouTube)</h2>
-        <p>Trigger mascot prompts, poses, and animations on YouTube.</p>
-        
-        <div style="font-size:10px;font-weight:600;color:var(--text-sec);margin-bottom:4px;">Quick Triggers:</div>
-        <div class="test-grid-3">
-          <button class="test-btn dev-btn" id="btn-test-mascot-break">🧘 Break</button>
-          <button class="test-btn dev-btn" id="btn-test-mascot-water">💧 Water</button>
-          <button class="test-btn dev-btn" id="btn-test-mascot-eye">👀 Eye Strain</button>
-          <button class="test-btn dev-btn" id="btn-test-mascot-stop">🛑 Stop Now</button>
-          <button class="test-btn dev-btn" id="btn-test-mascot-night">🌙 Late Night</button>
-          <button class="test-btn warn-btn" id="btn-test-mascot-dismiss">✕ Dismiss</button>
-        </div>
-
-        <div style="font-size:10px;font-weight:600;color:var(--text-sec);margin-top:10px;margin-bottom:4px;">Custom Pose & Animation:</div>
-        <div style="display:flex;gap:6px;">
-          <select class="test-select" id="test-mascot-pose" style="flex:1;">
-            <option value="drinking">Pose: Drinking 💧</option>
-            <option value="talking">Pose: Talking 💬</option>
-            <option value="waving">Pose: Waving 👋</option>
-            <option value="celebrating">Pose: Celebrating 🎉</option>
-            <option value="worried">Pose: Worried / Stern 🛑</option>
-            <option value="sleeping">Pose: Sleeping 🌙</option>
-            <option value="reading">Pose: Reading 📖</option>
-            <option value="idle">Pose: Idle 🧘</option>
-            <option value="walking">Pose: Walking 🚶</option>
-            <option value="jumping">Pose: Jumping 🦘</option>
-          </select>
-          <select class="test-select" id="test-mascot-entrance" style="flex:1;">
-            <option value="slide">Entrance: Slide</option>
-            <option value="walk">Entrance: Walk</option>
-            <option value="jump">Entrance: Jump</option>
-            <option value="pop">Entrance: Pop</option>
-          </select>
-        </div>
-        <div class="test-input-row">
-          <input type="text" class="test-input" id="test-mascot-text" placeholder="Custom message text..." />
-          <button class="test-btn dev-btn" id="btn-test-mascot-custom" style="white-space:nowrap;">Test Mascot</button>
-        </div>
-      </div>
-
-      <!-- 2. NOTIFICATION BANNERS -->
-      <div class="card">
-        <h2>🔔 In-Page Notification Banners</h2>
-        <p>Fire non-intrusive banner alerts on whatever tab is currently open.</p>
+      <details class="card test-section" open>
+        <summary>Preview UI <span class="test-section-hint">No saved-data changes</span></summary>
+        <p>Sample UI only. Stats, playback, and tabs stay unchanged.</p>
+        <button class="test-btn dev-btn test-wide" id="btn-test-clear-overlays">Clear previews on this tab</button>
+        <!-- 1. MASCOT COMPANION -->
+        <h3>Mascot reminders <span class="test-section-hint">YouTube · Enable the mascot and category in settings.</span></h3>
         <div class="test-grid-2">
-          <button class="test-btn" id="btn-test-banner-time">⏱️ Time Alert (45m)</button>
-          <button class="test-btn" id="btn-test-banner-milestone">🎉 Milestone (2h Focus)</button>
-          <button class="test-btn" id="btn-test-banner-summary">📊 Daily Summary</button>
-          <button class="test-btn" id="btn-test-banner-suggestion">💡 Smart Suggestion</button>
+          <button class="test-btn" id="btn-test-mascot-break">Preview stretch prompt</button>
+          <button class="test-btn" id="btn-test-mascot-water">Preview hydration</button>
+          <button class="test-btn" id="btn-test-mascot-eye">Preview eye care</button>
+          <button class="test-btn" id="btn-test-mascot-stop">Preview stop watching</button>
+          <button class="test-btn" id="btn-test-mascot-night">Preview late night</button>
+          <button class="test-btn" id="btn-test-break-reminder">Preview break reminder</button>
         </div>
-      </div>
+        <p>Break reminder uses the mascot when enabled, otherwise the fallback dialog.</p>
+        <details class="test-custom">
+          <summary>Custom mascot appearance</summary>
+          <div class="test-grid-2">
+            <label for="test-mascot-pose">Pose
+              <select class="test-select" id="test-mascot-pose">
+                <option value="drinking">Drinking</option><option value="talking">Talking</option>
+                <option value="waving">Waving</option><option value="celebrating">Celebrating</option>
+                <option value="worried">Worried</option><option value="sleeping">Sleeping</option>
+                <option value="reading">Reading</option><option value="idle">Idle</option>
+                <option value="walking">Walking</option><option value="jumping">Jumping</option>
+              </select>
+            </label>
+            <label for="test-mascot-entrance">Entrance
+              <select class="test-select" id="test-mascot-entrance">
+                <option value="grand">Grand</option><option value="slide">Slide</option>
+                <option value="walk">Walk</option><option value="jump">Jump</option><option value="pop">Pop</option>
+              </select>
+            </label>
+          </div>
+          <label for="test-mascot-text">Message (optional, uses Break category)</label>
+          <div class="test-input-row">
+            <input type="text" class="test-input" id="test-mascot-text" maxlength="500" placeholder="Sample reminder text" />
+          </div>
+          <button class="test-btn dev-btn test-wide" id="btn-test-mascot-custom">Preview custom mascot</button>
+        </details>
 
-      <!-- 3. DISTRACTION BLOCKER & OVERLAYS -->
-      <div class="card">
-        <h2>🚫 Blockers & Overlays</h2>
-        <p>Simulate full-screen lockups and test the emergency override.</p>
+        <!-- 2. NOTIFICATION BANNERS -->
+        <h3>Notification banners <span class="test-section-hint">Web pages</span></h3>
+        <p>Sample values only—not your actual activity.</p>
         <div class="test-grid-2">
-          <button class="test-btn warn-btn" id="btn-test-blocker-overlay">🚫 Distracting Site Block</button>
-          <button class="test-btn danger-btn" id="btn-test-hard-block">🛑 YouTube Hard Lock</button>
+          <button class="test-btn" id="btn-test-banner-time">Preview 45m time alert</button>
+          <button class="test-btn" id="btn-test-banner-milestone">Preview 2h milestone</button>
+          <button class="test-btn" id="btn-test-banner-summary">Preview daily summary</button>
+          <button class="test-btn" id="btn-test-banner-suggestion">Preview suggestion</button>
         </div>
-        <div class="test-grid-3" style="margin-top:6px;">
-          <button class="test-btn dev-btn" id="btn-test-clear-overlays">🔓 Unlock / Clear</button>
-          <button class="test-btn" id="btn-test-reset-overrides">🔄 Reset Overrides (0)</button>
-          <button class="test-btn" id="btn-test-max-overrides">⚠️ Max Overrides (3)</button>
-        </div>
-      </div>
 
-      <!-- 4. WATCH TIME & MONEY SIMULATOR -->
-      <div class="card">
-        <h2>⏱️ Time & Money Simulator</h2>
-        <p>Manipulate time values instantly to observe Money Meter & Weekly Reports.</p>
+        <!-- 3. DISTRACTION BLOCKER & OVERLAYS -->
+        <h3>Blocking screens</h3>
+        <p>Does not replace an existing real lock. Close previews here or on the page.</p>
         <div class="test-grid-2">
-          <button class="test-btn" id="btn-test-time-yt15">➕ +15m YouTube Watch</button>
-          <button class="test-btn" id="btn-test-time-yt60">➕ +60m YouTube Watch</button>
-          <button class="test-btn" id="btn-test-time-prod">➕ +30m GitHub (Prod)</button>
-          <button class="test-btn" id="btn-test-time-waste">➕ +30m Instagram (Waste)</button>
+          <button class="test-btn" id="btn-test-blocker-overlay">Preview site blocker</button>
+          <button class="test-btn" id="btn-test-hard-block">Preview YouTube lock</button>
         </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;">
-          <button class="test-btn danger-btn" id="btn-test-reset-time" style="flex:1;margin-right:6px;">🧹 Reset Today's Time</button>
-          <button class="test-btn" id="btn-test-break-reminder" style="flex:1;">⏰ Break Popup</button>
+      </details>
+
+      <details class="card test-section">
+        <summary>Modify test data <span class="test-section-hint">Changes saved data</span></summary>
+        <p class="test-caution">These actions change real extension data, not a sandbox. Use a separate browser profile for testing. Tracking continues while this panel is open.</p>
+        <div class="test-grid-4 test-stats">
+          <div><span>Watch today</span><strong id="test-stat-watch">—</strong></div>
+          <div><span>Allowance</span><strong id="test-stat-allowance">—</strong></div>
+          <div><span>Overrides</span><strong id="test-stat-overrides">—</strong></div>
+          <div><span>Hourly rate</span><strong id="test-stat-rate">—</strong></div>
         </div>
-        <div style="font-size:10px;color:var(--text-sec);margin-top:8px;margin-bottom:4px;">Set Hourly Rate:</div>
+        <!-- 4. WATCH TIME & MONEY SIMULATOR -->
+        <h3>Add saved activity</h3>
+        <p>YouTube additions update watch history and site time, without deducting allowance. Site classifications follow your settings.</p>
+        <div class="test-grid-2">
+          <button class="test-btn" id="btn-test-time-yt15">Add 15m YouTube time</button>
+          <button class="test-btn" id="btn-test-time-yt60">Add 60m YouTube time</button>
+          <button class="test-btn" id="btn-test-time-prod">Add 30m GitHub time</button>
+          <button class="test-btn" id="btn-test-time-waste">Add 30m Instagram time</button>
+        </div>
+        <h3>Set saved hourly rate</h3>
         <div class="test-grid-4">
           <button class="test-btn" data-test-rate="300">₹300</button>
           <button class="test-btn" data-test-rate="500">₹500</button>
           <button class="test-btn" data-test-rate="1000">₹1,000</button>
           <button class="test-btn" data-test-rate="2000">₹2,000</button>
         </div>
-      </div>
 
-      <!-- 5. CODING BONUS & ALLOWANCE -->
-      <div class="card">
-        <h2>⚡ Allowance & LeetCode Bonus</h2>
-        <p>Test watch allowance balance and mock LeetCode problem solves.</p>
-        <div class="test-grid-3">
-          <button class="test-btn" id="btn-test-allowance-add30">🎁 +30m Allow</button>
-          <button class="test-btn" id="btn-test-allowance-add60">🎁 +60m Allow</button>
-          <button class="test-btn danger-btn" id="btn-test-allowance-drain">🔒 Drain to 0</button>
+        <!-- 5. CODING BONUS & ALLOWANCE -->
+        <h3>Saved watch allowance</h3>
+        <p>Applies across YouTube tabs. Locking requires Coding Bonus to be enabled.</p>
+        <div class="test-grid-2">
+          <button class="test-btn" id="btn-test-allowance-add30">Add 30m allowance</button>
+          <button class="test-btn" id="btn-test-allowance-add60">Add 60m allowance</button>
         </div>
-        <div style="font-size:10px;color:var(--text-sec);margin-top:8px;margin-bottom:4px;">Mock Solved LeetCode:</div>
+        <h3>Save mock LeetCode solves</h3>
+        <p>Adds a saved solve and allowance together. Actual LeetCode sync can replace mock counts.</p>
         <div class="test-grid-3">
-          <button class="test-btn" id="btn-test-solve-easy" style="color:#22c55e;">🟢 Easy (+10m)</button>
-          <button class="test-btn" id="btn-test-solve-med" style="color:#f59e0b;">🟡 Med (+20m)</button>
-          <button class="test-btn" id="btn-test-solve-hard" style="color:#ef4444;">🔴 Hard (+45m)</button>
+          <button class="test-btn" id="btn-test-solve-easy">Easy (+10m)</button>
+          <button class="test-btn" id="btn-test-solve-med">Medium (+20m)</button>
+          <button class="test-btn" id="btn-test-solve-hard">Hard (+45m)</button>
         </div>
-      </div>
+        <h3>Reset or exhaust saved values</h3>
+        <p>Confirmation required. Resetting today keeps earlier history, settings, and allowance.</p>
+        <div class="test-grid-2">
+          <button class="test-btn warn-btn" id="btn-test-reset-overrides">Reset overrides to 0</button>
+          <button class="test-btn warn-btn" id="btn-test-max-overrides">Set overrides to 3</button>
+          <button class="test-btn danger-btn" id="btn-test-allowance-drain">Set allowance to zero</button>
+          <button class="test-btn danger-btn" id="btn-test-reset-time">Reset today’s activity</button>
+        </div>
+      </details>
 
       <!-- 6. STORAGE INSPECTOR & SYSTEM TOOLS -->
-      <div class="card">
-        <h2>🧰 Storage Inspector & Tools</h2>
-        <p>Inspect local extension data or reset everything.</p>
-        <div class="test-grid-3">
-          <button class="test-btn dev-btn" id="btn-test-refresh-storage">🔄 Refresh</button>
-          <button class="test-btn" id="btn-test-copy-storage">📋 Copy JSON</button>
-          <button class="test-btn warn-btn" id="btn-test-reload-tab">🔄 Reload Tab</button>
-        </div>
-        <button class="test-btn danger-btn" id="btn-test-clear-storage" style="width:100%;margin-top:6px;">🗑️ Clear All Storage Data</button>
-        <div id="test-storage-viewer" class="test-json-box">Click "Refresh" to load storage snapshot...</div>
-      </div>
-
+      <details class="card test-section">
+        <summary>Diagnostics <span class="test-section-hint">Connection &amp; storage</span></summary>
+        <pre id="test-diagnostics" class="test-json-box">Checking receivers...</pre>
+        <details class="test-custom">
+          <summary>Inspect saved storage</summary>
+          <p>May contain browsing history and your LeetCode username. Review before sharing. No full-storage wipe is provided here.</p>
+          <div class="test-grid-2">
+            <button class="test-btn" id="btn-test-refresh-storage">Refresh snapshot</button>
+            <button class="test-btn" id="btn-test-copy-storage">Copy snapshot JSON</button>
+          </div>
+          <pre id="test-storage-viewer" class="test-json-box">Refresh to read saved storage.</pre>
+        </details>
+      </details>
     </div>
     <!-- DEV_ONLY_END -->
 

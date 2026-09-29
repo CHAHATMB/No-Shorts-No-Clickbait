@@ -1,7 +1,7 @@
 // background.js
 import './browser-polyfill.js';
 import { FEATURES } from './features.js';
-import { initUniversalTracker, addTimeForDomain, extractDomain } from './modules/time-tracker.js';
+import { initUniversalTracker, extractDomain } from './modules/time-tracker.js';
 import { checkUrlBlocked, getOverrideCount, incrementOverrideCount, MAX_DAILY_OVERRIDES } from './modules/url-blocker.js';
 
 console.log("Background service worker started.");
@@ -27,6 +27,7 @@ let dailyWatchStats = {};
 let totalWatchTimeToday = 0;
 let continueCountToday = 0;
 let breaksTakenToday = 0;
+let testCommandQueue = Promise.resolve();
 
 async function loadCodingSettings() {
   const result = await browser.storage.local.get([
@@ -398,92 +399,81 @@ async function broadcastStats(data) {
   // ============================================================
   // DEV / TEST LAB HANDLERS
   // ============================================================
-  if (message.action === "testAddWatchTime") {
-    const mins = message.minutes || 15;
-    const ms = mins * 60 * 1000;
-    totalWatchTimeToday += ms;
-    const today = new Date().toDateString();
-    dailyWatchStats[today] = Math.round(totalWatchTimeToday / 1000 / 60);
-    addTimeForDomain('youtube.com', mins * 60).then(() => {
-      return browser.storage.local.set({ totalWatchTimeToday, dailyWatchStats });
-    }).then(() => {
-      broadcastStats({ totalWatchTimeToday, remainingTime });
-      sendResponse({ ok: true, totalWatchTimeToday, minsWatched: dailyWatchStats[today] });
-    });
-    return true;
-  }
-
-  if (message.action === "testAddSiteTime") {
-    const domain = message.domain || 'github.com';
-    const seconds = message.seconds || 1800;
-    addTimeForDomain(domain, seconds).then(() => {
-      sendResponse({ ok: true, domain, seconds });
-    });
-    return true;
-  }
-
-  if (message.action === "testResetTodayData") {
-    totalWatchTimeToday = 0;
-    continueCountToday = 0;
-    breaksTakenToday = 0;
-    const today = new Date().toDateString();
-    dailyWatchStats[today] = 0;
-    const siteKey = `siteTime_${today}`;
-    const updates = {
-      totalWatchTimeToday: 0,
-      continueCountToday: 0,
-      breaksTakenToday: 0,
-      dailyWatchStats,
-      lastWasterAlert: {},
-    };
-    updates[siteKey] = {};
-    browser.storage.local.set(updates).then(() => {
-      broadcastStats({ totalWatchTimeToday: 0, continueCountToday: 0, breaksTakenToday: 0 });
-      sendResponse({ ok: true });
-    });
-    return true;
-  }
-
-  if (message.action === "testAddAllowance") {
-    const mins = message.minutes || 30;
-    remainingTime = Math.max(0, remainingTime + (mins * 60 * 1000));
-    browser.storage.local.set({ remainingTime }).then(() => {
-      broadcastStats({ remainingTime });
-      sendResponse({ ok: true, remainingTime });
-    });
-    return true;
-  }
-
-  if (message.action === "testSetAllowance") {
-    const mins = message.minutes || 0;
-    remainingTime = mins * 60 * 1000;
-    browser.storage.local.set({ remainingTime }).then(() => {
-      broadcastStats({ remainingTime });
-      sendResponse({ ok: true, remainingTime });
-    });
-    return true;
-  }
-
-  if (message.action === "testResetOverrides") {
-    const today = new Date().toDateString();
-    browser.storage.local.set({ blockerOverrides: { date: today, count: 0 } }).then(() => {
-      sendResponse({ ok: true, count: 0 });
-    });
-    return true;
-  }
-
-  if (message.action === "testMaxOverrides") {
-    const today = new Date().toDateString();
-    browser.storage.local.set({ blockerOverrides: { date: today, count: MAX_DAILY_OVERRIDES } }).then(() => {
-      sendResponse({ ok: true, count: MAX_DAILY_OVERRIDES });
-    });
-    return true;
-  }
-
-  if (message.action === "testTriggerBannerActiveTab") {
-    sendNotificationBanner(message.bannerType, message.data || {}).then(() => {
-      sendResponse({ ok: true });
-    });
+  if (typeof __DEV__ !== 'undefined' && __DEV__ && [
+    'testAddWatchTime', 'testAddSiteTime', 'testResetTodayData', 'testAddAllowance',
+    'testSetAllowance', 'testResetOverrides', 'testMaxOverrides', 'testSolveProblem', 'testSetHourlyRate',
+  ].includes(message.action)) {
+    testCommandQueue = testCommandQueue.then(async () => {
+      const MINUTE_MS = 60000;
+      const MAX_TEST_MINUTES = 1440;
+      const MAX_HOURLY_RATE = 1000000;
+      if (['testAddWatchTime', 'testAddAllowance', 'testSetAllowance'].includes(message.action) &&
+          (!Number.isInteger(message.minutes) || message.minutes < 0 || message.minutes > MAX_TEST_MINUTES)) {
+        throw new TypeError('Minutes must be a whole number between 0 and 1440.');
+      }
+      if (message.action === 'testAddSiteTime' &&
+          (!['github.com', 'instagram.com'].includes(message.domain) || !Number.isInteger(message.seconds) || message.seconds <= 0 || message.seconds > MAX_TEST_MINUTES * 60)) {
+        throw new TypeError('Choose a supported test domain and a positive duration of at most one day.');
+      }
+      if (message.action === 'testSolveProblem' && !Object.hasOwn(REWARD_MINUTES, message.difficulty?.toUpperCase())) {
+        throw new TypeError('Choose easy, medium, or hard.');
+      }
+      if (message.action === 'testSetHourlyRate' && (!Number.isInteger(message.rate) || message.rate <= 0 || message.rate > MAX_HOURLY_RATE)) {
+        throw new TypeError('Hourly rate must be a positive whole number up to 1000000.');
+      }
+      await loadCodingSettings();
+      const today = new Date().toDateString();
+      const siteKey = `siteTime_${today}`;
+      const stored = await browser.storage.local.get([siteKey, 'hourlyRate', 'blockOverrides']);
+      const updates = {};
+      let detail;
+      if (message.action === 'testAddWatchTime') {
+        const next = totalWatchTimeToday + message.minutes * MINUTE_MS;
+        updates.totalWatchTimeToday = next;
+        updates.dailyWatchStats = { ...dailyWatchStats, [today]: Math.round(next / MINUTE_MS) };
+        updates[siteKey] = { ...stored[siteKey], 'youtube.com': (stored[siteKey]?.['youtube.com'] || 0) + message.minutes * 60 };
+        detail = `Watch time: ${Math.round(totalWatchTimeToday / MINUTE_MS)}m → ${Math.round(next / MINUTE_MS)}m. Allowance unchanged.`;
+      } else if (message.action === 'testAddSiteTime') {
+        const previous = stored[siteKey]?.[message.domain] || 0;
+        updates[siteKey] = { ...stored[siteKey], [message.domain]: previous + message.seconds };
+        detail = `${message.domain}: ${Math.round(previous / 60)}m → ${Math.round((previous + message.seconds) / 60)}m.`;
+      } else if (message.action === 'testResetTodayData') {
+        Object.assign(updates, {
+          totalWatchTimeToday: 0, continueCountToday: 0, breaksTakenToday: 0,
+          dailyWatchStats: { ...dailyWatchStats, [today]: 0 }, lastWasterAlert: {}, [siteKey]: {},
+        });
+        detail = 'Today’s watch time, site time, and reminder counters reset. Earlier history, settings, and allowance preserved.';
+      } else if (message.action === 'testAddAllowance' || message.action === 'testSetAllowance' || message.action === 'testSolveProblem') {
+        const reward = message.action === 'testSolveProblem' ? REWARD_MINUTES[message.difficulty.toUpperCase()] : message.minutes;
+        updates.remainingTime = (message.action === 'testSetAllowance' ? 0 : remainingTime) + reward * MINUTE_MS;
+        detail = `Allowance: ${Math.round(remainingTime / MINUTE_MS)}m → ${Math.round(updates.remainingTime / MINUTE_MS)}m. Applies to all YouTube tabs with Coding Bonus enabled.`;
+        if (message.action === 'testSolveProblem') {
+          const difficulty = message.difficulty.toLowerCase();
+          const history = { ...solvedProblemsHistory[today] };
+          history[difficulty] = (history[difficulty] || 0) + 1;
+          history.totalMinutes = (history.totalMinutes || 0) + reward;
+          updates.solvedProblemsHistory = { ...solvedProblemsHistory, [today]: history };
+          detail += ' Mock solve saved; the next LeetCode sync can replace mock counts.';
+        }
+      } else if (message.action === 'testSetHourlyRate') {
+        updates.hourlyRate = message.rate;
+        detail = `Hourly rate: ${stored.hourlyRate || 500} → ${message.rate}.`;
+      } else {
+        const count = message.action === 'testMaxOverrides' ? MAX_DAILY_OVERRIDES : 0;
+        const previous = stored.blockOverrides?.[today] || 0;
+        updates.blockOverrides = { ...stored.blockOverrides, [today]: count };
+        detail = `Overrides used: ${previous} → ${count}/${MAX_DAILY_OVERRIDES}. Reopen the blocker to see the change.`;
+      }
+      await browser.storage.local.set(updates);
+      if (updates.remainingTime !== undefined) remainingTime = updates.remainingTime;
+      if (updates.totalWatchTimeToday !== undefined) totalWatchTimeToday = updates.totalWatchTimeToday;
+      if (updates.dailyWatchStats) dailyWatchStats = updates.dailyWatchStats;
+      if (updates.solvedProblemsHistory) solvedProblemsHistory = updates.solvedProblemsHistory;
+      if (updates.continueCountToday !== undefined) continueCountToday = updates.continueCountToday;
+      if (updates.breaksTakenToday !== undefined) breaksTakenToday = updates.breaksTakenToday;
+      await broadcastStats({ remainingTime, totalWatchTimeToday, continueCountToday, breaksTakenToday, resetReminderBaseline: message.action === 'testResetTodayData' });
+      sendResponse({ ok: true, status: 'saved', message: detail });
+    }).catch(error => sendResponse({ ok: false, status: 'failed', message: error.message }));
     return true;
   }
 });

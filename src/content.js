@@ -3,6 +3,7 @@ import "./browser-polyfill.js";
 import { FEATURES } from './features.js';
 import { MascotController } from './modules/mascot/mascot-controller.js';
 import { MESSAGE_CATEGORIES } from './modules/mascot/mascot-messages.js';
+import { TEST_PROTOCOL_VERSION } from './modules/test-lab-client.js';
 
 (function () {
   "use strict";
@@ -163,6 +164,10 @@ import { MESSAGE_CATEGORIES } from './modules/mascot/mascot-messages.js';
       if (message.totalWatchTimeToday !== undefined) totalWatchTimeToday = message.totalWatchTimeToday;
       if (message.continueCountToday !== undefined) continueCountToday = message.continueCountToday;
       if (message.breaksTakenToday !== undefined) breaksTakenToday = message.breaksTakenToday;
+      if (message.resetReminderBaseline) {
+        lastReminderWatchTime = totalWatchTimeToday;
+        lastDeductionTime = null;
+      }
       checkBlocking();
     } else if (message.action === "toggleMascot") {
       if (mascotController) {
@@ -172,25 +177,28 @@ import { MESSAGE_CATEGORIES } from './modules/mascot/mascot-messages.js';
       if (mascotController) {
         mascotController.updateSettings({ categories: message.categories });
       }
-    } else if (message.action === "testTriggerMascot") {
-      if (mascotController) {
-        mascotController.testTrigger(message.category, message.pose, message.text, message.entrance);
+    } else if (typeof __DEV__ !== 'undefined' && __DEV__ && message.action === 'testYouTubeStatus') {
+      return Promise.resolve({ ok: true, protocolVersion: TEST_PROTOCOL_VERSION, mascotEnabled: !!mascotController?.enabled, codingBonusEnabled: settings.codingBonusEnabled, timeReminderEnabled });
+    } else if (typeof __DEV__ !== 'undefined' && __DEV__ && message.action === 'testTriggerMascot') {
+      return Promise.resolve(mascotController?.testTrigger(message.category, message.pose, message.text, message.entrance) ||
+        { ok: false, status: 'skipped', message: 'Mascot is unavailable in this build.' });
+    } else if (typeof __DEV__ !== 'undefined' && __DEV__ && message.action === 'testShowHardBlock') {
+      if (blockOverlay) return Promise.resolve({ ok: false, status: 'skipped', message: 'A lock is already displayed. Real locks are not replaced by previews.' });
+      showBlock(true);
+      return Promise.resolve({ ok: true, status: 'shown', message: 'YouTube lock preview shown. Allowance and playback are unchanged.' });
+    } else if (typeof __DEV__ !== 'undefined' && __DEV__ && message.action === 'testClearYouTubePreviews') {
+      mascotController?.clearPreview();
+      if (blockOverlay?.dataset.preview === 'true') removeBlock();
+      document.querySelector('#youtube-time-reminder[data-preview="true"]')?.remove();
+      return Promise.resolve({ ok: true, message: 'YouTube previews cleared. Real locks and reminders were left unchanged.' });
+    } else if (typeof __DEV__ !== 'undefined' && __DEV__ && message.action === 'testTriggerBreakReminder') {
+      if (mascotController?.enabled) {
+        return Promise.resolve(mascotController.testTrigger('break', 'waving', 'Preview: ready for a break? Buttons only dismiss this preview.', 'walk', 'persistent'));
       }
-      return Promise.resolve({ response: "Mascot triggered" });
-    } else if (message.action === "testDismissMascot") {
-      if (mascotController) {
-        mascotController.dismiss('close');
-      }
-      return Promise.resolve({ response: "Mascot dismissed" });
-    } else if (message.action === "testShowHardBlock") {
-      showBlock();
-      return Promise.resolve({ response: "Hard block shown" });
-    } else if (message.action === "testHideHardBlock") {
-      removeBlock();
-      return Promise.resolve({ response: "Hard block hidden" });
-    } else if (message.action === "testTriggerBreakReminder") {
-      showTimeReminder();
-      return Promise.resolve({ response: "Break reminder shown" });
+      const shown = showTimeReminder(true);
+      return Promise.resolve({ ok: !!shown, status: shown ? 'shown' : 'skipped', message: shown ? 'Break dialog preview shown. Playback and stats are unchanged.' : 'A reminder is already visible, or the page is hidden or fullscreen.' });
+    } else {
+      return;
     }
     return Promise.resolve({ response: "Updated" });
   });
@@ -208,12 +216,13 @@ import { MESSAGE_CATEGORIES } from './modules/mascot/mascot-messages.js';
     }
   }
 
-  function showBlock() {
+  function showBlock(preview = false) {
+    if (!preview && blockOverlay?.dataset.preview === 'true') removeBlock();
     if (blockOverlay) return;
 
     // Pause any playing video
     const videos = document.querySelectorAll("video");
-    videos.forEach(v => v.pause());
+    if (!preview) videos.forEach(v => v.pause());
 
     blockOverlay = document.createElement("div");
     blockOverlay.id = "youtube-hard-block";
@@ -226,15 +235,25 @@ import { MESSAGE_CATEGORIES } from './modules/mascot/mascot-messages.js';
       </div>
       <a href="https://leetcode.com/problemset/all/" target="_blank" class="btn-primary">Go to LeetCode</a>
     `;
+    if (preview) {
+      blockOverlay.dataset.preview = 'true';
+      blockOverlay.querySelector('a').removeAttribute('href');
+      blockOverlay.querySelector('a').setAttribute('aria-disabled', 'true');
+      const closeButton = document.createElement('button');
+      closeButton.className = 'btn-primary';
+      closeButton.textContent = 'Close preview (no allowance changed)';
+      closeButton.addEventListener('click', removeBlock);
+      blockOverlay.appendChild(closeButton);
+    }
     document.body.appendChild(blockOverlay);
-    document.body.style.overflow = "hidden";
+    if (!preview) document.body.style.overflow = "hidden";
   }
 
   function removeBlock() {
     if (blockOverlay) {
+      if (blockOverlay.dataset.preview !== 'true') document.body.style.overflow = "";
       blockOverlay.remove();
       blockOverlay = null;
-      document.body.style.overflow = "";
     }
   }
 
@@ -292,7 +311,7 @@ import { MESSAGE_CATEGORIES } from './modules/mascot/mascot-messages.js';
     }
   }
 
-  function showTimeReminder() {
+  function showTimeReminder(preview = false) {
     if (document.getElementById("youtube-time-reminder") || document.fullscreenElement || document.hidden) return;
     if (mascotController?.enabled) {
       if (!mascotController.triggerManager.enabledCategories.has(MESSAGE_CATEGORIES.BREAK)) return;
@@ -307,11 +326,11 @@ import { MESSAGE_CATEGORIES } from './modules/mascot/mascot-messages.js';
       return;
     }
 
-    lastReminderWatchTime = totalWatchTimeToday;
+    if (!preview) lastReminderWatchTime = totalWatchTimeToday;
 
     // Pause the video
     const video = document.querySelector("video");
-    if (video) video.pause();
+    if (video && !preview) video.pause();
 
     const minutesWatched = Math.round(totalWatchTimeToday / (60 * 1000));
 
@@ -333,20 +352,30 @@ import { MESSAGE_CATEGORIES } from './modules/mascot/mascot-messages.js';
       </div>
     `;
 
+    if (preview) {
+      reminderDiv.dataset.preview = 'true';
+      reminderDiv.querySelector('h3').textContent = 'Break dialog preview';
+      reminderDiv.querySelector('.stats-info').textContent = 'Preview only. Buttons dismiss without changing stats or closing the tab.';
+    }
     document.body.appendChild(reminderDiv);
 
     // Add event listeners
     reminderDiv.querySelector(".reminder-close").addEventListener("click", dismissReminder);
     reminderDiv.querySelector(".take-break").addEventListener("click", () => {
-      breaksTakenToday++;
-      browser.runtime.sendMessage({ action: "takeBreak" });
+      if (!preview) {
+        breaksTakenToday++;
+        browser.runtime.sendMessage({ action: "takeBreak" });
+      }
       dismissReminder();
     });
     reminderDiv.querySelector(".continue").addEventListener("click", () => {
-      continueCountToday++;
-      browser.runtime.sendMessage({ action: "continueReminder" });
+      if (!preview) {
+        continueCountToday++;
+        browser.runtime.sendMessage({ action: "continueReminder" });
+      }
       dismissReminder();
     });
+    return true;
   }
 
   function dismissReminder() {
