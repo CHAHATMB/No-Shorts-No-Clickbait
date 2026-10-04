@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "FocusGuard – Productivity & YouTube Tools",
-  "version": "3.0.6",
+  "version": "3.0.7",
   "description": "Track time, block distractions, and measure the real cost of your browsing habits.",
   "icons": {
     "16": "icons/icon16.png",
