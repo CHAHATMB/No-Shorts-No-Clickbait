@@ -37,6 +37,7 @@ module.exports = (env = {}, argv = {}) => {
             to: 'manifest.json',
           },
           { from: 'src/styles.css', to: 'styles.css' },
+          { from: 'src/browser-polyfill.js', to: 'browser-polyfill.js' },
           { from: 'src/modules/mascot/mascot-styles.css', to: 'mascot-styles.css' },
           {
             from: 'src/popup.html',

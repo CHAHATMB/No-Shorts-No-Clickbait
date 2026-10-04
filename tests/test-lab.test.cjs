@@ -150,7 +150,7 @@ function backgroundHarness(development = true) {
       } },
     },
   };
-  const source = readFileSync(resolve(__dirname, '../src/background.js'), 'utf8').replace(/^import .*;\n/gm, '');
+  const source = readFileSync(resolve(__dirname, '../src/background.js'), 'utf8').replace(/^import .*;\r?\n/gm, '');
   const sandbox = vm.createContext(context);
   const blockerSource = readFileSync(resolve(__dirname, '../src/modules/url-blocker.js'), 'utf8').replace(/^export /gm, '');
   vm.runInContext(blockerSource, sandbox);

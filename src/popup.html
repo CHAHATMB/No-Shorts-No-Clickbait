@@ -2,9 +2,10 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>FocusGuard – Productivity & YouTube Tools</title>
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+      /* Inter loaded from system fonts — MV3 CSP blocks external @import */
 
       :root {
         --primary: #cc0000;
@@ -26,11 +27,17 @@
 
       * { box-sizing: border-box; margin: 0; padding: 0; }
 
-      body {
+      html, body {
         width: 380px;
-        max-width: 100vw;
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        min-width: 380px;
+        min-height: 520px;
+        margin: 0;
+        padding: 0;
         background: var(--bg);
+      }
+
+      body {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         color: var(--text);
         font-size: 13px;
         line-height: 1.5;
@@ -86,7 +93,14 @@
       }
 
       /* ===== TAB CONTENT ===== */
-      .tab-content { display: none; padding: 12px; max-height: 500px; overflow-y: auto; }
+      .tab-content {
+        display: none;
+        padding: 12px;
+        max-height: 500px;
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+      }
       .tab-content.active { display: block; }
       .tab-content::-webkit-scrollbar { width: 4px; }
       .tab-content::-webkit-scrollbar-track { background: transparent; }
@@ -193,11 +207,19 @@
         background: rgba(255,255,255,0.1);
         border-radius: 2px; outline: none;
         -webkit-appearance: none;
+        appearance: none;
       }
       input[type=range]::-webkit-slider-thumb {
         -webkit-appearance: none;
+        appearance: none;
         width: 14px; height: 14px;
         background: var(--primary);
+        border-radius: 50%; cursor: pointer;
+      }
+      input[type=range]::-moz-range-thumb {
+        width: 14px; height: 14px;
+        background: var(--primary);
+        border: none;
         border-radius: 50%; cursor: pointer;
       }
 
