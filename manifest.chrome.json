@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "FocusGuard – Productivity & YouTube Tools",
-  "version": "4.0.0",
+  "version": "3.0.6",
   "description": "Track time, block distractions, and measure the real cost of your browsing habits.",
   "icons": {
     "16": "icons/icon16.png",
@@ -20,14 +20,24 @@
   ],
   "content_scripts": [
     {
-      "matches": ["*://*.youtube.com/*"],
-      "js": ["content.js"],
-      "css": ["styles.css"],
+      "matches": [
+        "*://*.youtube.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "styles.css"
+      ],
       "run_at": "document_idle"
     },
     {
-      "matches": ["<all_urls>"],
-      "js": ["productivity-content.js"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "productivity-content.js"
+      ],
       "run_at": "document_idle"
     }
   ],
@@ -43,8 +53,13 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["mascot-styles.css", "mascots/*"],
-      "matches": ["*://*.youtube.com/*"]
+      "resources": [
+        "mascot-styles.css",
+        "mascots/*"
+      ],
+      "matches": [
+        "*://*.youtube.com/*"
+      ]
     }
   ]
 }
