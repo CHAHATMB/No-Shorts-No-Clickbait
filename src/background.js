@@ -205,91 +205,238 @@ async function broadcastStats(data) {
 }
 
 // ============================================================
-// LEETCODE API (existing)
+// LEETCODE API & VERIFICATION
 // ============================================================
-async function fetchLeetCodeStats(username) {
-  if (!username) return null;
+async function queryLeetCodeUserData(username) {
+  const clean = username ? username.trim() : "";
+  if (!clean) return { valid: false, error: "Username is empty" };
+
+  // 1. Primary: Community CORS-enabled REST API (alfa-leetcode-api)
+  // Provides metadata (rank, reputation), recent submissions for today's solve detection, and CORS headers
   try {
-    const response = await fetch("https://leetcode.com/graphql", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        query: `
-          query getUserProfile($username: String!) {
-            matchedUser(username: $username) {
-              submitStats {
-                acSubmissionNum {
-                  difficulty
-                  count
-                }
-              }
+    const alfaRes = await fetch(`https://alfa-leetcode-api.onrender.com/userProfile/${encodeURIComponent(clean)}`);
+    if (alfaRes.ok) {
+      const data = await alfaRes.json();
+      if (data?.errors && !data?.totalSolved && data?.totalSolved !== 0 && !data?.matchedUser) {
+        return { valid: false, error: "LeetCode user not found" };
+      }
+      if (typeof data?.totalSolved === "number" || typeof data?.easySolved === "number") {
+        return {
+          valid: true,
+          username: clean,
+          stats: {
+            easy: data.easySolved || 0,
+            medium: data.mediumSolved || 0,
+            hard: data.hardSolved || 0,
+            total: data.totalSolved || (data.easySolved || 0) + (data.mediumSolved || 0) + (data.hardSolved || 0),
+          },
+          meta: {
+            ranking: data.ranking || null,
+            totalSolved: data.totalSolved || 0,
+            reputation: data.reputation || 0,
+          },
+          recentSubmissions: data.recentSubmissions || [],
+          submissionCalendar: data.submissionCalendar || {},
+        };
+      }
+    }
+  } catch (e) {
+    // Continue to next fallback
+  }
+
+  // 2. Secondary fallback: Community REST API (leetcode-api-faisalshohag)
+  try {
+    const faisalRes = await fetch(`https://leetcode-api-faisalshohag.vercel.app/${encodeURIComponent(clean)}`);
+    if (faisalRes.ok) {
+      const data = await faisalRes.json();
+      if (data?.errors && !data?.matchedUser && !data?.totalSolved && data?.totalSolved !== 0) {
+        return { valid: false, error: "LeetCode user not found" };
+      }
+      if (typeof data?.totalSolved === "number" || typeof data?.easySolved === "number") {
+        return {
+          valid: true,
+          username: clean,
+          stats: {
+            easy: data.easySolved || 0,
+            medium: data.mediumSolved || 0,
+            hard: data.hardSolved || 0,
+            total: data.totalSolved || (data.easySolved || 0) + (data.mediumSolved || 0) + (data.hardSolved || 0),
+          },
+          meta: {
+            ranking: data.ranking || null,
+            totalSolved: data.totalSolved || 0,
+            reputation: data.reputation || 0,
+          },
+          recentSubmissions: data.recentSubmissions || [],
+          submissionCalendar: data.submissionCalendar || {},
+        };
+      }
+    }
+  } catch (e) {
+    // Continue to next fallback
+  }
+
+  // 3. Direct LeetCode GraphQL: Only query if host permissions are explicitly active
+  // (to avoid triggering unhandled browser CORS errors in console when permission is absent)
+  let hasHostPermission = false;
+  try {
+    if (typeof browser !== "undefined" && browser?.permissions?.contains) {
+      hasHostPermission = await browser.permissions.contains({
+        origins: ["*://*.leetcode.com/*"],
+      });
+    }
+  } catch (e) {}
+
+  if (hasHostPermission) {
+    const query = `
+      query getUserProfile($username: String!) {
+        matchedUser(username: $username) {
+          username
+          profile {
+            ranking
+            reputation
+          }
+          submitStats {
+            acSubmissionNum {
+              difficulty
+              count
             }
           }
-        `,
-        variables: { username },
-      }),
-    });
-    const data = await response.json();
-    if (data.data?.matchedUser?.submitStats?.acSubmissionNum) {
-      const stats = data.data.matchedUser.submitStats.acSubmissionNum;
-      return {
-        easy: stats.find(s => s.difficulty === "Easy")?.count || 0,
-        medium: stats.find(s => s.difficulty === "Medium")?.count || 0,
-        hard: stats.find(s => s.difficulty === "Hard")?.count || 0,
-      };
-    }
-    return null;
-  } catch (error) {
-    console.error("Error fetching LeetCode data:", error);
-    return null;
+        }
+      }
+    `;
+
+    try {
+      const params = new URLSearchParams({
+        query,
+        variables: JSON.stringify({ username: clean }),
+      });
+      const getRes = await fetch(`https://leetcode.com/graphql?${params.toString()}`);
+      if (getRes.ok) {
+        const data = await getRes.json();
+        if (data?.errors && !data?.data?.matchedUser) {
+          return { valid: false, error: "LeetCode user not found" };
+        }
+        if (data?.data?.matchedUser) {
+          const statsList = data.data.matchedUser.submitStats?.acSubmissionNum || [];
+          const easy = statsList.find((s) => s.difficulty === "Easy")?.count || 0;
+          const medium = statsList.find((s) => s.difficulty === "Medium")?.count || 0;
+          const hard = statsList.find((s) => s.difficulty === "Hard")?.count || 0;
+          return {
+            valid: true,
+            username: data.data.matchedUser.username || clean,
+            stats: { easy, medium, hard, total: easy + medium + hard },
+            meta: {
+              ranking: data.data.matchedUser.profile?.ranking || null,
+              totalSolved: easy + medium + hard,
+              reputation: data.data.matchedUser.profile?.reputation || 0,
+            },
+          };
+        }
+      }
+    } catch (e) {}
   }
+
+  return { valid: false, error: "Could not verify username. Check connection or LeetCode status." };
+}
+
+async function calculateSolvedToday(userData, today) {
+  const currentStats = userData.stats || { easy: 0, medium: 0, hard: 0 };
+  const submissions = userData.recentSubmissions || [];
+
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const startSecs = Math.floor(startOfToday.getTime() / 1000);
+
+  const todaysAccepted = submissions.filter(
+    (s) => s.statusDisplay === "Accepted" && parseInt(s.timestamp, 10) >= startSecs
+  );
+
+  const uniqueSlugs = [...new Set(todaysAccepted.map((s) => s.titleSlug))];
+
+  let directEasy = 0;
+  let directMedium = 0;
+  let directHard = 0;
+
+  if (uniqueSlugs.length > 0) {
+    let storedDiffs = {};
+    try {
+      const storageResult = await browser.storage.local.get("problemDifficulties");
+      storedDiffs = storageResult.problemDifficulties || {};
+    } catch (e) {}
+
+    const missingSlugs = uniqueSlugs.filter((slug) => !storedDiffs[slug]);
+
+    if (missingSlugs.length > 0) {
+      await Promise.all(
+        missingSlugs.map(async (slug) => {
+          try {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 3500);
+            const r = await fetch(`https://alfa-leetcode-api.onrender.com/select?titleSlug=${encodeURIComponent(slug)}`, {
+              signal: controller.signal,
+            });
+            clearTimeout(timer);
+            if (r.ok) {
+              const q = await r.json();
+              if (q?.difficulty) {
+                storedDiffs[slug] = q.difficulty;
+              }
+            }
+          } catch (e) {
+            storedDiffs[slug] = "Medium";
+          }
+        })
+      );
+      try {
+        await browser.storage.local.set({ problemDifficulties: storedDiffs });
+      } catch (e) {}
+    }
+
+    uniqueSlugs.forEach((slug) => {
+      const diff = storedDiffs[slug] || "Medium";
+      if (diff === "Easy") directEasy++;
+      else if (diff === "Hard") directHard++;
+      else directMedium++;
+    });
+  }
+
+  // Baseline delta calculation
+  let baseline = dailyBaselines[today];
+  if (!baseline) {
+    baseline = {
+      easy: Math.max(0, currentStats.easy - directEasy),
+      medium: Math.max(0, currentStats.medium - directMedium),
+      hard: Math.max(0, currentStats.hard - directHard),
+    };
+    dailyBaselines[today] = baseline;
+    await browser.storage.local.set({ dailyBaselines });
+  }
+
+  const deltaEasy = Math.max(0, currentStats.easy - baseline.easy);
+  const deltaMedium = Math.max(0, currentStats.medium - baseline.medium);
+  const deltaHard = Math.max(0, currentStats.hard - baseline.hard);
+
+  return {
+    easy: Math.max(directEasy, deltaEasy),
+    medium: Math.max(directMedium, deltaMedium),
+    hard: Math.max(directHard, deltaHard),
+  };
+}
+
+async function fetchLeetCodeStats(username) {
+  if (!username) return null;
+  const result = await queryLeetCodeUserData(username);
+  if (result.valid && result.stats) {
+    return result.stats;
+  }
+  return null;
 }
 
 async function verifyLeetCodeUser(username) {
   const clean = username ? username.trim() : "";
   if (!clean) return { valid: false, error: "Username is empty" };
-  try {
-    const response = await fetch("https://leetcode.com/graphql", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        query: `
-          query getUserProfile($username: String!) {
-            matchedUser(username: $username) {
-              username
-              submitStats {
-                acSubmissionNum {
-                  difficulty
-                  count
-                }
-              }
-            }
-          }
-        `,
-        variables: { username: clean },
-      }),
-    });
-    if (!response.ok) {
-      return { valid: false, error: `LeetCode API responded with status ${response.status}` };
-    }
-    const data = await response.json();
-    if (data.errors && !data.data?.matchedUser) {
-      return { valid: false, error: "LeetCode user not found" };
-    }
-    if (data.data?.matchedUser) {
-      const statsList = data.data.matchedUser.submitStats?.acSubmissionNum || [];
-      const stats = {
-        easy: statsList.find(s => s.difficulty === "Easy")?.count || 0,
-        medium: statsList.find(s => s.difficulty === "Medium")?.count || 0,
-        hard: statsList.find(s => s.difficulty === "Hard")?.count || 0,
-      };
-      return { valid: true, username: data.data.matchedUser.username || clean, stats };
-    }
-    return { valid: false, error: "LeetCode user not found" };
-  } catch (error) {
-    console.error("Error verifying LeetCode user:", error);
-    return { valid: false, error: error.message || "Network error verifying username" };
-  }
+  return queryLeetCodeUserData(clean);
 }
 
 async function updateSolvedProblems(force = false) {
@@ -298,22 +445,12 @@ async function updateSolvedProblems(force = false) {
   if (!codingProfiles.leetcodeUsername || !codingProfiles.leetcodeVerified) return null;
   if (!force && !codingProfiles.codingBonusEnabled) return null;
 
-  const currentStats = await fetchLeetCodeStats(codingProfiles.leetcodeUsername);
-  if (!currentStats) return null;
+  const userData = await queryLeetCodeUserData(codingProfiles.leetcodeUsername);
+  if (!userData || !userData.valid || !userData.stats) return null;
 
   const today = new Date().toDateString();
-
-  if (!dailyBaselines[today]) {
-    dailyBaselines[today] = currentStats;
-    await browser.storage.local.set({ dailyBaselines });
-  }
-
-  const baseline = dailyBaselines[today];
-  const solvedToday = {
-    easy: Math.max(0, currentStats.easy - baseline.easy),
-    medium: Math.max(0, currentStats.medium - baseline.medium),
-    hard: Math.max(0, currentStats.hard - baseline.hard),
-  };
+  const solvedToday = await calculateSolvedToday(userData, today);
+  const currentStats = userData.stats;
 
   const earnedMinutes =
     solvedToday.easy * REWARD_MINUTES.EASY +
@@ -327,7 +464,11 @@ async function updateSolvedProblems(force = false) {
   }
 
   solvedProblemsHistory[today] = { ...solvedToday, totalMinutes: earnedMinutes };
-  await browser.storage.local.set({ solvedProblemsHistory, remainingTime });
+  await browser.storage.local.set({
+    solvedProblemsHistory,
+    remainingTime,
+    leetcodeUserMeta: userData.meta || null,
+  });
 
   await broadcastStats({
     remainingTime,
@@ -335,7 +476,7 @@ async function updateSolvedProblems(force = false) {
     solvedToday,
   });
 
-  return { currentStats, solvedToday, earnedMinutes, remainingTime };
+  return { currentStats, solvedToday, earnedMinutes, remainingTime, meta: userData.meta };
 }
 
 // ============================================================
@@ -363,26 +504,63 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
         codingProfiles.leetcodeUsername = res.username;
         codingProfiles.leetcodeVerified = true;
         const today = new Date().toDateString();
-        if (!dailyBaselines[today] && res.stats) {
-          dailyBaselines[today] = res.stats;
+
+        let solvedToday = { easy: 0, medium: 0, hard: 0 };
+        try {
+          solvedToday = await calculateSolvedToday(res, today);
+        } catch (e) {
+          if (!dailyBaselines[today] && res.stats) {
+            dailyBaselines[today] = res.stats;
+          }
         }
+
+        const earnedMinutes =
+          solvedToday.easy * REWARD_MINUTES.EASY +
+          solvedToday.medium * REWARD_MINUTES.MEDIUM +
+          solvedToday.hard * REWARD_MINUTES.HARD;
+
+        const previousEarnedMinutes = solvedProblemsHistory[today]?.totalMinutes || 0;
+        if (codingProfiles.codingBonusEnabled && earnedMinutes > previousEarnedMinutes) {
+          const newMinutes = earnedMinutes - previousEarnedMinutes;
+          remainingTime += newMinutes * 60 * 1000;
+        }
+
+        solvedProblemsHistory[today] = { ...solvedToday, totalMinutes: earnedMinutes };
+
         await browser.storage.local.set({
           leetcodeUsername: res.username,
           leetcodeVerified: true,
+          leetcodeUserMeta: res.meta || null,
           dailyBaselines,
+          solvedProblemsHistory,
+          remainingTime,
         });
+
         await broadcastStats({
           leetcodeUsername: res.username,
           leetcodeVerified: true,
           codingBonusEnabled: codingProfiles.codingBonusEnabled,
+          remainingTime,
+          earnedMinutesToday: earnedMinutes,
+          solvedToday,
         });
-        sendResponse({ ok: true, username: res.username, stats: res.stats });
+
+        sendResponse({
+          ok: true,
+          username: res.username,
+          stats: res.stats,
+          meta: res.meta,
+          solvedToday,
+          earnedMinutes,
+          remainingTime,
+        });
       } else {
         codingProfiles.leetcodeVerified = false;
         codingProfiles.codingBonusEnabled = false;
         await browser.storage.local.set({
           leetcodeVerified: false,
           codingBonusEnabled: false,
+          leetcodeUserMeta: null,
         });
         await broadcastStats({
           leetcodeVerified: false,
@@ -395,6 +573,7 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
     });
     return true;
   }
+
 
   if (message.action === "syncLeetCode") {
     (async () => {

@@ -414,6 +414,16 @@
       }
       .btn-primary { background: var(--primary); color: white; }
       .btn-primary:hover { background: var(--primary-hover); }
+      .btn-verified {
+        background: #15803d !important;
+        color: white !important;
+        border: 1px solid #16a34a !important;
+        cursor: default !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 4px !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+      }
       .btn-danger { background: rgba(239,68,68,0.12); color: var(--danger); border: 1px solid rgba(239,68,68,0.2); }
       .btn-danger:hover { background: rgba(239,68,68,0.2); }
 
@@ -898,6 +908,7 @@
             <button type="button" class="btn-small" id="leetcode-sync-btn" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);display:flex;align-items:center;gap:4px;" title="Sync LeetCode stats now">🔄 Sync</button>
           </div>
           <div id="leetcode-status" style="font-size:11px;margin-top:6px;min-height:16px;"></div>
+          <div id="leetcode-user-meta" style="display:none;margin-top:6px;"></div>
         </div>
         <div class="toggle" style="margin-top:10px">
           <span class="toggle-label">Enable Coding Bonus</span>

@@ -60,6 +60,34 @@ html.no-scroll {
   overflow: auto !important;
 }
 
+/* Block Video Previews on Hover */
+body.block-video-previews-active ytd-inline-preview-renderer,
+body.block-video-previews-active yt-inline-preview-renderer-view-model,
+body.block-video-previews-active ytd-video-preview,
+body.block-video-previews-active yt-video-preview-view-model,
+body.block-video-previews-active #inline-preview-player,
+body.block-video-previews-active #video-preview,
+body.block-video-previews-active ytd-moving-thumbnail-renderer,
+body.block-video-previews-active yt-moving-thumbnail-view-model,
+body.block-video-previews-active ytd-thumbnail-overlay-loading-preview-renderer,
+body.block-video-previews-active yt-thumbnail-overlay-loading-preview-view-model,
+body.block-video-previews-active [id="inline-preview-player"],
+body.block-video-previews-active ytd-rich-grid-media #preview,
+body.block-video-previews-active ytd-post-renderer #preview,
+body.block-video-previews-active ytd-compact-video-renderer #preview,
+body.block-video-previews-active .ytLockupViewModelHost #preview,
+body.block-video-previews-active yt-lockup-view-model #preview,
+body.block-video-previews-active yt-thumbnail-view-model #preview,
+body.block-video-previews-active .ytThumbnailViewModelHost #preview,
+body.block-video-previews-active #secondary #preview,
+body.block-video-previews-active #preview-player,
+body.block-video-previews-active .yt-inline-preview-renderer {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+}
+
 /* Time reminder popup styles */
 #youtube-time-reminder {
   position: fixed;
@@ -418,4 +446,27 @@ html.no-scroll {
 
 #youtube-hard-block .btn-primary:hover {
   background-color: #cc0000;
+}
+
+#youtube-hard-block .btn-sync {
+  background-color: #2563eb;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  font-size: 18px;
+  border-radius: 6px;
+  cursor: pointer;
+  text-decoration: none;
+  font-family: inherit;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+#youtube-hard-block .btn-sync:hover {
+  background-color: #1d4ed8;
+}
+
+#youtube-hard-block .btn-sync:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }

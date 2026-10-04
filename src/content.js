@@ -157,6 +157,10 @@ import { TEST_PROTOCOL_VERSION } from './modules/test-lab-client.js';
           settings.thumbnailMode = changes.thumbnailMode.newValue || "blur";
           applyThumbnailMode(settings.thumbnailMode);
         }
+        if (changes.pauseOnHoverEnabled !== undefined) {
+          settings.pauseOnHoverEnabled = changes.pauseOnHoverEnabled.newValue !== false;
+          applyPauseOnHover();
+        }
         if (changes.codingBonusEnabled !== undefined) {
           settings.codingBonusEnabled = changes.codingBonusEnabled.newValue === true;
         }
@@ -192,6 +196,7 @@ import { TEST_PROTOCOL_VERSION } from './modules/test-lab-client.js';
       toggleShortsRemoval(message.enabled);
     } else if (message.action === "togglePauseOnHover") {
       settings.pauseOnHoverEnabled = message.enabled;
+      applyPauseOnHover();
     } else if (message.action === "toggleDeepFocus") {
       settings.focusModeEnabled = message.enabled;
       applyModifications();
@@ -281,14 +286,75 @@ import { TEST_PROTOCOL_VERSION } from './modules/test-lab-client.js';
       <p>You've run out of watch time. Solve some LeetCode problems to earn more!</p>
       <div class="stats-info">
         <p>Reward Tiers:</p>
-        <p>Easy: 10m | Medium: 20m | Hard: 45m</p>
+        <p>Easy: 15m | Medium: 25m | Hard: 35m</p>
       </div>
-      <a href="https://leetcode.com/problemset/all/" target="_blank" class="btn-primary">Go to LeetCode</a>
+      <div style="display:flex;gap:12px;justify-content:center;align-items:center;flex-wrap:wrap;margin-top:16px;">
+        <a href="https://leetcode.com/problemset/all/" target="_blank" class="btn-primary" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;">⚡ Go to LeetCode</a>
+        <button type="button" id="youtube-block-sync-btn" class="btn-sync">🔄 Sync Stats</button>
+      </div>
+      <div id="youtube-block-sync-status" style="font-size:13px;margin-top:14px;min-height:18px;color:#94a3b8;"></div>
     `;
+
+    const syncBtn = blockOverlay.querySelector("#youtube-block-sync-btn");
+    const syncStatus = blockOverlay.querySelector("#youtube-block-sync-status");
+
+    if (syncBtn && !preview) {
+      syncBtn.addEventListener("click", async () => {
+        syncBtn.disabled = true;
+        syncBtn.textContent = "⏳ Syncing...";
+        if (syncStatus) {
+          syncStatus.style.color = "#94a3b8";
+          syncStatus.textContent = "Checking LeetCode for recently solved problems...";
+        }
+
+        try {
+          const res = await browser.runtime.sendMessage({ action: "syncLeetCode" });
+          if (res && res.ok) {
+            const earned = res.earnedMinutes || 0;
+            const remaining = res.remainingTime || 0;
+            remainingTime = remaining;
+
+            if (remaining > 0) {
+              if (syncStatus) {
+                syncStatus.style.color = "#22c55e";
+                syncStatus.textContent = `✓ Synced! Earned ${earned}m. Unlocking YouTube...`;
+              }
+              setTimeout(() => {
+                removeBlock();
+              }, 1200);
+            } else {
+              if (syncStatus) {
+                syncStatus.style.color = "#f59e0b";
+                syncStatus.textContent = `Synced successfully! No new solves found yet today (${earned}m earned today).`;
+              }
+              syncBtn.disabled = false;
+              syncBtn.textContent = "🔄 Sync Stats";
+            }
+          } else {
+            if (syncStatus) {
+              syncStatus.style.color = "#ef4444";
+              syncStatus.textContent = `✗ ${res?.error || "Sync failed. Try again in a moment."}`;
+            }
+            syncBtn.disabled = false;
+            syncBtn.textContent = "🔄 Sync Stats";
+          }
+        } catch (e) {
+          if (syncStatus) {
+            syncStatus.style.color = "#ef4444";
+            syncStatus.textContent = "✗ Network error syncing stats.";
+          }
+          syncBtn.disabled = false;
+          syncBtn.textContent = "🔄 Sync Stats";
+        }
+      });
+    }
+
     if (preview) {
       blockOverlay.dataset.preview = 'true';
       blockOverlay.querySelector('a').removeAttribute('href');
       blockOverlay.querySelector('a').setAttribute('aria-disabled', 'true');
+      const previewSyncBtn = blockOverlay.querySelector('#youtube-block-sync-btn');
+      if (previewSyncBtn) previewSyncBtn.disabled = true;
       const closeButton = document.createElement('button');
       closeButton.className = 'btn-primary';
       closeButton.textContent = 'Close preview (no allowance changed)';
@@ -523,9 +589,85 @@ import { TEST_PROTOCOL_VERSION } from './modules/test-lab-client.js';
     });
   }
 
+  function isMainPlayerVideo(video) {
+    if (!video) return false;
+
+    // Side panel (#secondary), lockup view models, compact video renderers, and inline preview containers are NEVER the main video
+    const isSidePanelOrLockup = video.closest(
+      "#secondary, .ytLockupViewModelHost, yt-lockup-view-model, yt-thumbnail-view-model, .ytThumbnailViewModelHost, ytd-compact-video-renderer, ytd-inline-preview-renderer, yt-inline-preview-renderer-view-model, ytd-video-preview, yt-video-preview-view-model, #inline-preview-player, #video-preview, #preview, ytd-moving-thumbnail-renderer, yt-moving-thumbnail-view-model, #preview-player"
+    );
+    if (isSidePanelOrLockup) return false;
+
+    // Check if it's the main watch player video on /watch page
+    if (window.location.pathname.includes("/watch")) {
+      const isPrimaryPlayer = video.closest(
+        "#primary #movie_player, #primary ytd-player, #primary #player-container, #movie_player"
+      );
+      if (isPrimaryPlayer && !video.closest("#secondary")) return true;
+      if (video.classList.contains("html5-main-video") && !video.closest("#secondary")) return true;
+    }
+
+    // Check if it's the main shorts player video on /shorts page
+    if (window.location.pathname.includes("/shorts")) {
+      const isShortsPlayer = video.closest("ytd-reel-video-renderer, #shorts-player, #movie_player");
+      if (isShortsPlayer) return true;
+    }
+
+    return false;
+  }
+
+  function pausePreviewVideos() {
+    if (!settings.pauseOnHoverEnabled && !settings.focusModeEnabled) return;
+    const videos = document.querySelectorAll("video");
+    videos.forEach((v) => {
+      if (!isMainPlayerVideo(v)) {
+        if (!v.paused) {
+          v.pause();
+        }
+      }
+    });
+  }
+
+  function applyPauseOnHover() {
+    const enabled = settings.pauseOnHoverEnabled || settings.focusModeEnabled;
+    if (enabled) {
+      if (document.body) document.body.classList.add("block-video-previews-active");
+      pausePreviewVideos();
+    } else {
+      if (document.body) document.body.classList.remove("block-video-previews-active");
+    }
+  }
+
+  document.addEventListener(
+    "play",
+    (e) => {
+      if (settings.pauseOnHoverEnabled || settings.focusModeEnabled) {
+        const target = e.target;
+        if (target && target.tagName === "VIDEO" && !isMainPlayerVideo(target)) {
+          target.pause();
+        }
+      }
+    },
+    true
+  );
+
+  document.addEventListener(
+    "playing",
+    (e) => {
+      if (settings.pauseOnHoverEnabled || settings.focusModeEnabled) {
+        const target = e.target;
+        if (target && target.tagName === "VIDEO" && !isMainPlayerVideo(target)) {
+          target.pause();
+        }
+      }
+    },
+    true
+  );
+
   function applyModifications() {
     applyThumbnailMode(settings.thumbnailMode);
     removeShorts();
+    applyPauseOnHover();
   }
 
   popupObserver.observe(document.body, { childList: true, subtree: true });

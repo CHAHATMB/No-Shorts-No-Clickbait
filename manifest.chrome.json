@@ -16,7 +16,10 @@
     "tabs"
   ],
   "host_permissions": [
-    "<all_urls>"
+    "<all_urls>",
+    "*://*.leetcode.com/*",
+    "https://alfa-leetcode-api.onrender.com/*",
+    "https://leetcode-api-faisalshohag.vercel.app/*"
   ],
   "content_scripts": [
     {

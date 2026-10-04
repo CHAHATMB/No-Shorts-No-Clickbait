@@ -36,6 +36,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const leetcodeVerifyBtn = document.getElementById('leetcode-verify-btn');
   const leetcodeSyncBtn = document.getElementById('leetcode-sync-btn');
   const leetcodeStatus = document.getElementById('leetcode-status');
+  const leetcodeUserMeta = document.getElementById('leetcode-user-meta');
   const codingBonusToggle = document.getElementById('coding-bonus-toggle');
   const remainingTimeDisplay = document.getElementById('remaining-time-display');
   const earnedTimeDisplay = document.getElementById('earned-time-display');
@@ -537,7 +538,7 @@ document.addEventListener('DOMContentLoaded', function () {
     'thumbnailMode', 'blurAmount', 'shortsRemovalEnabled',
     'pauseOnHoverEnabled', 'popupRemovalEnabled', 'focusModeEnabled',
     'timeReminderEnabled', 'timerInterval', 'timerPreset',
-    'leetcodeUsername', 'leetcodeVerified', 'codingBonusEnabled',
+    'leetcodeUsername', 'leetcodeVerified', 'codingBonusEnabled', 'leetcodeUserMeta',
     'solvedProblemsHistory', 'remainingTime',
     'totalWatchTimeToday', 'continueCountToday', 'breaksTakenToday',
     'dailyWatchStats', 'hourlyRate',
@@ -583,6 +584,7 @@ document.addEventListener('DOMContentLoaded', function () {
     verifiedLeetcodeUsername = isLeetcodeVerified ? result.leetcodeUsername : '';
     if (leetcodeUsernameInput) leetcodeUsernameInput.value = result.leetcodeUsername || '';
     if (codingBonusToggle) codingBonusToggle.checked = result.codingBonusEnabled === true && isLeetcodeVerified;
+    renderLeetcodeUserMeta(result.leetcodeUserMeta);
     updateLeetcodeStatusUI();
 
     dailyWatchStats = result.dailyWatchStats || {};
@@ -672,28 +674,87 @@ document.addEventListener('DOMContentLoaded', function () {
   // ============================================================
   // LEETCODE INTEGRATION
   // ============================================================
+  function renderLeetcodeUserMeta(meta) {
+    if (!leetcodeUserMeta) return;
+    if (!meta || !isLeetcodeVerified) {
+      leetcodeUserMeta.style.display = 'none';
+      leetcodeUserMeta.innerHTML = '';
+      return;
+    }
+    const rankStr = meta.ranking ? `#${Number(meta.ranking).toLocaleString()}` : 'N/A';
+    const total = meta.totalSolved ?? ((meta.easy || 0) + (meta.medium || 0) + (meta.hard || 0));
+    leetcodeUserMeta.style.display = 'block';
+    leetcodeUserMeta.innerHTML = `
+      <div style="padding:8px 10px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-size:11px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <span style="font-weight:600;color:var(--text);">@${verifiedLeetcodeUsername}</span>
+          <span style="color:var(--text-sec);font-size:10px;">Rank: <strong style="color:var(--text);">${rankStr}</strong></span>
+        </div>
+        <div style="display:flex;gap:6px;font-size:10px;flex-wrap:wrap;">
+          <span style="background:var(--surface2);padding:2px 6px;border-radius:4px;border:1px solid var(--border);">Solved: <strong>${total}</strong></span>
+          <span style="background:rgba(34,197,94,0.1);color:#22c55e;padding:2px 6px;border-radius:4px;border:1px solid rgba(34,197,94,0.2);">Easy: <strong>${meta.easy ?? 0}</strong></span>
+          <span style="background:rgba(245,158,11,0.1);color:#f59e0b;padding:2px 6px;border-radius:4px;border:1px solid rgba(245,158,11,0.2);">Med: <strong>${meta.medium ?? 0}</strong></span>
+          <span style="background:rgba(239,68,68,0.1);color:#ef4444;padding:2px 6px;border-radius:4px;border:1px solid rgba(239,68,68,0.2);">Hard: <strong>${meta.hard ?? 0}</strong></span>
+        </div>
+      </div>
+    `;
+  }
+
   function updateLeetcodeStatusUI(state, customText) {
     if (!leetcodeStatus) return;
     if (state === 'verifying') {
       leetcodeStatus.innerHTML = '<span style="color:var(--warning);">⏳ Verifying username with LeetCode...</span>';
-      if (leetcodeVerifyBtn) leetcodeVerifyBtn.disabled = true;
+      if (leetcodeVerifyBtn) {
+        leetcodeVerifyBtn.disabled = true;
+        leetcodeVerifyBtn.classList.remove('btn-verified');
+        leetcodeVerifyBtn.classList.add('btn-primary');
+        leetcodeVerifyBtn.textContent = 'Verifying...';
+      }
     } else if (state === 'syncing') {
       leetcodeStatus.innerHTML = '<span style="color:var(--info);">🔄 Syncing problem stats...</span>';
       if (leetcodeSyncBtn) leetcodeSyncBtn.disabled = true;
     } else if (state === 'error') {
       leetcodeStatus.innerHTML = `<span style="color:var(--danger);font-weight:600;">✗ ${customText || 'Verification failed'}</span>`;
-      if (leetcodeVerifyBtn) leetcodeVerifyBtn.disabled = false;
+      if (leetcodeVerifyBtn) {
+        leetcodeVerifyBtn.disabled = false;
+        leetcodeVerifyBtn.classList.remove('btn-verified');
+        leetcodeVerifyBtn.classList.add('btn-primary');
+        leetcodeVerifyBtn.textContent = 'Verify';
+      }
       if (leetcodeSyncBtn) leetcodeSyncBtn.disabled = false;
     } else if (state === 'success') {
       leetcodeStatus.innerHTML = `<span style="color:var(--success);font-weight:600;">✓ ${customText || 'Verified'}</span>`;
-      if (leetcodeVerifyBtn) leetcodeVerifyBtn.disabled = false;
+      if (leetcodeVerifyBtn) {
+        if (isLeetcodeVerified) {
+          leetcodeVerifyBtn.disabled = true;
+          leetcodeVerifyBtn.classList.remove('btn-primary');
+          leetcodeVerifyBtn.classList.add('btn-verified');
+          leetcodeVerifyBtn.innerHTML = '✓ Verified';
+        } else {
+          leetcodeVerifyBtn.disabled = false;
+          leetcodeVerifyBtn.classList.remove('btn-verified');
+          leetcodeVerifyBtn.classList.add('btn-primary');
+          leetcodeVerifyBtn.textContent = 'Verify';
+        }
+      }
       if (leetcodeSyncBtn) leetcodeSyncBtn.disabled = false;
     } else {
-      if (leetcodeVerifyBtn) leetcodeVerifyBtn.disabled = false;
       if (leetcodeSyncBtn) leetcodeSyncBtn.disabled = false;
       if (isLeetcodeVerified && verifiedLeetcodeUsername) {
         leetcodeStatus.innerHTML = `<span style="color:var(--success);font-weight:600;">✓ Verified as ${verifiedLeetcodeUsername}</span>`;
+        if (leetcodeVerifyBtn) {
+          leetcodeVerifyBtn.disabled = true;
+          leetcodeVerifyBtn.classList.remove('btn-primary');
+          leetcodeVerifyBtn.classList.add('btn-verified');
+          leetcodeVerifyBtn.innerHTML = '✓ Verified';
+        }
       } else {
+        if (leetcodeVerifyBtn) {
+          leetcodeVerifyBtn.disabled = false;
+          leetcodeVerifyBtn.classList.remove('btn-verified');
+          leetcodeVerifyBtn.classList.add('btn-primary');
+          leetcodeVerifyBtn.textContent = 'Verify';
+        }
         const val = leetcodeUsernameInput?.value?.trim();
         if (val) {
           leetcodeStatus.innerHTML = '<span style="color:var(--text-sec);">Click Verify to validate your username</span>';
@@ -728,32 +789,75 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+  async function ensureLeetCodePermission() {
+    if (typeof browser !== 'undefined' && browser?.permissions?.request) {
+      try {
+        const has = await browser.permissions.contains({
+          origins: ['*://*.leetcode.com/*']
+        });
+        if (!has) {
+          await browser.permissions.request({
+            origins: ['*://*.leetcode.com/*']
+          });
+        }
+      } catch (e) {
+        // Ignored; fallback APIs in background handle it if permission was declined or unsupported
+      }
+    }
+  }
+
   async function verifyLeetCodeUsername(usernameToVerify) {
     const username = (usernameToVerify || leetcodeUsernameInput?.value || '').trim();
     if (!username) {
       isLeetcodeVerified = false;
       verifiedLeetcodeUsername = '';
+      renderLeetcodeUserMeta(null);
       if (codingBonusToggle) codingBonusToggle.checked = false;
       await saveCodingProfileSettings(false);
       updateLeetcodeStatusUI('error', 'Please enter a username');
       return false;
     }
 
+    await ensureLeetCodePermission();
     updateLeetcodeStatusUI('verifying');
     try {
       const res = await browser.runtime.sendMessage({ action: 'verifyLeetCode', username });
       if (res && res.ok) {
         isLeetcodeVerified = true;
         verifiedLeetcodeUsername = res.username || username;
+        if (codingBonusToggle && !codingBonusToggle.checked) {
+          codingBonusToggle.checked = true;
+        }
         updateLeetcodeStatusUI('success', `Verified as ${verifiedLeetcodeUsername}`);
-        if (res.stats) {
-          updateSolvedStatsDisplay(res.stats);
+        if (res.meta) {
+          const metaWithStats = {
+            ...res.meta,
+            easy: res.stats?.easy,
+            medium: res.stats?.medium,
+            hard: res.stats?.hard,
+          };
+          renderLeetcodeUserMeta(metaWithStats);
+          await browser.storage.local.set({ leetcodeUserMeta: metaWithStats });
+        }
+        if (res.solvedToday) {
+          updateSolvedStatsDisplay(res.solvedToday);
+        }
+        if (res.earnedMinutes !== undefined && earnedTimeDisplay) {
+          earnedTimeDisplay.textContent = `${res.earnedMinutes}m`;
+        }
+        if (res.remainingTime !== undefined && remainingTimeDisplay) {
+          remainingTimeDisplay.textContent = `${Math.round(res.remainingTime / 1000 / 60)}m`;
         }
         await saveCodingProfileSettings(codingBonusToggle?.checked === true);
+
+        // Auto-sync stats immediately after verify to ensure fresh counts & allowance
+        await syncLeetCodeStats();
         return true;
       } else {
         isLeetcodeVerified = false;
         verifiedLeetcodeUsername = '';
+        renderLeetcodeUserMeta(null);
+        await browser.storage.local.set({ leetcodeUserMeta: null });
         if (codingBonusToggle) codingBonusToggle.checked = false;
         await saveCodingProfileSettings(false);
         updateLeetcodeStatusUI('error', res?.error || 'User not found on LeetCode');
@@ -762,6 +866,8 @@ document.addEventListener('DOMContentLoaded', function () {
     } catch (err) {
       isLeetcodeVerified = false;
       verifiedLeetcodeUsername = '';
+      renderLeetcodeUserMeta(null);
+      await browser.storage.local.set({ leetcodeUserMeta: null });
       if (codingBonusToggle) codingBonusToggle.checked = false;
       await saveCodingProfileSettings(false);
       updateLeetcodeStatusUI('error', 'Could not verify (network error)');
@@ -774,6 +880,7 @@ document.addEventListener('DOMContentLoaded', function () {
       updateLeetcodeStatusUI('error', 'Please verify your LeetCode username first');
       return;
     }
+    await ensureLeetCodePermission();
     updateLeetcodeStatusUI('syncing');
     if (leetcodeSyncBtn) leetcodeSyncBtn.textContent = '⏳ Syncing...';
     try {
@@ -786,15 +893,28 @@ document.addEventListener('DOMContentLoaded', function () {
           earnedTimeDisplay.textContent = `${res.earnedMinutes}m`;
         }
         if (res.solvedToday) {
-          if (solvedEasySpan) solvedEasySpan.textContent = res.solvedToday.easy || 0;
-          if (solvedMediumSpan) solvedMediumSpan.textContent = res.solvedToday.medium || 0;
-          if (solvedHardSpan) solvedHardSpan.textContent = res.solvedToday.hard || 0;
+          updateSolvedStatsDisplay(res.solvedToday);
+        }
+        if (res.meta) {
+          const metaWithStats = {
+            ...res.meta,
+            easy: res.currentStats?.easy,
+            medium: res.currentStats?.medium,
+            hard: res.currentStats?.hard,
+          };
+          renderLeetcodeUserMeta(metaWithStats);
+          await browser.storage.local.set({ leetcodeUserMeta: metaWithStats });
         }
         updateLeetcodeStatusUI('success', 'Synced just now');
         setTimeout(() => {
           if (isLeetcodeVerified) updateLeetcodeStatusUI();
         }, 3000);
       } else {
+        if (res?.error?.includes('verify') || res?.error?.includes('not found')) {
+          isLeetcodeVerified = false;
+          renderLeetcodeUserMeta(null);
+          await browser.storage.local.set({ leetcodeUserMeta: null });
+        }
         updateLeetcodeStatusUI('error', res?.error || 'Failed to sync stats');
       }
     } catch (err) {
@@ -817,6 +937,7 @@ document.addEventListener('DOMContentLoaded', function () {
       const val = leetcodeUsernameInput.value.trim();
       if (val !== verifiedLeetcodeUsername) {
         isLeetcodeVerified = false;
+        renderLeetcodeUserMeta(null);
         if (codingBonusToggle && codingBonusToggle.checked) {
           codingBonusToggle.checked = false;
           saveCodingProfileSettings(false);

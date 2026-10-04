@@ -505,8 +505,10 @@ import { TEST_PROTOCOL_VERSION } from './modules/test-lab-client.js';
           <div class="fg-block-actions">
             <a href="https://github.com" target="_blank" class="fg-block-btn secondary">🐙 Go to GitHub</a>
             <a href="https://leetcode.com" target="_blank" class="fg-block-btn primary">⚡ Go to LeetCode</a>
+            <button type="button" class="fg-block-btn secondary" id="fg-block-sync-btn" style="cursor:pointer;">🔄 Sync Stats</button>
             ${canOverride ? `<button class="fg-block-btn danger" id="fg-override-btn">Override (${3 - overrideCount} left today)</button>` : '<span style="font-size:12px;color:rgba(255,255,255,0.3)">No overrides left today</span>'}
           </div>
+          <div id="fg-block-sync-status" style="font-size:12px;margin-top:8px;min-height:16px;color:rgba(255,255,255,0.6);"></div>
           <p class="fg-override-counter">Overrides used today: ${overrideCount}/3</p>
         </div>
       `;
@@ -517,6 +519,8 @@ import { TEST_PROTOCOL_VERSION } from './modules/test-lab-client.js';
           link.removeAttribute('href');
           link.setAttribute('aria-disabled', 'true');
         });
+        const previewSync = blockOverlayEl.querySelector('#fg-block-sync-btn');
+        if (previewSync) previewSync.disabled = true;
         blockOverlayEl.querySelector('.fg-block-subtitle').textContent = 'Preview only. No blocked rules or overrides will change.';
         const closeButton = document.createElement('button');
         closeButton.className = 'fg-block-btn secondary';
@@ -531,6 +535,39 @@ import { TEST_PROTOCOL_VERSION } from './modules/test-lab-client.js';
       // Set streak badge
       const streakBadge = blockOverlayEl.querySelector('.fg-streak-badge');
       if (streakBadge) streakBadge.textContent = '🔥 Stay focused today!';
+
+      // Sync button
+      const fgBlockSyncBtn = document.getElementById('fg-block-sync-btn');
+      const fgBlockSyncStatus = document.getElementById('fg-block-sync-status');
+      if (fgBlockSyncBtn && !preview) {
+        fgBlockSyncBtn.addEventListener('click', async () => {
+          fgBlockSyncBtn.disabled = true;
+          fgBlockSyncBtn.textContent = '⏳ Syncing...';
+          if (fgBlockSyncStatus) fgBlockSyncStatus.textContent = 'Checking LeetCode stats...';
+          try {
+            const res = await browser.runtime.sendMessage({ action: 'syncLeetCode' });
+            if (res && res.ok) {
+              if (fgBlockSyncStatus) {
+                fgBlockSyncStatus.style.color = '#22c55e';
+                fgBlockSyncStatus.textContent = `✓ Synced! Solved today: ${res.solvedToday?.easy || 0} Easy, ${res.solvedToday?.medium || 0} Med, ${res.solvedToday?.hard || 0} Hard (+${res.earnedMinutes || 0}m earned)`;
+              }
+            } else {
+              if (fgBlockSyncStatus) {
+                fgBlockSyncStatus.style.color = '#ef4444';
+                fgBlockSyncStatus.textContent = `✗ ${res?.error || 'Sync failed'}`;
+              }
+            }
+          } catch (e) {
+            if (fgBlockSyncStatus) {
+              fgBlockSyncStatus.style.color = '#ef4444';
+              fgBlockSyncStatus.textContent = '✗ Network error';
+            }
+          } finally {
+            fgBlockSyncBtn.disabled = false;
+            fgBlockSyncBtn.textContent = '🔄 Sync Stats';
+          }
+        });
+      }
 
       // Override button
       const overrideBtn = document.getElementById('fg-override-btn');
