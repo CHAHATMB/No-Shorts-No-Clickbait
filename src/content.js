@@ -20,7 +20,9 @@ import { TEST_PROTOCOL_VERSION } from './modules/test-lab-client.js';
     shortsRemovalEnabled: true,
     pauseOnHoverEnabled: true,
     popupRemovalEnabled: true,
-    codingBonusEnabled: true,
+    codingBonusEnabled: false,
+    leetcodeUsername: "",
+    leetcodeVerified: false,
     focusModeEnabled: false,
   };
 
@@ -95,6 +97,8 @@ import { TEST_PROTOCOL_VERSION } from './modules/test-lab-client.js';
       "pauseOnHoverEnabled",
       "popupRemovalEnabled",
       "codingBonusEnabled",
+      "leetcodeUsername",
+      "leetcodeVerified",
       "remainingTime",
       "focusModeEnabled",
       "timeReminderEnabled",
@@ -108,10 +112,13 @@ import { TEST_PROTOCOL_VERSION } from './modules/test-lab-client.js';
     .then((result) => {
       settings.thumbnailMode = result.thumbnailMode || "blur";
       config.blurAmount = result.blurAmount ? `${result.blurAmount}px` : "10px";
+      document.documentElement.style.setProperty('--thumbnail-blur-amount', config.blurAmount);
       settings.shortsRemovalEnabled = result.shortsRemovalEnabled !== false;
       settings.pauseOnHoverEnabled = result.pauseOnHoverEnabled !== false;
       settings.popupRemovalEnabled = result.popupRemovalEnabled !== false;
-      settings.codingBonusEnabled = result.codingBonusEnabled !== false;
+      settings.codingBonusEnabled = result.codingBonusEnabled === true;
+      settings.leetcodeUsername = result.leetcodeUsername || "";
+      settings.leetcodeVerified = result.leetcodeVerified === true;
       settings.focusModeEnabled = result.focusModeEnabled || false;
       remainingTime = result.remainingTime || 0;
       
@@ -135,6 +142,40 @@ import { TEST_PROTOCOL_VERSION } from './modules/test-lab-client.js';
       initializeTimeTracking();
     });
 
+  // Listen for storage changes
+  if (browser.storage?.onChanged) {
+    browser.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName === 'local') {
+        if (changes.blurAmount) {
+          const val = changes.blurAmount.newValue;
+          if (val !== undefined) {
+            config.blurAmount = `${val}px`;
+            document.documentElement.style.setProperty('--thumbnail-blur-amount', config.blurAmount);
+          }
+        }
+        if (changes.thumbnailMode) {
+          settings.thumbnailMode = changes.thumbnailMode.newValue || "blur";
+          applyThumbnailMode(settings.thumbnailMode);
+        }
+        if (changes.codingBonusEnabled !== undefined) {
+          settings.codingBonusEnabled = changes.codingBonusEnabled.newValue === true;
+        }
+        if (changes.leetcodeUsername !== undefined) {
+          settings.leetcodeUsername = changes.leetcodeUsername.newValue || "";
+        }
+        if (changes.leetcodeVerified !== undefined) {
+          settings.leetcodeVerified = changes.leetcodeVerified.newValue === true;
+        }
+        if (changes.remainingTime !== undefined) {
+          remainingTime = changes.remainingTime.newValue || 0;
+        }
+        if (changes.codingBonusEnabled !== undefined || changes.leetcodeUsername !== undefined || changes.leetcodeVerified !== undefined || changes.remainingTime !== undefined) {
+          checkBlocking();
+        }
+      }
+    });
+  }
+
   // Listen for messages from popup/background
   browser.runtime.onMessage.addListener((message) => {
     if (message.action === "changeThumbnailMode") {
@@ -142,6 +183,7 @@ import { TEST_PROTOCOL_VERSION } from './modules/test-lab-client.js';
       applyThumbnailMode(message.mode);
     } else if (message.action === "updateBlurAmount") {
       config.blurAmount = message.amount;
+      document.documentElement.style.setProperty('--thumbnail-blur-amount', config.blurAmount);
       if (settings.thumbnailMode === "blur" || settings.focusModeEnabled) {
         applyThumbnailMode(settings.focusModeEnabled ? "hide" : settings.thumbnailMode);
       }
@@ -161,6 +203,9 @@ import { TEST_PROTOCOL_VERSION } from './modules/test-lab-client.js';
       lastReminderWatchTime = totalWatchTimeToday;
     } else if (message.action === "updateStats") {
       if (message.remainingTime !== undefined) remainingTime = message.remainingTime;
+      if (message.codingBonusEnabled !== undefined) settings.codingBonusEnabled = message.codingBonusEnabled === true;
+      if (message.leetcodeUsername !== undefined) settings.leetcodeUsername = message.leetcodeUsername;
+      if (message.leetcodeVerified !== undefined) settings.leetcodeVerified = message.leetcodeVerified === true;
       if (message.totalWatchTimeToday !== undefined) totalWatchTimeToday = message.totalWatchTimeToday;
       if (message.continueCountToday !== undefined) continueCountToday = message.continueCountToday;
       if (message.breaksTakenToday !== undefined) breaksTakenToday = message.breaksTakenToday;
@@ -204,7 +249,12 @@ import { TEST_PROTOCOL_VERSION } from './modules/test-lab-client.js';
   });
 
   function checkBlocking() {
-    if (!FEATURES.CODING_PLATFORM_INTEGRATION || !settings.codingBonusEnabled) {
+    if (
+      !FEATURES.CODING_PLATFORM_INTEGRATION ||
+      !settings.codingBonusEnabled ||
+      !settings.leetcodeUsername ||
+      !settings.leetcodeVerified
+    ) {
       removeBlock();
       return;
     }
@@ -415,7 +465,7 @@ import { TEST_PROTOCOL_VERSION } from './modules/test-lab-client.js';
         if (mode === "blur") {
           img.classList.add("thumbnail-controlled");
           img.classList.add("thumbnail-blurred");
-          img.style.filter = `blur(${config.blurAmount})`;
+          img.style.filter = `blur(var(--thumbnail-blur-amount, ${config.blurAmount}))`;
         } else if (mode === "screenshot") {
           img.classList.add("thumbnail-controlled");
           replaceThumbnailWithScreenshot(img);

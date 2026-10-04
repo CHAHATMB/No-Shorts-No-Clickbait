@@ -33,6 +33,9 @@ document.addEventListener('DOMContentLoaded', function () {
   const breaksTakenTodayDisplay = document.getElementById('breaks-taken-today');
   const codingIntegrationFeature = document.getElementById('coding-integration-feature');
   const leetcodeUsernameInput = document.getElementById('leetcode-username');
+  const leetcodeVerifyBtn = document.getElementById('leetcode-verify-btn');
+  const leetcodeSyncBtn = document.getElementById('leetcode-sync-btn');
+  const leetcodeStatus = document.getElementById('leetcode-status');
   const codingBonusToggle = document.getElementById('coding-bonus-toggle');
   const remainingTimeDisplay = document.getElementById('remaining-time-display');
   const earnedTimeDisplay = document.getElementById('earned-time-display');
@@ -65,6 +68,8 @@ document.addEventListener('DOMContentLoaded', function () {
   let currentHourlyRate = 500;
   let currentSiteData = {};
   let currentSiteCategories = {};
+  let isLeetcodeVerified = false;
+  let verifiedLeetcodeUsername = '';
 
   // ============================================================
   // HELPERS
@@ -117,9 +122,10 @@ document.addEventListener('DOMContentLoaded', function () {
         if (c.id === `tab-${tabId}`) c.classList.add('active');
       });
       if (tabId === 'productivity') {
-        renderWatchHistoryGraph(dailyWatchStats);
         loadProductivityData();
       } else if (tabId === 'insights') {
+        renderWatchHistoryGraph(dailyWatchStats);
+        loadProductivityData();
         loadInsights();
       } else if (tabId === 'test') {
         if (typeof updateTestTabLiveState === 'function') {
@@ -531,7 +537,7 @@ document.addEventListener('DOMContentLoaded', function () {
     'thumbnailMode', 'blurAmount', 'shortsRemovalEnabled',
     'pauseOnHoverEnabled', 'popupRemovalEnabled', 'focusModeEnabled',
     'timeReminderEnabled', 'timerInterval', 'timerPreset',
-    'leetcodeUsername', 'codingBonusEnabled',
+    'leetcodeUsername', 'leetcodeVerified', 'codingBonusEnabled',
     'solvedProblemsHistory', 'remainingTime',
     'totalWatchTimeToday', 'continueCountToday', 'breaksTakenToday',
     'dailyWatchStats', 'hourlyRate',
@@ -573,8 +579,11 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // Coding bonus
+    isLeetcodeVerified = result.leetcodeVerified === true && !!result.leetcodeUsername;
+    verifiedLeetcodeUsername = isLeetcodeVerified ? result.leetcodeUsername : '';
     if (leetcodeUsernameInput) leetcodeUsernameInput.value = result.leetcodeUsername || '';
-    if (codingBonusToggle) codingBonusToggle.checked = result.codingBonusEnabled !== false;
+    if (codingBonusToggle) codingBonusToggle.checked = result.codingBonusEnabled === true && isLeetcodeVerified;
+    updateLeetcodeStatusUI();
 
     dailyWatchStats = result.dailyWatchStats || {};
     currentHourlyRate = result.hourlyRate || 500;
@@ -661,23 +670,189 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   // ============================================================
-  // CODING PROFILE SAVE
+  // LEETCODE INTEGRATION
   // ============================================================
-  function saveCodingProfileSettings() {
-    browser.storage.local.set({
-      leetcodeUsername: leetcodeUsernameInput?.value || '',
-      codingBonusEnabled: codingBonusToggle?.checked ?? true,
+  function updateLeetcodeStatusUI(state, customText) {
+    if (!leetcodeStatus) return;
+    if (state === 'verifying') {
+      leetcodeStatus.innerHTML = '<span style="color:var(--warning);">⏳ Verifying username with LeetCode...</span>';
+      if (leetcodeVerifyBtn) leetcodeVerifyBtn.disabled = true;
+    } else if (state === 'syncing') {
+      leetcodeStatus.innerHTML = '<span style="color:var(--info);">🔄 Syncing problem stats...</span>';
+      if (leetcodeSyncBtn) leetcodeSyncBtn.disabled = true;
+    } else if (state === 'error') {
+      leetcodeStatus.innerHTML = `<span style="color:var(--danger);font-weight:600;">✗ ${customText || 'Verification failed'}</span>`;
+      if (leetcodeVerifyBtn) leetcodeVerifyBtn.disabled = false;
+      if (leetcodeSyncBtn) leetcodeSyncBtn.disabled = false;
+    } else if (state === 'success') {
+      leetcodeStatus.innerHTML = `<span style="color:var(--success);font-weight:600;">✓ ${customText || 'Verified'}</span>`;
+      if (leetcodeVerifyBtn) leetcodeVerifyBtn.disabled = false;
+      if (leetcodeSyncBtn) leetcodeSyncBtn.disabled = false;
+    } else {
+      if (leetcodeVerifyBtn) leetcodeVerifyBtn.disabled = false;
+      if (leetcodeSyncBtn) leetcodeSyncBtn.disabled = false;
+      if (isLeetcodeVerified && verifiedLeetcodeUsername) {
+        leetcodeStatus.innerHTML = `<span style="color:var(--success);font-weight:600;">✓ Verified as ${verifiedLeetcodeUsername}</span>`;
+      } else {
+        const val = leetcodeUsernameInput?.value?.trim();
+        if (val) {
+          leetcodeStatus.innerHTML = '<span style="color:var(--text-sec);">Click Verify to validate your username</span>';
+        } else {
+          leetcodeStatus.innerHTML = '<span style="color:var(--text-sec);">Enter your LeetCode username and verify to activate</span>';
+        }
+      }
+    }
+  }
+
+  function updateSolvedStatsDisplay(stats) {
+    if (!stats) return;
+    if (solvedEasySpan && stats.easy !== undefined) solvedEasySpan.textContent = stats.easy;
+    if (solvedMediumSpan && stats.medium !== undefined) solvedMediumSpan.textContent = stats.medium;
+    if (solvedHardSpan && stats.hard !== undefined) solvedHardSpan.textContent = stats.hard;
+  }
+
+  function saveCodingProfileSettings(enableBonus) {
+    const isEnabled = enableBonus && isLeetcodeVerified;
+    const username = isLeetcodeVerified ? verifiedLeetcodeUsername : (leetcodeUsernameInput?.value?.trim() || '');
+    return browser.storage.local.set({
+      leetcodeUsername: username,
+      leetcodeVerified: isLeetcodeVerified,
+      codingBonusEnabled: isEnabled,
     }).then(() => {
-      browser.runtime.sendMessage({
+      return browser.runtime.sendMessage({
         action: 'updateCodingProfiles',
-        leetcodeUsername: leetcodeUsernameInput?.value || '',
-        codingBonusEnabled: codingBonusToggle?.checked ?? true,
+        leetcodeUsername: username,
+        leetcodeVerified: isLeetcodeVerified,
+        codingBonusEnabled: isEnabled,
       });
     });
   }
+
+  async function verifyLeetCodeUsername(usernameToVerify) {
+    const username = (usernameToVerify || leetcodeUsernameInput?.value || '').trim();
+    if (!username) {
+      isLeetcodeVerified = false;
+      verifiedLeetcodeUsername = '';
+      if (codingBonusToggle) codingBonusToggle.checked = false;
+      await saveCodingProfileSettings(false);
+      updateLeetcodeStatusUI('error', 'Please enter a username');
+      return false;
+    }
+
+    updateLeetcodeStatusUI('verifying');
+    try {
+      const res = await browser.runtime.sendMessage({ action: 'verifyLeetCode', username });
+      if (res && res.ok) {
+        isLeetcodeVerified = true;
+        verifiedLeetcodeUsername = res.username || username;
+        updateLeetcodeStatusUI('success', `Verified as ${verifiedLeetcodeUsername}`);
+        if (res.stats) {
+          updateSolvedStatsDisplay(res.stats);
+        }
+        await saveCodingProfileSettings(codingBonusToggle?.checked === true);
+        return true;
+      } else {
+        isLeetcodeVerified = false;
+        verifiedLeetcodeUsername = '';
+        if (codingBonusToggle) codingBonusToggle.checked = false;
+        await saveCodingProfileSettings(false);
+        updateLeetcodeStatusUI('error', res?.error || 'User not found on LeetCode');
+        return false;
+      }
+    } catch (err) {
+      isLeetcodeVerified = false;
+      verifiedLeetcodeUsername = '';
+      if (codingBonusToggle) codingBonusToggle.checked = false;
+      await saveCodingProfileSettings(false);
+      updateLeetcodeStatusUI('error', 'Could not verify (network error)');
+      return false;
+    }
+  }
+
+  async function syncLeetCodeStats() {
+    if (!isLeetcodeVerified) {
+      updateLeetcodeStatusUI('error', 'Please verify your LeetCode username first');
+      return;
+    }
+    updateLeetcodeStatusUI('syncing');
+    if (leetcodeSyncBtn) leetcodeSyncBtn.textContent = '⏳ Syncing...';
+    try {
+      const res = await browser.runtime.sendMessage({ action: 'syncLeetCode' });
+      if (res && res.ok) {
+        if (res.remainingTime !== undefined && remainingTimeDisplay) {
+          remainingTimeDisplay.textContent = `${Math.round(res.remainingTime / 1000 / 60)}m`;
+        }
+        if (res.earnedMinutes !== undefined && earnedTimeDisplay) {
+          earnedTimeDisplay.textContent = `${res.earnedMinutes}m`;
+        }
+        if (res.solvedToday) {
+          if (solvedEasySpan) solvedEasySpan.textContent = res.solvedToday.easy || 0;
+          if (solvedMediumSpan) solvedMediumSpan.textContent = res.solvedToday.medium || 0;
+          if (solvedHardSpan) solvedHardSpan.textContent = res.solvedToday.hard || 0;
+        }
+        updateLeetcodeStatusUI('success', 'Synced just now');
+        setTimeout(() => {
+          if (isLeetcodeVerified) updateLeetcodeStatusUI();
+        }, 3000);
+      } else {
+        updateLeetcodeStatusUI('error', res?.error || 'Failed to sync stats');
+      }
+    } catch (err) {
+      updateLeetcodeStatusUI('error', 'Sync failed (network error)');
+    } finally {
+      if (leetcodeSyncBtn) leetcodeSyncBtn.textContent = '🔄 Sync';
+    }
+  }
+
   if (FEATURES.CODING_PLATFORM_INTEGRATION) {
-    leetcodeUsernameInput?.addEventListener('change', saveCodingProfileSettings);
-    codingBonusToggle?.addEventListener('change', saveCodingProfileSettings);
+    leetcodeVerifyBtn?.addEventListener('click', () => {
+      verifyLeetCodeUsername();
+    });
+
+    leetcodeSyncBtn?.addEventListener('click', () => {
+      syncLeetCodeStats();
+    });
+
+    leetcodeUsernameInput?.addEventListener('input', () => {
+      const val = leetcodeUsernameInput.value.trim();
+      if (val !== verifiedLeetcodeUsername) {
+        isLeetcodeVerified = false;
+        if (codingBonusToggle && codingBonusToggle.checked) {
+          codingBonusToggle.checked = false;
+          saveCodingProfileSettings(false);
+        }
+        updateLeetcodeStatusUI();
+      }
+    });
+
+    leetcodeUsernameInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        verifyLeetCodeUsername();
+      }
+    });
+
+    codingBonusToggle?.addEventListener('change', async function () {
+      if (this.checked) {
+        if (!isLeetcodeVerified) {
+          const val = leetcodeUsernameInput?.value?.trim();
+          if (val) {
+            const ok = await verifyLeetCodeUsername(val);
+            if (!ok) {
+              this.checked = false;
+              return;
+            }
+          } else {
+            this.checked = false;
+            updateLeetcodeStatusUI('error', 'Please enter and verify your LeetCode username first');
+            return;
+          }
+        }
+        await saveCodingProfileSettings(true);
+      } else {
+        await saveCodingProfileSettings(false);
+      }
+    });
   }
 
   // ============================================================
@@ -703,11 +878,16 @@ document.addEventListener('DOMContentLoaded', function () {
     const amt = e.target.value;
     if (blurValueDisplay) blurValueDisplay.textContent = `${amt}px`;
     browser.storage.local.set({ blurAmount: parseInt(amt) });
+    browser.tabs.query({ url: "*://*.youtube.com/*" }).then(tabs => {
+      tabs.forEach(tab => {
+        browser.tabs.sendMessage(tab.id, { action: 'updateBlurAmount', amount: `${amt}px` }).catch(() => {});
+      });
+    }).catch(() => {});
     browser.tabs.query({ active: true, currentWindow: true }).then(tabs => {
-      if (tabs[0]?.url?.includes('youtube.com')) {
-        browser.tabs.sendMessage(tabs[0].id, { action: 'updateBlurAmount', amount: `${amt}px` });
+      if (tabs[0]?.id) {
+        browser.tabs.sendMessage(tabs[0].id, { action: 'updateBlurAmount', amount: `${amt}px` }).catch(() => {});
       }
-    });
+    }).catch(() => {});
   });
 
   // ============================================================

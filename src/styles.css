@@ -1,6 +1,10 @@
 /* Blur effect for thumbnails */
+:root {
+  --thumbnail-blur-amount: 10px;
+}
+
 .thumbnail-blurred {
-  filter: blur(10px) !important;
+  filter: blur(var(--thumbnail-blur-amount, 10px)) !important;
   transition: filter 0.3s ease-in-out !important;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;

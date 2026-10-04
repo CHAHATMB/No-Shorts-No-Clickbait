@@ -17,6 +17,7 @@ const REWARD_MINUTES = {
 
 let codingProfiles = {
   leetcodeUsername: null,
+  leetcodeVerified: false,
   codingBonusEnabled: false,
 };
 
@@ -32,6 +33,7 @@ let testCommandQueue = Promise.resolve();
 async function loadCodingSettings() {
   const result = await browser.storage.local.get([
     "leetcodeUsername",
+    "leetcodeVerified",
     "codingBonusEnabled",
     "solvedProblemsHistory",
     "dailyBaselines",
@@ -44,8 +46,9 @@ async function loadCodingSettings() {
   ]);
 
   codingProfiles.leetcodeUsername = result.leetcodeUsername || null;
+  codingProfiles.leetcodeVerified = result.leetcodeVerified === true;
   codingProfiles.codingBonusEnabled =
-    result.codingBonusEnabled !== undefined ? result.codingBonusEnabled : true;
+    result.codingBonusEnabled === true && codingProfiles.leetcodeVerified;
 
   solvedProblemsHistory = result.solvedProblemsHistory || {};
   dailyBaselines = result.dailyBaselines || {};
@@ -187,6 +190,21 @@ async function checkTimeWasterAlert() {
 }
 
 // ============================================================
+// BROADCAST STATS
+// ============================================================
+async function broadcastStats(data) {
+  try {
+    await browser.runtime.sendMessage({ action: "updateStats", ...data });
+  } catch (e) {}
+  try {
+    const tabs = await browser.tabs.query({ url: "*://*.youtube.com/*" });
+    for (const tab of tabs) {
+      browser.tabs.sendMessage(tab.id, { action: "updateStats", ...data }).catch(() => {});
+    }
+  } catch (e) {}
+}
+
+// ============================================================
 // LEETCODE API (existing)
 // ============================================================
 async function fetchLeetCodeStats(username) {
@@ -227,13 +245,61 @@ async function fetchLeetCodeStats(username) {
   }
 }
 
-async function updateSolvedProblems() {
-  if (!FEATURES.CODING_PLATFORM_INTEGRATION) return;
+async function verifyLeetCodeUser(username) {
+  const clean = username ? username.trim() : "";
+  if (!clean) return { valid: false, error: "Username is empty" };
+  try {
+    const response = await fetch("https://leetcode.com/graphql", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        query: `
+          query getUserProfile($username: String!) {
+            matchedUser(username: $username) {
+              username
+              submitStats {
+                acSubmissionNum {
+                  difficulty
+                  count
+                }
+              }
+            }
+          }
+        `,
+        variables: { username: clean },
+      }),
+    });
+    if (!response.ok) {
+      return { valid: false, error: `LeetCode API responded with status ${response.status}` };
+    }
+    const data = await response.json();
+    if (data.errors && !data.data?.matchedUser) {
+      return { valid: false, error: "LeetCode user not found" };
+    }
+    if (data.data?.matchedUser) {
+      const statsList = data.data.matchedUser.submitStats?.acSubmissionNum || [];
+      const stats = {
+        easy: statsList.find(s => s.difficulty === "Easy")?.count || 0,
+        medium: statsList.find(s => s.difficulty === "Medium")?.count || 0,
+        hard: statsList.find(s => s.difficulty === "Hard")?.count || 0,
+      };
+      return { valid: true, username: data.data.matchedUser.username || clean, stats };
+    }
+    return { valid: false, error: "LeetCode user not found" };
+  } catch (error) {
+    console.error("Error verifying LeetCode user:", error);
+    return { valid: false, error: error.message || "Network error verifying username" };
+  }
+}
+
+async function updateSolvedProblems(force = false) {
+  if (!FEATURES.CODING_PLATFORM_INTEGRATION) return null;
   await loadCodingSettings();
-  if (!codingProfiles.codingBonusEnabled || !codingProfiles.leetcodeUsername) return;
+  if (!codingProfiles.leetcodeUsername || !codingProfiles.leetcodeVerified) return null;
+  if (!force && !codingProfiles.codingBonusEnabled) return null;
 
   const currentStats = await fetchLeetCodeStats(codingProfiles.leetcodeUsername);
-  if (!currentStats) return;
+  if (!currentStats) return null;
 
   const today = new Date().toDateString();
 
@@ -254,8 +320,8 @@ async function updateSolvedProblems() {
     solvedToday.medium * REWARD_MINUTES.MEDIUM +
     solvedToday.hard * REWARD_MINUTES.HARD;
 
-  const previousEarnedMinutes = solvedProblemsHistory[today].totalMinutes || 0;
-  if (earnedMinutes > previousEarnedMinutes) {
+  const previousEarnedMinutes = solvedProblemsHistory[today]?.totalMinutes || 0;
+  if (codingProfiles.codingBonusEnabled && earnedMinutes > previousEarnedMinutes) {
     const newMinutes = earnedMinutes - previousEarnedMinutes;
     remainingTime += newMinutes * 60 * 1000;
   }
@@ -263,14 +329,13 @@ async function updateSolvedProblems() {
   solvedProblemsHistory[today] = { ...solvedToday, totalMinutes: earnedMinutes };
   await browser.storage.local.set({ solvedProblemsHistory, remainingTime });
 
-  try {
-    await browser.runtime.sendMessage({
-      action: "updateStats",
-      remainingTime,
-      earnedMinutesToday: earnedMinutes,
-      solvedToday,
-    });
-  } catch (e) { /* ignore */ }
+  await broadcastStats({
+    remainingTime,
+    earnedMinutesToday: earnedMinutes,
+    solvedToday,
+  });
+
+  return { currentStats, solvedToday, earnedMinutes, remainingTime };
 }
 
 // ============================================================
@@ -292,32 +357,84 @@ browser.alarms.onAlarm.addListener((alarm) => {
 // MESSAGE HANDLER
 // ============================================================
 browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === "verifyLeetCode") {
+    verifyLeetCodeUser(message.username).then(async (res) => {
+      if (res.valid) {
+        codingProfiles.leetcodeUsername = res.username;
+        codingProfiles.leetcodeVerified = true;
+        const today = new Date().toDateString();
+        if (!dailyBaselines[today] && res.stats) {
+          dailyBaselines[today] = res.stats;
+        }
+        await browser.storage.local.set({
+          leetcodeUsername: res.username,
+          leetcodeVerified: true,
+          dailyBaselines,
+        });
+        await broadcastStats({
+          leetcodeUsername: res.username,
+          leetcodeVerified: true,
+          codingBonusEnabled: codingProfiles.codingBonusEnabled,
+        });
+        sendResponse({ ok: true, username: res.username, stats: res.stats });
+      } else {
+        codingProfiles.leetcodeVerified = false;
+        codingProfiles.codingBonusEnabled = false;
+        await browser.storage.local.set({
+          leetcodeVerified: false,
+          codingBonusEnabled: false,
+        });
+        await broadcastStats({
+          leetcodeVerified: false,
+          codingBonusEnabled: false,
+        });
+        sendResponse({ ok: false, error: res.error });
+      }
+    }).catch(err => {
+      sendResponse({ ok: false, error: err.message });
+    });
+    return true;
+  }
+
+  if (message.action === "syncLeetCode") {
+    (async () => {
+      await loadCodingSettings();
+      if (!codingProfiles.leetcodeUsername || !codingProfiles.leetcodeVerified) {
+        return { ok: false, error: "Please verify your LeetCode username first." };
+      }
+      const result = await updateSolvedProblems(true);
+      if (!result) {
+        return { ok: false, error: "Could not fetch LeetCode data. Check connection." };
+      }
+      return { ok: true, ...result };
+    })().then(sendResponse).catch(err => sendResponse({ ok: false, error: err.message }));
+    return true;
+  }
+
   if (message.action === "updateCodingProfiles") {
-    codingProfiles.leetcodeUsername = message.leetcodeUsername;
-    codingProfiles.codingBonusEnabled = message.codingBonusEnabled;
+    codingProfiles.leetcodeUsername = message.leetcodeUsername || "";
+    codingProfiles.leetcodeVerified = message.leetcodeVerified === true;
+    codingProfiles.codingBonusEnabled = message.codingBonusEnabled === true && codingProfiles.leetcodeVerified;
     browser.storage.local
       .set({
-        leetcodeUsername: message.leetcodeUsername,
-        codingBonusEnabled: message.codingBonusEnabled,
+        leetcodeUsername: codingProfiles.leetcodeUsername,
+        leetcodeVerified: codingProfiles.leetcodeVerified,
+        codingBonusEnabled: codingProfiles.codingBonusEnabled,
       })
-      .then(() => {
-        updateSolvedProblems();
+      .then(async () => {
+        if (codingProfiles.codingBonusEnabled) {
+          await updateSolvedProblems();
+        }
+        await broadcastStats({
+          codingBonusEnabled: codingProfiles.codingBonusEnabled,
+          leetcodeUsername: codingProfiles.leetcodeUsername,
+          leetcodeVerified: codingProfiles.leetcodeVerified,
+          remainingTime,
+        });
         sendResponse({ status: "Profile update initiated" });
       });
     return true;
   }
-
-async function broadcastStats(data) {
-  try {
-    await browser.runtime.sendMessage({ action: "updateStats", ...data });
-  } catch (e) {}
-  try {
-    const tabs = await browser.tabs.query({ url: "*://*.youtube.com/*" });
-    for (const tab of tabs) {
-      browser.tabs.sendMessage(tab.id, { action: "updateStats", ...data }).catch(() => {});
-    }
-  } catch (e) {}
-}
 
   if (message.action === "deductTime") {
     const deduction = message.amount;

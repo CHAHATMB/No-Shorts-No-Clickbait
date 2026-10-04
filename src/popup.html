@@ -875,60 +875,6 @@
         </div>
       </div>
 
-      <!-- YouTube Watch History (existing) -->
-      <div class="card">
-        <h2>📺 YouTube Watch History</h2>
-        <p>Daily YouTube playback for the last 7 days.</p>
-        <div class="watch-history-container">
-          <div id="watch-stats-graph" class="stats-graph">
-            <div class="graph-placeholder">No data yet</div>
-          </div>
-          <div class="graph-labels" id="graph-labels"></div>
-        </div>
-        <div style="margin-top:10px">
-          <div class="stat-row"><span>Watched Today</span><span id="total-watched-today" class="val red">0m</span></div>
-          <div class="stat-row"><span>Reminders Canceled</span><span id="continue-count-today" class="val">0</span></div>
-          <div class="stat-row"><span>Breaks Taken</span><span id="breaks-taken-today" class="val pos">0</span></div>
-        </div>
-      </div>
-
-      <!-- Universal Time Tracker (new) -->
-      <div class="card">
-        <h2>🌐 Today's Web Activity</h2>
-        <p>Active time on all websites today.</p>
-        <div id="site-time-list">
-          <div style="text-align:center;color:var(--text-sec);font-size:11px;padding:16px 0">Loading...</div>
-        </div>
-        <div style="margin-top:8px">
-          <div class="stat-row"><span>Total Active Time</span><span id="total-active-time" class="val">0m</span></div>
-        </div>
-      </div>
-
-      <!-- Money Meter (new) -->
-      <div class="card">
-        <h2>💰 Money Meter</h2>
-        <p>How much is your time worth today?</p>
-        <div class="rate-row">
-          <label for="hourly-rate-input">Your hourly rate (₹)</label>
-          <input type="number" id="hourly-rate-input" min="1" max="99999" value="500" />
-        </div>
-        <div class="money-grid">
-          <div class="money-card">
-            <div class="label">🔴 Wasted</div>
-            <div class="amount neg" id="money-wasted">₹0</div>
-          </div>
-          <div class="money-card">
-            <div class="label">🟢 Invested</div>
-            <div class="amount pos" id="money-invested">₹0</div>
-          </div>
-        </div>
-        <div class="money-net-row">
-          <span class="net-label">📊 Net Impact Today</span>
-          <span class="net-val" id="money-net">₹0</span>
-        </div>
-        <div style="margin-top:8px;font-size:11px;color:var(--text-sec);font-style:italic;" id="money-insight"></div>
-      </div>
-
       <!-- URL Blocker (new) -->
       <div class="card">
         <h2>🚫 URL Blocker</h2>
@@ -940,28 +886,23 @@
         </div>
       </div>
 
-      <!-- Weekly Report (new) -->
-      <div class="card">
-        <h2>📊 Weekly Report</h2>
-        <p>Productive vs wasted time this week. Green = productive, Red = wasted.</p>
-        <div id="weekly-report-bars" style="margin-top:10px"></div>
-        <div style="margin-top:10px">
-          <div class="stat-row"><span>Week Net Impact</span><span id="weekly-net" class="val">₹0</span></div>
-        </div>
-      </div>
-
       <!-- Coding Profile Integration (existing) -->
       <div class="card" id="coding-integration-feature">
         <h2>⚡ LeetCode Coding Bonus</h2>
         <p>Earn YouTube watch time by solving LeetCode problems!</p>
         <div class="profile-input-wrap">
           <label for="leetcode-username">LeetCode Username</label>
-          <input type="text" id="leetcode-username" placeholder="username" />
+          <div style="display:flex;gap:6px;margin-top:4px;">
+            <input type="text" id="leetcode-username" placeholder="username" style="flex:1;" />
+            <button type="button" class="btn-small btn-primary" id="leetcode-verify-btn">Verify</button>
+            <button type="button" class="btn-small" id="leetcode-sync-btn" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);display:flex;align-items:center;gap:4px;" title="Sync LeetCode stats now">🔄 Sync</button>
+          </div>
+          <div id="leetcode-status" style="font-size:11px;margin-top:6px;min-height:16px;"></div>
         </div>
         <div class="toggle" style="margin-top:10px">
           <span class="toggle-label">Enable Coding Bonus</span>
           <label class="toggle-switch">
-            <input type="checkbox" id="coding-bonus-toggle" checked />
+            <input type="checkbox" id="coding-bonus-toggle" />
             <span class="slider"></span>
           </label>
         </div>
@@ -987,6 +928,72 @@
 
     <!-- ===== TAB 3: INSIGHTS ===== -->
     <div id="tab-insights" class="tab-content">
+
+      <!-- Universal Time Tracker (Today's Web Activity) -->
+      <div class="card">
+        <h2>🌐 Today's Web Activity</h2>
+        <p>Active time on all websites today.</p>
+        <div id="site-time-list">
+          <div style="text-align:center;color:var(--text-sec);font-size:11px;padding:16px 0">Loading...</div>
+        </div>
+        <div style="margin-top:8px">
+          <div class="stat-row"><span>Total Active Time</span><span id="total-active-time" class="val">0m</span></div>
+        </div>
+      </div>
+
+      <!-- Money Meter -->
+      <div class="card">
+        <h2>💰 Money Meter</h2>
+        <p>How much is your time worth today?</p>
+        <div class="rate-row">
+          <label for="hourly-rate-input">Your hourly rate (₹)</label>
+          <input type="number" id="hourly-rate-input" min="1" max="99999" value="500" />
+        </div>
+        <div class="money-grid">
+          <div class="money-card">
+            <div class="label">🔴 Wasted</div>
+            <div class="amount neg" id="money-wasted">₹0</div>
+          </div>
+          <div class="money-card">
+            <div class="label">🟢 Invested</div>
+            <div class="amount pos" id="money-invested">₹0</div>
+          </div>
+        </div>
+        <div class="money-net-row">
+          <span class="net-label">📊 Net Impact Today</span>
+          <span class="net-val" id="money-net">₹0</span>
+        </div>
+        <div style="margin-top:8px;font-size:11px;color:var(--text-sec);font-style:italic;" id="money-insight"></div>
+      </div>
+
+      <!-- YouTube Watch History -->
+      <div class="card">
+        <h2>📺 YouTube Watch History</h2>
+        <p>Daily YouTube playback for the last 7 days.</p>
+        <div class="watch-history-container">
+          <div id="watch-stats-graph" class="stats-graph">
+            <div class="graph-placeholder">No data yet</div>
+          </div>
+          <div class="graph-labels" id="graph-labels"></div>
+        </div>
+        <div style="margin-top:10px">
+          <div class="stat-row"><span>Watched Today</span><span id="total-watched-today" class="val red">0m</span></div>
+          <div class="stat-row"><span>Reminders Canceled</span><span id="continue-count-today" class="val">0</span></div>
+          <div class="stat-row"><span>Breaks Taken</span><span id="breaks-taken-today" class="val pos">0</span></div>
+        </div>
+      </div>
+
+      <!-- Weekly Report -->
+      <div class="card">
+        <h2>📊 Weekly Report</h2>
+        <p>Productive vs wasted time this week. Green = productive, Red = wasted.</p>
+        <div id="weekly-report-bars" style="margin-top:10px"></div>
+        <div style="margin-top:10px">
+          <div class="stat-row"><span>Week Net Impact</span><span id="weekly-net" class="val">₹0</span></div>
+        </div>
+      </div>
+
+      <!-- Smart Insights -->
       <div id="insights-container">
         <div style="text-align:center;color:var(--text-sec);font-size:11px;padding:24px 0">Loading insights...</div>
       </div>

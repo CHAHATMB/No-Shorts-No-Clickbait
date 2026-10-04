@@ -39,6 +39,8 @@ window.browser = {
       async get() {
         return {
           codingBonusEnabled: parameters.get('coding') === 'true',
+          leetcodeUsername: parameters.get('coding') === 'true' ? 'testuser' : '',
+          leetcodeVerified: parameters.get('coding') === 'true',
           mascotEnabled: parameters.get('mascot') !== 'false',
           timeReminderEnabled: parameters.get('reminders') !== 'false',
           timerInterval: 15,
