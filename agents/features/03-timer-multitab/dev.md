@@ -68,3 +68,9 @@ Results: `npm test` 52/52, build OK, mascot.html 27/27. test-lab.html 16/17; the
 - `TriggerManager.isPersistentActive`/`setPersistentActive` in the content-side manager are no longer read (the background decides). Left in place; can be removed later.
 - Popup sends setting toggles only to the active tab (`popup.js:746-820`). Decisions now read storage so this no longer affects reminders, but other tabs' local display flags can be stale. Out of scope.
 - Behavior change to confirm: the break reminder no longer restarts on page reload, and changing the interval doesn't reset its baseline.
+
+## Cleanup
+- Removed `TriggerManager.isPersistentActive`/`setPersistentActive` and the five controller calls (review #6). After the background took over reminder selection, nothing read them: the background builds a fresh manager each tick and never sets the flag. `sessionStartTime` stays, because the background assigns it from the saved session.
+- `tests/mascot.html` 404 for `break.svg`: the fixture was wrong, not the source. Webpack copies `src/modules/video-blocker/art` to `video-blocker/`, so `getURL('video-blocker/break.svg')` is correct in the extension. `tests/reminder-fixture.js` now maps it back to the source path.
+- Commits: 930b711 (dead state, 24 lines removed), 641f43d (fixture path, 1 line changed).
+- Results: `npm test` 66/66, `npm run build:chrome` OK, mascot.html 27/27 at 1440x900 on port 8801. `break.svg` now returns 200; the only 404 left is the browser's default `favicon.ico` request.
