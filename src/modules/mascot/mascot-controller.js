@@ -198,7 +198,7 @@ export class MascotController {
       this._pauseVideo();
     }
 
-    // Set initial pose — use 'idle' during grand entrance to avoid conflicts with walk cycle CSS
+    // Grand walks in with the neutral idle pose; the context pose is applied on arrival
     const initialPose = pose || CATEGORY_POSES[category] || 'talking';
     this._setPose(entrance === 'grand' ? 'idle' : initialPose);
 
@@ -243,7 +243,7 @@ export class MascotController {
     this.container.addEventListener('animationend', onEnterEnd);
 
     // Fallback: if animation doesn't fire (e.g., reduced motion), force visible
-    const fallbackDelay = this.reducedMotion ? 0 : (entrance === 'grand' ? 3500 : (entrance === 'pop' ? 500 : 1500));
+    const fallbackDelay = this.reducedMotion ? 0 : (entrance === 'grand' ? 3500 : (entrance === 'walk' ? 2000 : (entrance === 'pop' ? 500 : 1500)));
     this._schedule(() => {
       if (this.container === container && this.state === MascotState.ENTERING) {
         onEnterEnd(null);
@@ -370,7 +370,7 @@ export class MascotController {
       this.container.addEventListener('animationend', onExitEnd);
 
       // Fallback for reduced motion (longer for grand exit)
-      const exitFallback = this.reducedMotion ? 0 : (this.currentEntrance === 'grand' ? 2500 : 1200);
+      const exitFallback = this.reducedMotion ? 0 : (this.currentEntrance === 'grand' ? 2500 : (this.currentEntrance === 'walk' ? 2000 : 1200));
       this._schedule(() => {
         if (this.state === MascotState.EXITING) {
           onExitEnd(null);
