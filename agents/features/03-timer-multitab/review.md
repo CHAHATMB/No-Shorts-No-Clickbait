@@ -23,3 +23,29 @@ Root-cause analysis is accurate. The design holds up: the background is the only
 - Unnecessary: none significant. The clamp test is cheap and guards the input validation.
 - `tests/reminder-fixture.js` edit: justified. The mascot fixture's reminders now arrive only in the `deductTime` response, so without this the fixture would never show a reminder. It reuses the real `selectReminder`/`continueWatchSession` and does not reimplement them.
 - Test Lab "Popup fits within browser action viewport" (603px > 600px): confirmed to predate this feature. `git diff 22805cd HEAD -- src/popup.* src/styles.css tests/test-lab*` is empty, so no popup input changed after 22805cd.
+
+## Round 2
+**Commits reviewed:** aaa324c, 586e357, 2d75bc1
+**Verdict:** APPROVED
+
+`npm test` 52/52 and `npm run build` pass.
+
+### Round 1 findings
+| # | Status | Notes |
+|---|---|---|
+| 1 | fixed | The LeetCode write phase runs inside `queueWatchUpdate` after the fetch. The outer `loadCodingSettings` is still needed to read the username. The Test Lab body uses the same queue, so `testCommandQueue` and its own reload are gone. All writers to `remainingTime`/`totalWatchTimeToday` are now serialized. The overlap test pauses the tick's storage read while the bonus completes, which is the race described in round 1. Not re-run against 8dcb5c7 here (the scratch copy was blocked); dev.md says it fails there. |
+| 2 | fixed | `pendingReminder` holds a reminder the page could not show, and later ticks send `reminderReady: false`, so the background cannot pick a second one in the meantime. Adding `document.hidden` to `isReminderReady` closes the hidden-tab race. This is simpler than the rollback I suggested and adds no round trip. |
+| 3 | fixed | `getLastFocused().catch(() => null)` is treated as no active tab. The test covers a 20-minute gap with no window open followed by reopening the window. |
+| 4 | fixed | Branch removed. |
+| 5 | fixed | `MINUTE_MS` is exported and the other constants are derived from it. The harness injection matches the existing `MAX_DAILY_OVERRIDES` pattern. |
+| 6 | skipped, accepted | Feature 01 owns that controller code at the same time. Keep it as a follow-up. |
+| 7 | open for verify | Firefox with two windows, and switching between windows. |
+
+### New findings
+| # | Severity | File:line | Issue | Suggested fix |
+|---|---|---|---|---|
+| 1 | minor | src/background.js:207-213, 438 | Test Lab validation `TypeError`s now pass through `queueWatchUpdate`, which also logs them as `[WatchTime] Update failed`. The caller still gets the right response. The only cost is console noise in dev builds. | Optional. Validate before queueing, or accept it. |
+| 2 | minor | src/content.js:282-295 | There is no Node test for the `pendingReminder` hold-and-replay in `handleWatchTick`. The logic is small, and the background-side deferral test covers the contract, so this is acceptable. | Optional. Add a test using the same slicing as `contentTrackingLoop`. |
+
+### Tests
+The new tests are meaningful. They cover the `reminderReady: false` deferral (round 1 gap a), the tick/bonus overlap (gap b), and the content loop for paused, ended, hidden, non-`/watch` and no-video pages (gap c). The content test runs the real `initializeTimeTracking` source, not a copy. There are no unnecessary tests, and no over-engineering in the fixes.
