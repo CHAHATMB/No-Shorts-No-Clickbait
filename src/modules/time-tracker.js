@@ -180,8 +180,9 @@ function queueTrackingSync() {
 
 // Tracking state lives in storage because the MV3 service worker can restart between events.
 async function syncTracking() {
-  const focusedWindow = await browser.windows.getLastFocused({ populate: true });
-  const activeTab = focusedWindow.focused ? focusedWindow.tabs?.find(tab => tab.active) : null;
+  // Rejects when no browser window is open; treat that as nothing to track.
+  const focusedWindow = await browser.windows.getLastFocused({ populate: true }).catch(() => null);
+  const activeTab = focusedWindow?.focused ? focusedWindow.tabs?.find(tab => tab.active) : null;
   const domain = extractDomain(activeTab?.url);
   const now = Date.now();
   const { [TRACKING_STATE_KEY]: tracking } = await browser.storage.local.get(TRACKING_STATE_KEY);

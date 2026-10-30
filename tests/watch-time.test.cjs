@@ -94,20 +94,22 @@ test('A watch session restarts only after a gap', async context => {
   assert.equal(continueWatchSession(continued, 'today').sessionStartTime, Date.now());
 });
 
-function backgroundHarness(data, window) {
+function backgroundHarness(data, window, { features = {}, fetch, beforeStorageRead = async () => {} } = {}) {
   let listener;
   const event = { addListener() {} };
   const context = {
-    __DEV__: false, FEATURES: {}, console: { log() {}, error() {} }, Promise, Date,
+    __DEV__: false, FEATURES: features, fetch, console: { log() {}, error() {} }, Promise, Date,
     browser: {
       tabs: { onUpdated: event, query: async () => [], sendMessage: async () => {} },
       windows: { getLastFocused: async () => window },
-      alarms: { onAlarm: event },
+      alarms: { onAlarm: event, get: async () => ({}) },
       runtime: { onMessage: { addListener(value) { listener = value; } }, sendMessage: async () => {} },
       storage: { local: {
         async get(keys) {
           const names = typeof keys === 'string' ? [keys] : keys;
-          return structuredClone(Object.fromEntries(names.map(key => [key, data[key]])));
+          const snapshot = structuredClone(Object.fromEntries(names.map(key => [key, data[key]])));
+          await beforeStorageRead();
+          return snapshot;
         },
         async set(values) { Object.assign(data, structuredClone(values)); },
       } },
@@ -115,7 +117,7 @@ function backgroundHarness(data, window) {
   };
   return reminders.then(exports => {
     vm.runInNewContext(readSource('background.js'), Object.assign(context, exports));
-    return (tab, amount = 5000) => new Promise(resolve => listener({ action: 'deductTime', amount, reminderReady: true }, { tab }, resolve));
+    return (tab, amount = 5000, reminderReady = true) => new Promise(resolve => listener({ action: 'deductTime', amount, reminderReady }, { tab }, resolve));
   });
 }
 
@@ -143,6 +145,89 @@ test('Background counts only the watched tab and delivers each reminder once', a
   assert.equal((await tick(otherWindowTab)).counted, false, 'An unfocused browser must not count');
   assert.equal(data.totalWatchTimeToday, 15 * MINUTE_MS + 10000);
 });
+
+test('A tick from a tab that cannot show a reminder does not use it up', async () => {
+  const data = { lastUpdateDate: new Date().toDateString(), totalWatchTimeToday: 15 * MINUTE_MS - 5000, mascotCategories: breakSettings.mascotCategories };
+  const tick = await backgroundHarness(data, { ...focusedWindow });
+  const deferred = await tick(watchingTab, 5000, false);
+  assert.equal(deferred.counted, true);
+  assert.equal(deferred.reminder, null);
+  assert.equal((await tick(watchingTab)).reminder?.category, 'BREAK', 'The deferred reminder must fire once the tab is ready');
+});
+
+test('A watch tick overlapping a LeetCode bonus keeps both updates', async () => {
+  const today = new Date().toDateString();
+  const data = {
+    lastUpdateDate: today, remainingTime: MINUTE_MS, leetcodeUsername: 'coder', codingBonusEnabled: true,
+    dailyBaselines: { [today]: { easy: 0, medium: 0, hard: 0 } },
+    solvedProblemsHistory: { [today]: { easy: 0, medium: 0, hard: 0, totalMinutes: 0 } },
+    mascotCategories: breakSettings.mascotCategories,
+  };
+  let finishFetch;
+  const fetched = new Promise(resolve => { finishFetch = resolve; });
+  let fetchStarted = false;
+  let releaseReads = Promise.resolve();
+  const tick = await backgroundHarness(data, { ...focusedWindow }, {
+    features: { CODING_PLATFORM_INTEGRATION: true },
+    beforeStorageRead: () => releaseReads,
+    fetch: async () => {
+      fetchStarted = true;
+      await fetched;
+      return { json: async () => ({ data: { matchedUser: { submitStats: { acSubmissionNum: [
+        { difficulty: 'Easy', count: 1 }, { difficulty: 'Medium', count: 0 }, { difficulty: 'Hard', count: 0 },
+      ] } } } }) };
+    },
+  });
+  while (!fetchStarted) await settle();
+
+  let openReads;
+  releaseReads = new Promise(resolve => { openReads = resolve; });
+  const pendingTick = tick(watchingTab);
+  await settle();
+  finishFetch();
+  await settle();
+  openReads();
+  releaseReads = Promise.resolve();
+  await pendingTick;
+  await settle();
+  assert.equal(data.remainingTime, MINUTE_MS - 5000 + 10 * MINUTE_MS, `Bonus and deduction must both apply: ${data.remainingTime}`);
+  assert.equal(data.totalWatchTimeToday, 5000);
+});
+
+function contentTrackingLoop({ video, hidden = false, path = '/watch' }) {
+  const source = readFileSync(resolve(__dirname, '../src/content.js'), 'utf8');
+  const start = source.indexOf('  function initializeTimeTracking');
+  const sent = [];
+  let tickLoop;
+  let now = Date.parse("2026-10-30T12:00:00");
+  vm.runInNewContext(`${source.slice(start, source.indexOf('\n  function isReminderReady', start))}\ninitializeTimeTracking();`, {
+    WATCH_TICK_MS: 5000, lastDeductionTime: null, pendingReminder: null,
+    isReminderReady: () => true, handleWatchTick() {}, console,
+    Date: { now: () => now },
+    setInterval: callback => { tickLoop = callback; },
+    document: { hidden, querySelector: () => video },
+    window: { location: { pathname: path } },
+    browser: { runtime: { sendMessage: async message => { sent.push(message); } } },
+  });
+  for (let second = 0; second <= 10; second++, now += 1000) tickLoop();
+  return sent;
+}
+
+const playingVideo = { paused: false, ended: false, readyState: 4 };
+for (const [name, options, expectedTicks] of [
+  ['playing video in a visible watch page', { video: playingVideo }, 2],
+  ['paused video', { video: { ...playingVideo, paused: true } }, 0],
+  ['ended video', { video: { ...playingVideo, ended: true } }, 0],
+  ['hidden tab', { video: playingVideo, hidden: true }, 0],
+  ['page other than /watch', { video: playingVideo, path: '/' }, 0],
+  ['page without a video', { video: null }, 0],
+]) {
+  test(`Content reports watch ticks only for a ${name}`, () => {
+    const sent = contentTrackingLoop(options);
+    assert.equal(sent.length, expectedTicks, JSON.stringify(sent));
+    assert.ok(sent.every(message => message.action === 'deductTime' && message.amount === 5000));
+  });
+}
 
 test('Site-time tracker counts only the focused window and survives worker restarts', async context => {
   context.mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-10-30T12:00:00') });
@@ -187,4 +272,18 @@ test('Site-time tracker counts only the focused window and survives worker resta
   listeners.alarm({ name: 'universalTimeTracker' });
   await settle();
   assert.equal(siteTime(), 60, 'Time while the browser is unfocused must not count');
+
+  window.focused = true;
+  listeners.focus(1);
+  await settle();
+  context.mock.timers.tick(10000);
+  browser.windows.getLastFocused = async () => { throw new Error('No last-focused window'); };
+  listeners.alarm({ name: 'universalTimeTracker' });
+  await settle();
+  assert.equal(siteTime(), 70);
+  context.mock.timers.tick(20 * 60000);
+  browser.windows.getLastFocused = async () => window;
+  listeners.focus(1);
+  await settle();
+  assert.equal(siteTime(), 70, 'Time with no browser window open must not be credited on reopen');
 });

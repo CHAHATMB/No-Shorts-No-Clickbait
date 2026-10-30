@@ -36,6 +36,7 @@ import { TEST_PROTOCOL_VERSION } from './modules/test-lab-client.js';
   let continueCountToday = 0;
   let breaksTakenToday = 0;
   let reminderTimer = null;
+  let pendingReminder = null;
 
   // Mascot companion
   let mascotController = null;
@@ -152,8 +153,6 @@ import { TEST_PROTOCOL_VERSION } from './modules/test-lab-client.js';
     } else if (message.action === "toggleTimeReminder") {
       timeReminderEnabled = message.enabled;
       if (!timeReminderEnabled) dismissReminder();
-    } else if (message.action === "updateTimerInterval") {
-      // The background reads the saved interval when it selects reminders.
     } else if (message.action === "updateStats") {
       if (message.remainingTime !== undefined) remainingTime = message.remainingTime;
       if (message.totalWatchTimeToday !== undefined) totalWatchTimeToday = message.totalWatchTimeToday;
@@ -263,7 +262,7 @@ import { TEST_PROTOCOL_VERSION } from './modules/test-lab-client.js';
             browser.runtime.sendMessage({
               action: "deductTime",
               amount: elapsed,
-              reminderReady: isReminderReady(),
+              reminderReady: !pendingReminder && isReminderReady(),
             }).then(handleWatchTick, error => console.warn('[WatchTime] Background did not record watch time:', error));
           }
         } else {
@@ -276,18 +275,22 @@ import { TEST_PROTOCOL_VERSION } from './modules/test-lab-client.js';
   }
 
   function isReminderReady() {
-    return !document.fullscreenElement && !document.getElementById("youtube-time-reminder") &&
+    return !document.hidden && !document.fullscreenElement && !document.getElementById("youtube-time-reminder") &&
       (!mascotController?.enabled || mascotController.state === 'offscreen');
   }
 
   function handleWatchTick(response) {
     if (!response?.counted) return;
     totalWatchTimeToday = response.totalWatchTimeToday;
-    if (!response.reminder) return;
-    if (response.reminder.category === MESSAGE_CATEGORIES.BREAK) {
+    // The background has already recorded this reminder as delivered, so hold it until the page can show it.
+    pendingReminder = response.reminder || pendingReminder;
+    if (!pendingReminder || !isReminderReady()) return;
+    const reminder = pendingReminder;
+    pendingReminder = null;
+    if (reminder.category === MESSAGE_CATEGORIES.BREAK) {
       showTimeReminder();
     } else {
-      mascotController?.showTrigger(response.reminder, { totalWatchTimeToday, continueCountToday, breaksTakenToday });
+      mascotController?.showTrigger(reminder, { totalWatchTimeToday, continueCountToday, breaksTakenToday });
     }
   }
 
