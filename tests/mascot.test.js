@@ -313,15 +313,29 @@ await test('Unknown mascot IDs fall back to Finn and all registered PNG assets l
   }));
 });
 
-await test('Every Finn sprite shares one canvas size so frames do not rescale while walking', async () => {
+await test('Every Finn sprite shares one canvas size and feet baseline so frames do not jump while walking', async () => {
+  const OPAQUE_ALPHA = 128;
   const { idle, back, walkFrames } = MASCOTS.finn;
-  const sizes = await Promise.all([idle, back, ...walkFrames].map(async path => {
+  const frames = await Promise.all([idle, back, ...walkFrames].map(async path => {
     const image = new Image();
     image.src = runtime.getURL(path);
     await image.decode();
-    return `${image.naturalWidth}x${image.naturalHeight}`;
+    const canvas = document.createElement('canvas');
+    canvas.width = image.naturalWidth;
+    canvas.height = image.naturalHeight;
+    const context = canvas.getContext('2d');
+    context.drawImage(image, 0, 0);
+    const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
+    let feet = -1;
+    for (let index = 3; index < data.length; index += 4) {
+      if (data[index] > OPAQUE_ALPHA) feet = Math.floor(index / 4 / canvas.width);
+    }
+    return { size: `${canvas.width}x${canvas.height}`, feet };
   }));
+  const sizes = frames.map(frame => frame.size);
+  const feet = frames.map(frame => frame.feet);
   assert(new Set(sizes).size === 1, `Sprite sizes differ: ${sizes.join(', ')}`);
+  assert(new Set(feet).size === 1, `Opaque feet rows differ: ${feet.join(', ')}`);
 });
 
 async function withReminderFixture(parameters, run) {
