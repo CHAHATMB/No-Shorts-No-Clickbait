@@ -10,44 +10,32 @@ const getExtensionURL = (path) => {
   }
 };
 
-const WALK_FRAME_INTERVAL_MS = 120;
+const WALK_FRAME_INTERVAL_MS = 60;
 
 /**
  * Mascot Registry
  */
 export const MASCOTS = {
-  finn: {
-    id: 'finn',
-    name: 'Finn',
-    idle: 'mascots/finn/front.png',
+  scout: {
+    id: 'scout',
+    name: 'Scout',
+    idle: 'mascots/scout/front.png',
     walkFrames: [
-      'mascots/finn/right1.png',
-      'mascots/finn/right2.png',
-      'mascots/finn/right3.png',
-      'mascots/finn/right4.png',
+      'mascots/scout/right1.png',
+      'mascots/scout/right2.png',
+      'mascots/scout/right3.png',
+      'mascots/scout/right4.png',
+      'mascots/scout/right5.png',
+      'mascots/scout/right6.png',
+      'mascots/scout/right7.png',
+      'mascots/scout/right8.png',
     ],
-    back: 'mascots/finn/back.png',
-    walkFrameInterval: WALK_FRAME_INTERVAL_MS,
-  },
-  bmo: {
-    id: 'bmo',
-    name: 'BMO',
-    idle: 'mascots/shime2.png',
-    walkFrames: ['mascots/shime2.png'],
-    back: 'mascots/shime2.png',
-    walkFrameInterval: WALK_FRAME_INTERVAL_MS,
-  },
-  jake: {
-    id: 'jake',
-    name: 'Jake',
-    idle: 'mascots/shime3.png',
-    walkFrames: ['mascots/shime3.png'],
-    back: 'mascots/shime3.png',
+    back: 'mascots/scout/back.png',
     walkFrameInterval: WALK_FRAME_INTERVAL_MS,
   },
 };
 
-export const DEFAULT_MASCOT_ID = 'finn';
+export const DEFAULT_MASCOT_ID = 'scout';
 
 // Holding the Image objects keeps decoded frames alive, preventing blank flashes when switching frames
 const preloadedImages = new Map();
@@ -164,8 +152,9 @@ export class MascotAnimator {
  * Fallback backward compatibility for legacy SVG callers.
  */
 export function getCharacterSVG() {
-  const url = getExtensionURL(MASCOTS.finn.idle);
-  return `<img class="fg-mascot-img" src="${url}" alt="Finn" draggable="false" />`;
+  const mascot = MASCOTS[DEFAULT_MASCOT_ID];
+  const url = getExtensionURL(mascot.idle);
+  return `<img class="fg-mascot-img" src="${url}" alt="${mascot.name}" draggable="false" />`;
 }
 
 export const MASCOT_POSES = [

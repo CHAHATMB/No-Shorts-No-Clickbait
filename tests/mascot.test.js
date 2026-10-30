@@ -11,7 +11,7 @@ const runtime = {
   getURL(path) {
     const source = path === 'mascot-styles.css'
       ? 'src/modules/mascot/mascot-styles.css'
-      : path.replace('mascots/finn/', 'mascots/walk_animation_asset/');
+      : path;
     return new URL(`../${source}`, import.meta.url).href;
   },
 };
@@ -175,7 +175,7 @@ await test('PNG frames cycle, mirror on entrance, and stop at the idle frame', (
   }
   assert(image.src.endsWith('right1.png'), 'Entrance must start with the first walk frame');
   assert(image.classList.contains('fg-mascot-facing-left'), 'Entrance must face left');
-  clock.tick(MASCOTS.finn.walkFrameInterval);
+  clock.tick(MASCOTS.scout.walkFrameInterval);
   assert(image.src.endsWith('right2.png'), 'Walk frames must advance');
   finishEntrance(controller, clock);
   assert(image.src.endsWith('front.png'), 'Arrival must use the front-facing sprite');
@@ -193,7 +193,7 @@ await test('Walking exit cycles frames facing right', (controller, clock) => {
   }
   const image = controller.characterEl.querySelector('img');
   const firstFrame = image.src;
-  clock.tick(MASCOTS.finn.walkFrameInterval);
+  clock.tick(MASCOTS.scout.walkFrameInterval);
   assert(image.src !== firstFrame, 'Exit must animate actual walking frames, not a static back image');
   assert(!image.classList.contains('fg-mascot-facing-left'), 'Exit must face right');
 });
@@ -297,9 +297,9 @@ await test('Reduced motion disables sprite cycling and shows the bubble immediat
   }
 });
 
-await test('Unknown mascot IDs fall back to Finn and all registered PNG assets load', async () => {
+await test('Unknown mascot IDs fall back to Scout and all registered PNG assets load', async () => {
   const fallback = createCharacterElement('missing');
-  assert(fallback.alt === 'Finn', 'Unknown mascot must use the default character');
+  assert(fallback.alt === 'Scout', 'Unknown mascot must use the default character');
   const animator = new MascotAnimator(fallback, 'missing');
   animator.setIdle();
   animator.setExit();
@@ -313,9 +313,9 @@ await test('Unknown mascot IDs fall back to Finn and all registered PNG assets l
   }));
 });
 
-await test('Every Finn sprite shares one canvas size and feet baseline so frames do not jump while walking', async () => {
+await test('Every Scout sprite shares one canvas size and feet baseline so frames do not jump while walking', async () => {
   const OPAQUE_ALPHA = 128;
-  const { idle, back, walkFrames } = MASCOTS.finn;
+  const { idle, back, walkFrames } = MASCOTS.scout;
   const frames = await Promise.all([idle, back, ...walkFrames].map(async path => {
     const image = new Image();
     image.src = runtime.getURL(path);

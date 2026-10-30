@@ -69,9 +69,6 @@ html[dark] #fg-mascot-container {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  image-rendering: pixelated;
-  image-rendering: -moz-crisp-edges;
-  image-rendering: crisp-edges;
   user-select: none;
   -webkit-user-drag: none;
   pointer-events: all;
