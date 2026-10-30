@@ -83,3 +83,6 @@ Results: `npm test` 66/66. `npm run build` OK. `npm run lint` 0 errors.
 |------|---------|
 | 2a49c41 | fix: target the main player's video so hover previews cannot bypass the block (also contains the review 9 mascot dismiss and its test-context change) |
 | 6d584a0 | fix: keep snoozed stop triggers from swallowing other reminders, and dismiss the mascot when a block shows (watch-reminders.js only) |
+
+Orchestrator-approved edit to `mascot-controller.js` (69af02c): `_pauseVideo`/`_resumeVideo` now use `findPlayerVideo()`. It adds one import plus the two query lines and nothing else. `npm test` 66/66, build OK.
+`tests/mascot.html`: 26/27. "Watch timer shows one walking mascot instead of the legacy reminder" fails at `mascot.test.js:375`: after Continue Watching, it plays 15 more minutes and expects a second mascot reminder. That is now correctly a BREAK block, per escalation decision 2. The cause is d44fe73, not this edit. The test file belongs to feature 01 and is outside this feature's ownership, so it's left for the orchestrator: the test should expect the block, or acknowledge first (pause ≥ `ACKNOWLEDGE_PAUSE_MS`).
