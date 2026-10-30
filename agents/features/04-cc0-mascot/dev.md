@@ -34,10 +34,18 @@ So the replacement needs front idle, back, and a right-facing walk cycle from on
 | e0940ae | doc: start feature 04 and inventory current mascot frames |
 | 4e6df82 | feat: add CC0 Kenney adventurer mascot frames aligned on a shared canvas |
 | 4563a47 | chore: name adventurer frames front/back/right1-8 to match the mascot frame convention |
+| b2ec13b | feat: replace Finn with the CC0 Scout mascot and its 8-frame walk cycle (also deletes Finn/BMO/Jake art, `all_animation.png`, `split_image.py`: they were already staged by `git rm`) |
+| 038d94b | feat: name the mascot Scout in the popup settings |
 
 ## Tests added
+- No new tests. Approved edits to `tests/mascot.test.js` point the existing frame-advance, fallback and sprite size/feet-baseline tests at `MASCOTS.scout`. The test and `tests/reminder-fixture.js` drop the `mascots/finn/` path mapping because the source folder now matches the shipped path.
+- `npm test` 66/66. `npm run build:chrome` OK; `dist/chrome/mascots/` holds only `scout/`, and grep finds no finn/shime/bmo/jake in `dist/chrome`.
+- `tests/mascot.html` 27/27 at 1280x900 (port 8797). The two console 404s (`favicon.ico`, `video-blocker/break.svg`) are unrelated to the mascot.
+- Screenshots (real `MascotAnimator` + `mascot-styles.css`, light and dark backgrounds): `screenshots/01-idle-front.png`, `02-walk-right.png`, `03-walk-left-mirrored.png`, `04-exit-back.png`.
 
 ## Round 2+ (responses to review)
 
 ## Open questions
-- Waiting on orchestrator approval for the `tests/mascot.test.js` changes and the `src/popup.html` text (see handback).
+- Orchestrator approved the test, `reminder-fixture.js` and `src/popup.html` edits, plus removing BMO/Jake. "Scout" stays for now; the user may rename it.
+- `getCharacterSVG()` has no callers (pre-existing dead code). I only removed its Finn name.
+- Users with a saved `settings.mascotId` of `finn`/`bmo`/`jake` fall back to Scout via the existing `MASCOTS[id] || MASCOTS[DEFAULT_MASCOT_ID]` lookup.
