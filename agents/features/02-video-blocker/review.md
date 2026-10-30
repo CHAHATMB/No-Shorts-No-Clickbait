@@ -32,3 +32,26 @@ The escalation tests are meaningful. They cover the ignored, acknowledged and sh
 - Snooze across the trigger cooldown (finding 1). The fake `now` passed to `selectReminder` doesn't reach `TriggerManager.isInCooldown`, which reads `Date.now()`, so the current tests can't see the bug. Use `context.mock.timers` for `Date`.
 - The snooze guard (finding 4) has no test.
 - No UI tests for `VideoBlocker`, per the README.
+
+## Round 2
+**Commits reviewed:** 3ad05ff, 4c00445, 7792b3f
+**Verdict:** APPROVED
+
+Verified independently: `npm test` 65/65 and `npm run build` compile chrome + firefox. Orchestrator decisions taken as given: blocks show in fullscreen, "Got it" counts as ignored, and the stop trigger is kept.
+
+### Round 1 findings
+| # | Status | Notes |
+|---|---|---|
+| 1 | fixed | When `stopAllowedUntil` is already finite, a re-fired STOP_WATCHING trigger no longer resets it, and `selectBlock` owns the block. The new test drives `TriggerManager` through mocked `Date`. My round-1 repro now gives no block for the full snooze. |
+| 2 | fixed, with one skip | `reminderPending` moves the grace baseline forward while content holds the reminder. Fullscreen sends `false`, so a held reminder escalates there, which matches decision 3. **The tab A → tab B skip is acceptable.** A reminder is held only if the page stops being ready between the tick and its response, or in fullscreen. Hidden tabs don't tick, and switching tabs exits fullscreen. So the window is small, and the cost is one block without the mascot first, not a lost or repeated block. A "shown" acknowledgement round trip is not worth it. |
+| 3 | fixed / limitations accepted | Fullscreen goes through `blockReady` → `selectBlock`, and the overlay sits inside `#movie_player`. Navigation now removes the block and shows it again on `yt-navigate-finish`. Listeners are still cleaned up, and the `once` listener can't stack, because the start listener is removed in `remove()`. Keeping the reload gap (≤5 s) and the miniplayer gap is reasonable. |
+| 4 | fixed | `snoozeStopWatching` is a no-op unless the user is blocked now, including when no limit is set (`undefined` → no-op). Tested. |
+| 5 | fixed | Both timelines now assert the block explicitly. Nothing is filtered. |
+| 6 | skipped, sound | The native-ESM fixture can't import `.svg`. The WAR entry exposes only four static SVGs. |
+
+### New findings
+| # | Severity | File:line | Issue | Suggested fix |
+|---|---|---|---|---|
+| 7 | minor | src/modules/video-blocker/video-blocker.js:30-34, :47 | The block is shown again on `yt-navigate-finish` against `document.querySelector('video')`. After navigation to home or search, that may be the miniplayer or hidden main player, as intended. It may also be the thumbnail hover-preview video, depending on DOM order. | Verify should check this on real YouTube. If it lands on the preview, scope the query to `#movie_player video`. |
+| 8 | minor | src/modules/watch-reminders.js:114-117 | During a snooze, the stop trigger still fires every 15 min of wall time. It has priority 100, so that tick returns no reminder. A HYDRATION interval crossing on the same tick is lost, because the trigger state is saved with `lastEvaluatedWatchTime` advanced. This is rare, since it needs the same 5 s tick. | Acceptable. Optionally disable STOP_WATCHING in the `TriggerManager` once `stopAllowedUntil` is set, so lower-priority triggers can still win. |
+| 9 | minor | src/content.js:271 | While the mascot shows the reminder, `blockReady` is true. So if the user keeps playing with the mascot up for 45 s, the block appears while the mascot is still on screen. That's consistent with "ignored", but two overlays show at once. | Verify should screenshot it. No code change unless the orchestrator objects. |
