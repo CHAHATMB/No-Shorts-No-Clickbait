@@ -17,7 +17,7 @@
 - No downloaded art. The existing frames work once they're aligned. Swapping Finn for a CC0 character would be a product decision.
 - Grand lost its spring-settle. The controller keeps the legs cycling until the container's `animationend`, so any settle played with walking legs.
 - Durations: grand in/out 1.6s (stride-matched). Walk in 1.4s / out 1.1s, because the controller fallbacks (`mascot-controller.js`: walk 1500ms in / 1200ms out) would cut a longer animation. Walk therefore skates slightly (about 1.15x / 1.45x stride). Matching it needs those fallbacks raised to about 1.8s, but that file isn't in my ownership and has concurrent feature-03 edits.
-- Known art limit: right1's body sits about 7px higher than the other walk frames (same scale; eye spacing matches), which gives a small hop once per cycle.
+- Known art limit (superseded in Round 3): right1's body sits about 7px higher than the other walk frames (same scale; eye spacing matches), which gives a small hop once per cycle.
 - Narrow viewport: travel and sprite size both shrink by about 0.7x, so cadence stays matched.
 
 ## Commits
@@ -26,6 +26,7 @@
 | e9df507 | fix: align Finn sprite frames on a shared bottom-anchored canvas |
 | 46be793 | fix: walk the mascot at a constant, cadence-matched pace |
 | 5b1340d | fix: give the walk entrance the stride-matched pace with safe fallback headroom |
+| ebbd033 | fix: align Finn frames on opaque feet and face walk frames right |
 
 ## Tests added
 - `tests/mascot.test.js`: every Finn sprite must share one natural size (regression guard for the root cause). Frame-advance tests now tick `MASCOTS.finn.walkFrameInterval` instead of a hard-coded 140.
@@ -38,6 +39,12 @@
 - Findings 1+2 (5b1340d): `walk` in/out is now 1.6s, the same as grand, so it's stride-matched with no skating. The walk entrance/exit fallbacks go from 1500/1200ms to 2000ms (400ms headroom). The CSS comment is trimmed to the linear-speed caveat.
 - Finding 3 (5b1340d): the controller pose comment no longer refers to the removed walk-cycle CSS.
 - Finding 4: left as is (acceptable per review).
+- Re-ran: `npm run build` OK, `npm test` 52/52, `tests/mascot.html` 27/27 at desktop, 420px and reduced motion.
+
+## Round 3 (verify failures)
+- Baseline hop (ebbd033): round 1 aligned on alpha >= 1, and right1's faint halo reached the bottom while its opaque feet ended 8px higher. All frames are re-padded from the originals with the opaque (alpha > 128) feet on row 168 of a 136x179 canvas. Head tops now line up too (rows 11-12), so the earlier "body sits higher" note was wrong. The copy is still lossless (verified).
+- Backwards walk (ebbd033): the `right*.png` frames were drawn facing left. They're mirrored in the PNGs so their names and the existing flip logic (`fg-mascot-facing-left` when moving left) are correct. No code change.
+- Test: the sprite test now also asserts that every Finn frame has the same lowest opaque (alpha > 128) row. Against the round-1 assets it would fail (167 vs 175).
 - Re-ran: `npm run build` OK, `npm test` 52/52, `tests/mascot.html` 27/27 at desktop, 420px and reduced motion.
 
 ## Open questions
