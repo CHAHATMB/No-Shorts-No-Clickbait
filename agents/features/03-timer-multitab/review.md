@@ -49,3 +49,8 @@ Root-cause analysis is accurate. The design holds up: the background is the only
 
 ### Tests
 The new tests are meaningful. They cover the `reminderReady: false` deferral (round 1 gap a), the tick/bonus overlap (gap b), and the content loop for paused, ended, hidden, non-`/watch` and no-video pages (gap c). The content test runs the real `initializeTimeTracking` source, not a copy. There are no unnecessary tests, and no over-engineering in the fixes.
+
+### Cleanup re-check
+- 930b711: `isPersistentActive` and `setPersistentActive` no longer appear anywhere in src/ or tests/. The only `evaluate` caller is `src/modules/watch-reminders.js:116`, which builds a fresh `TriggerManager` each tick and never set the flag, so the removed early return in `evaluate` never fired. The controller's manager is not evaluated anywhere. The `getDebugState` field had no readers. No behaviour change.
+- 641f43d: this changes the fixture only. Webpack copies `src/modules/video-blocker/art` to `video-blocker/` (webpack.config.js:42), so the source `getURL('video-blocker/<name>.svg')` stays correct, and the fixture now maps that URL back to the source path.
+- `npm test`: 66/66 pass. Round 1 finding #6 is resolved.
