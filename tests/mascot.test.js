@@ -370,12 +370,27 @@ await test('Watch timer shows one walking mascot instead of the legacy reminder'
     await settle();
     assert(!fixture.videoPaused, 'Continue Watching must resume playback');
     assert(fixture.sentMessages.filter(message => message.action === 'continueReminder').length === 1, 'Continue must update stats once');
+    fixture.videoPaused = true;
+    fixture.advanceWatch(30 * 1000);
+    fixture.videoPaused = false;
     fixture.advanceWatch(15 * 60 * 1000);
     await settle();
+    assert(!document.getElementById('fg-video-blocker'), 'Pausing after a reminder acknowledges it, so no block follows');
     document.querySelector('[data-action="break"]').click();
     await settle();
     assert(fixture.videoPaused, 'Taking a break must leave playback paused');
     assert(fixture.sentMessages.filter(message => message.action === 'takeBreak').length === 1, 'Subsequent reminders must still update stats');
+    // The fixture does not close the tab, so the user can play on and ignore this reminder.
+    fixture.videoPaused = false;
+    fixture.advanceWatch(15 * 60 * 1000);
+    await settle();
+    const block = document.getElementById('fg-video-blocker');
+    assert(block?.dataset.category === 'BREAK', `Watching on after the reminder must escalate to the break block, got ${block?.dataset.category}`);
+    assert(fixture.videoPaused, 'The block must pause the video');
+    assert(!document.getElementById('fg-mascot-container'), 'The block must not show alongside the mascot');
+    fixture.videoPaused = false;
+    fixture.document.querySelector('video').dispatchEvent(new fixture.Event('play'));
+    assert(fixture.videoPaused, 'A play attempt under the block must be paused again');
   });
 });
 
