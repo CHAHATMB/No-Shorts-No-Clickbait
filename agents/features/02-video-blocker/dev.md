@@ -86,3 +86,8 @@ Results: `npm test` 66/66. `npm run build` OK. `npm run lint` 0 errors.
 
 Orchestrator-approved edit to `mascot-controller.js` (69af02c): `_pauseVideo`/`_resumeVideo` now use `findPlayerVideo()`. It adds one import plus the two query lines and nothing else. `npm test` 66/66, build OK.
 `tests/mascot.html`: 26/27. "Watch timer shows one walking mascot instead of the legacy reminder" fails at `mascot.test.js:375`: after Continue Watching, it plays 15 more minutes and expects a second mascot reminder. That is now correctly a BREAK block, per escalation decision 2. The cause is d44fe73, not this edit. The test file belongs to feature 01 and is outside this feature's ownership, so it's left for the orchestrator: the test should expect the block, or acknowledge first (pause ≥ `ACKNOWLEDGE_PAUSE_MS`).
+
+`tests/mascot.html` failure, orchestrator-approved fix (4111f6b): this was intended escalation, not a bug. The test clicked Continue Watching and then played 15 more minutes without pausing. That is "ignored" (decision 2), so a BREAK block correctly took the place of the second mascot reminder. The one test (the count stays at 27) now covers both paths:
+- a 30 s pause after Continue acknowledges the reminder, so the next mascot reminder appears with no block, and Take a Break still records stats;
+- playing on after that reminder gives a `BREAK` block: the video is paused, the mascot is gone, and a play attempt is paused again.
+Results, per the updated workflow (desktop only, no narrow, reduced-motion or lint runs): mascot.html 27/27 at 1280×800, `npm test` 66/66. The fixture's `getURL` maps `video-blocker/*.svg` to a missing path, so the art logs a 404 warning there; the block itself is unaffected.
