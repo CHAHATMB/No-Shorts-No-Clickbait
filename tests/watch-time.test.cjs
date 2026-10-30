@@ -218,6 +218,15 @@ test('Blocks are selected for a page that cannot show the mascot, and mascot rem
   assert.equal(selectBlock(limited, 60 * MINUTE_MS, stopSettings, 0).reminder?.behavior, 'block');
 });
 
+test('Stop watching: during a snooze, a re-fired stop trigger does not swallow another reminder', async () => {
+  const { continueWatchSession, selectReminder } = await reminders;
+  const settings = { timeReminderEnabled: false, mascotCategories: { HYDRATION: true, EYE_STRAIN: false, STOP_WATCHING: true, LATE_NIGHT: false } };
+  const snoozed = { ...continueWatchSession(undefined, 'today'), stopAllowedUntil: 95 * MINUTE_MS, triggers: { cooldowns: {}, lastEvaluatedWatchTime: 90 * MINUTE_MS - TICK_MS } };
+  const result = selectReminder(snoozed, { totalWatchTimeToday: 90 * MINUTE_MS, continueCountToday: 2, breaksTakenToday: 0 }, settings);
+  assert.equal(result.reminder?.category, 'HYDRATION', `The stop trigger (cooldown over) must not win during a snooze: ${JSON.stringify(result)}`);
+  assert.equal(result.session.stopAllowedUntil, 95 * MINUTE_MS);
+});
+
 test('Stop watching: disabling the stop category lifts the block', async () => {
   const watch = startWatch(60 * MINUTE_MS - TICK_MS);
   await playFor(watch, TICK_MS, { settings: stopSettings, continueCountToday: 2 });
@@ -357,7 +366,7 @@ function contentTrackingLoop({ video, hidden = false, path = '/watch' }) {
   let now = Date.parse("2026-10-30T12:00:00");
   vm.runInNewContext(`${source.slice(start, source.indexOf('\n  function isReminderReady', start))}\ninitializeTimeTracking();`, {
     WATCH_TICK_MS: 5000, lastDeductionTime: null, pendingReminder: null,
-    isReminderReady: () => true, handleWatchTick() {}, console, videoBlocker: { active: false },
+    isReminderReady: () => true, handleWatchTick() {}, console, videoBlocker: { active: false }, findPlayerVideo: () => video,
     Date: { now: () => now },
     setInterval: callback => { tickLoop = callback; },
     document: { hidden, querySelector: () => video },

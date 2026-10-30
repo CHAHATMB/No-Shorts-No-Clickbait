@@ -8,6 +8,7 @@ const COUNTDOWN_SECONDS = 20;
 const SECOND_MS = 1000;
 const NAVIGATE_START_EVENT = 'yt-navigate-start';
 const NAVIGATE_FINISH_EVENT = 'yt-navigate-finish';
+const PLAYER_VIDEO_SELECTOR = '#movie_player video';
 
 const BLOCK_TYPES = {
   [MESSAGE_CATEGORIES.HYDRATION]: { art: 'water', message: 'Time for a glass of water.' },
@@ -15,6 +16,11 @@ const BLOCK_TYPES = {
   [MESSAGE_CATEGORIES.BREAK]: { art: 'break', message: 'Step away from the screen for a moment.' },
   [MESSAGE_CATEGORIES.STOP_WATCHING]: { art: 'stop', message: 'You have reached today’s watch limit.', snooze: 'Watch 5 more min' },
 };
+
+// Thumbnail hover previews are also <video> elements and can come first in the DOM.
+export function findPlayerVideo() {
+  return document.querySelector(PLAYER_VIDEO_SELECTOR) || document.querySelector('video');
+}
 
 export class VideoBlocker {
   /**
@@ -44,7 +50,7 @@ export class VideoBlocker {
    */
   show(category) {
     const type = BLOCK_TYPES[category];
-    const video = document.querySelector('video');
+    const video = findPlayerVideo();
     if (!type || this.overlay || !video) return false;
 
     this.video = video;

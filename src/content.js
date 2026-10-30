@@ -5,7 +5,7 @@ import { MascotController } from './modules/mascot/mascot-controller.js';
 import { MESSAGE_CATEGORIES } from './modules/mascot/mascot-messages.js';
 import { TEST_PROTOCOL_VERSION } from './modules/test-lab-client.js';
 import { BLOCK_BEHAVIOR } from './modules/watch-reminders.js';
-import { VideoBlocker } from './modules/video-blocker/video-blocker.js';
+import { findPlayerVideo, VideoBlocker } from './modules/video-blocker/video-blocker.js';
 
 (function () {
   "use strict";
@@ -255,7 +255,7 @@ import { VideoBlocker } from './modules/video-blocker/video-blocker.js';
 
   function initializeTimeTracking() {
     setInterval(() => {
-      const video = document.querySelector("video");
+      const video = findPlayerVideo();
       const isActuallyWatching = video && !video.paused && !video.ended && video.readyState > 2;
 
       if (isActuallyWatching && !document.hidden && window.location.pathname.includes("/watch")) {
@@ -291,7 +291,10 @@ import { VideoBlocker } from './modules/video-blocker/video-blocker.js';
     if (!response?.counted) return;
     totalWatchTimeToday = response.totalWatchTimeToday;
     if (response.reminder?.behavior === BLOCK_BEHAVIOR) {
-      if (videoBlocker.show(response.reminder.category) && pendingReminder?.category === response.reminder.category) pendingReminder = null;
+      if (videoBlocker.show(response.reminder.category)) {
+        if (pendingReminder?.category === response.reminder.category) pendingReminder = null;
+        mascotController?.dismiss('close');
+      }
       return;
     }
     // The background has already recorded this reminder as delivered, so hold it until the page can show it.
@@ -321,7 +324,7 @@ import { VideoBlocker } from './modules/video-blocker/video-blocker.js';
     }
 
     // Pause the video
-    const video = document.querySelector("video");
+    const video = findPlayerVideo();
     if (video && !preview) video.pause();
 
     const minutesWatched = Math.round(totalWatchTimeToday / (60 * 1000));
