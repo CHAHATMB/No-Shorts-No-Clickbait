@@ -4,10 +4,10 @@
 const TIME_TRACKER_ALARM = 'universalTimeTracker';
 const TRACKER_INTERVAL_SECONDS = 30; // heartbeat every 30s
 const DATA_RETENTION_DAYS = 30;
+const MAX_FLUSH_SECONDS = 3600; // longer gaps indicate idle/sleep
+const TRACKING_STATE_KEY = 'siteTimeTracking';
 
-let activeTabId = null;
-let activeTabDomain = null;
-let activeTabStartTime = null;
+let trackerQueue = Promise.resolve();
 
 /**
  * Extract clean domain from URL
@@ -149,34 +149,15 @@ export function formatTime(seconds) {
  * Call this from background.js
  */
 export function initUniversalTracker() {
-  // Track when active tab changes
-  browser.tabs.onActivated.addListener(async (activeInfo) => {
-    await flushCurrentTabTime();
-    try {
-      const tab = await browser.tabs.get(activeInfo.tabId);
-      setActiveTab(activeInfo.tabId, tab.url);
-    } catch (e) {
-      // Tab may have been closed
-    }
+  browser.tabs.onActivated.addListener(queueTrackingSync);
+  browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    if (changeInfo.url && tab.active) queueTrackingSync();
   });
-
-  // Track when URL changes in the active tab
-  browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-    if (tabId === activeTabId && changeInfo.url) {
-      await flushCurrentTabTime();
-      setActiveTab(tabId, changeInfo.url);
-    }
-  });
+  browser.windows.onFocusChanged.addListener(queueTrackingSync);
 
   // Heartbeat alarm: commit accumulated time every TRACKER_INTERVAL_SECONDS
-  browser.alarms.onAlarm.addListener(async (alarm) => {
-    if (alarm.name === TIME_TRACKER_ALARM) {
-      await flushCurrentTabTime();
-      // Reset start time to continue tracking
-      if (activeTabDomain) {
-        activeTabStartTime = Date.now();
-      }
-    }
+  browser.alarms.onAlarm.addListener((alarm) => {
+    if (alarm.name === TIME_TRACKER_ALARM) queueTrackingSync();
   });
 
   // Create alarm if not exists
@@ -188,28 +169,27 @@ export function initUniversalTracker() {
     }
   });
 
-  // Initialize with the currently active tab
-  browser.tabs.query({ active: true, currentWindow: true }).then(tabs => {
-    if (tabs[0]) {
-      setActiveTab(tabs[0].id, tabs[0].url);
-    }
-  });
-
+  queueTrackingSync();
   console.log('[TimeTracker] Universal tracker initialized');
 }
 
-function setActiveTab(tabId, url) {
-  const domain = extractDomain(url);
-  activeTabId = tabId;
-  activeTabDomain = domain;
-  activeTabStartTime = domain ? Date.now() : null;
+function queueTrackingSync() {
+  trackerQueue = trackerQueue.then(syncTracking).catch(error => console.error('[TimeTracker] Sync failed:', error));
+  return trackerQueue;
 }
 
-async function flushCurrentTabTime() {
-  if (!activeTabDomain || !activeTabStartTime) return;
-  const elapsed = Math.round((Date.now() - activeTabStartTime) / 1000);
-  if (elapsed > 0 && elapsed < 3600) { // Sanity check: ignore >1hr chunks (indicates idle/sleep)
-    await addTimeForDomain(activeTabDomain, elapsed);
+// Tracking state lives in storage because the MV3 service worker can restart between events.
+async function syncTracking() {
+  const focusedWindow = await browser.windows.getLastFocused({ populate: true });
+  const activeTab = focusedWindow.focused ? focusedWindow.tabs?.find(tab => tab.active) : null;
+  const domain = extractDomain(activeTab?.url);
+  const now = Date.now();
+  const { [TRACKING_STATE_KEY]: tracking } = await browser.storage.local.get(TRACKING_STATE_KEY);
+  await browser.storage.local.set({ [TRACKING_STATE_KEY]: domain ? { domain, startTime: now } : null });
+  if (tracking) {
+    const elapsed = Math.round((now - tracking.startTime) / 1000);
+    if (elapsed > 0 && elapsed < MAX_FLUSH_SECONDS) {
+      await addTimeForDomain(tracking.domain, elapsed);
+    }
   }
-  activeTabStartTime = null;
 }
