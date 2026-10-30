@@ -49,3 +49,21 @@ Fixture harness, applied at runtime only (no files in `tests/` changed):
 - Reduced motion with the OS setting (the fixture mocks `matchMedia` to always match).
 - After a reload with the stop limit reached, the block returns within one tick (≤5 s), which is an accepted limitation.
 - Mascot and block shown together (finding 9): check how it looks on a real narrow player.
+
+## Re-verify (round 3)
+**Verdict:** VERIFIED (affected scenarios only)
+
+Run in a worktree at 20e21b3 (node_modules symlinked), served on port 8798, in a fresh Playwright context at 1280×800. No files in `src/` or `tests/` changed.
+- `npm test`: 66/66 PASS. `npm run build:chrome`: compiles.
+- Fixture harness, applied at runtime the same way as round 1: the CSS is injected, the main `<video>` is wrapped in a 640×360 `#movie_player`, a real hover-preview `<video>` is inserted **before** `#movie_player` in DOM order, and `getURL('video-blocker/*')` is mapped to `src/.../art/`. `runtime.sendMessage` is replaced by a stand-in that follows `background.js` `recordWatchTick`: `deferEscalation` / `selectReminder` / `selectBlock` on `reminderReady` / `blockReady` / `reminderPending`. The stand-in is needed because the stock fixture ignores `blockReady`.
+
+| Scenario | Result | Screenshot |
+|----------|--------|------------|
+| Preview first: the mascot at 15 min pauses the main video (`_pauseVideo` → `#movie_player video`) | PASS | — |
+| Preview first, mascot left up while playing (finding 9): no block at 40 s; BREAK block at 45 s inside `#movie_player`; mascot container gone; main video paused; `play` on the main video re-paused | PASS | 13 |
+| Preview first, SPA navigation: `yt-navigate-start` removes the block; `yt-navigate-finish` re-shows it in `#movie_player`; the main `play` is re-paused; the countdown restarts at 20 s | PASS (round 1 FAIL fixed) | 14 |
+| Blocker flow, preview first: "Continue Watching" (1 `continueReminder`, main video plays) → no block at 40 s → BREAK block at 45 s → "Resume in 1s" at ~19 s → Resume shown and focused at ~21 s → click resumes → no block over the next 60 s | PASS | 15 |
+| `tests/mascot.html` at 1280×800 | PASS 27/27, including "Watch timer shows one walking mascot…" (the escalation assertion) | 16 |
+
+The only console noise is the known fixture 404 for `video-blocker/break.svg` in `mascot.html` (dev.md). It does not affect the block.
+The live-YouTube manual checks listed above are still open.

@@ -55,3 +55,16 @@ Verified independently: `npm test` 65/65 and `npm run build` compile chrome + fi
 | 7 | minor | src/modules/video-blocker/video-blocker.js:30-34, :47 | The block is shown again on `yt-navigate-finish` against `document.querySelector('video')`. After navigation to home or search, that may be the miniplayer or hidden main player, as intended. It may also be the thumbnail hover-preview video, depending on DOM order. | Verify should check this on real YouTube. If it lands on the preview, scope the query to `#movie_player video`. |
 | 8 | minor | src/modules/watch-reminders.js:114-117 | During a snooze, the stop trigger still fires every 15 min of wall time. It has priority 100, so that tick returns no reminder. A HYDRATION interval crossing on the same tick is lost, because the trigger state is saved with `lastEvaluatedWatchTime` advanced. This is rare, since it needs the same 5 s tick. | Acceptable. Optionally disable STOP_WATCHING in the `TriggerManager` once `stopAllowedUntil` is set, so lower-priority triggers can still win. |
 | 9 | minor | src/content.js:271 | While the mascot shows the reminder, `blockReady` is true. So if the user keeps playing with the mascot up for 45 s, the block appears while the mascot is still on screen. That's consistent with "ignored", but two overlays show at once. | Verify should screenshot it. No code change unless the orchestrator objects. |
+
+## Round 3 (re-check)
+**Commits reviewed:** 2a49c41, 6d584a0, 69af02c, 4111f6b (6d584a0's message is wrong: it changes `watch-reminders.js` only; the mascot dismiss is in 2a49c41, as dev.md says)
+**Verdict:** APPROVED
+
+| # | Status | Notes |
+|---|---|---|
+| 7 | fixed | `findPlayerVideo()` (`#movie_player video`, falling back to `video`) is used by `VideoBlocker.show()`, the content tick loop, the text-panel pause and the mascot's `_pauseVideo`/`_resumeVideo` (69af02c, three lines). The only other generic queries left are `content.js:220` and `productivity-content.js:423`, which pause *all* videos, so they are fine. |
+| 8 | fixed | Once `stopAllowedUntil` is finite, STOP_WATCHING is disabled in that call's `TriggerManager`, so a lower-priority trigger can win the tick. `selectBlock` still owns the limit. The manager is rebuilt on each call, so this does not persist past a new day. Removing the now-unreachable guard is correct. The new test covers the same-tick HYDRATION case. |
+| 9 | fixed | After a block is shown, `mascotController?.dismiss('close')` runs. `'close'` doesn't call `onUserAction` stats, and `dismiss` is a no-op when offscreen. |
+| mascot test | sound | 4111f6b pauses for 30 s to acknowledge, then lets the second reminder be ignored and asserts the BREAK block, the paused video, no mascot, and a re-pause on play. That matches escalation decision 2. The count stays at 27. |
+
+No new findings. Note: the `findPlayerVideo` fallback can still pick a preview when `#movie_player` has no `<video>` (it shouldn't on `/watch`). Acceptable.
