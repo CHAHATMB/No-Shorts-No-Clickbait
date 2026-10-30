@@ -35,3 +35,16 @@ Findings 1-3 are resolved. `walk` is now 1.6s in and out, with 2000ms fallbacks 
 | # | Severity | File:line | Issue | Suggested fix |
 |---|---|---|---|---|
 | 5 | minor | mascot-controller.js:246,373 | The fallback ternaries now nest three deep, and the exit comment "longer for grand exit" doesn't mention walk. Not blocking. | Optional: a small `{grand: 3500, walk: 2000, pop: 500}` lookup with a default, if the file is touched again. |
+
+## Round 3
+**Commits reviewed:** ebbd033, 7fe721f
+**Verdict:** APPROVED
+
+Verified independently:
+- Lossless: front.png and back.png contain their originals pixel-for-pixel. Each walk frame is an exact horizontal mirror of its original. Every padded area is fully transparent. All six frames are 136x179.
+- Baseline: the last opaque (alpha > 128) row is 167 in all six frames, and the opaque bbox centres are within 2px (67-69). right1's faint halo now reaches the canvas bottom, which is expected.
+- Threshold: 128 is a sensible cut. It skips the antialiased halo that caused the 8px offset and keeps the solid outline. The test uses the same value.
+- Flip: the new walk PNGs face right (checked visually), matching their names. The entrance calls `startWalk('left')`, so `scaleX(-1)` makes him face his direction of travel, and the exit faces right.
+- Test: it now asserts the opaque feet row as well as the canvas size, so it would have caught the right1 hop. It's the right size. It can't check facing direction, which is acceptable for a pixel-art asset.
+
+No new findings. Finding 5 (nested ternaries) remains optional.
