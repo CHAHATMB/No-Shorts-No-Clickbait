@@ -54,3 +54,28 @@ The only console error is a `favicon.ico` 404 from the static server.
 - `06-walk-frames-baseline-red-line.png`: right1-4 at 3x with a red line at the right2/right4 feet row
 - `07-narrow-420-grand-walk-in-mid.png`
 - `08-reduced-motion-no-walk-instant-arrival.png`
+
+## Re-verify (round 3: ebbd033, 7fe721f)
+**Verdict:** VERIFIED. This re-verify covered only the two failures above.
+
+| Check | Result | Screenshot |
+|-------|--------|------------|
+| `npm run build:chrome` | PASS | |
+| `tests/mascot.html` 1280x900 | PASS 27/27 | |
+| Opaque-feet baseline, PNGs (alpha >= 128) | PASS. All six frames are 136x179, and the opaque bbox bottom is row 168 in every one | 13 |
+| Rendered baseline, paused walk-in/out, 8 frames each | PASS. The lowest outline row is y=240 in all 16 samples, except walk-in t=700ms (238), where the trailing foot is clipped by the viewport edge | 11, 12 |
+| Facing, entrance (moves left, `fg-mascot-facing-left`) | PASS. Faces left: eyes left, backpack right | 09, 11 |
+| Facing, exit (moves right, unflipped) | PASS. Faces right | 10, 12 |
+
+Linear motion was unchanged: 16.38px per 120ms frame.
+
+Screenshots:
+- `09-r3-grand-walk-in-mid-faces-left.png`
+- `10-r3-grand-walk-out-mid-faces-right.png`
+- `11-r3-grand-walk-in-filmstrip-8-frames.png`
+- `12-r3-grand-walk-out-filmstrip-8-frames.png`
+- `13-r3-walk-frames-baseline-red-line.png`
+
+Screenshots 01-08 show the pre-fix state.
+
+The "Needs manual check on live YouTube" items still apply, except that the hop and facing are now resolved in the fixture.
