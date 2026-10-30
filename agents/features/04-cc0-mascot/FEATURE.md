@@ -1,6 +1,6 @@
 # 04 — Replace Finn with a CC0 mascot
 
-**Status:** READY_FOR_DEV
+**Status:** IN_DEV
 
 ## Goal
 The current mascot (Finn, Adventure Time) is copyrighted — a store-publishing risk. Replace it with a similarly cute, friendly character that is **CC0** licensed.
