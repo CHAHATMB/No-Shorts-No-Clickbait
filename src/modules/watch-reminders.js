@@ -111,11 +111,11 @@ export function selectReminder(session, stats, settings, now = Date.now()) {
   for (const [category, enabled] of Object.entries(categories)) {
     triggerManager.setCategoryEnabled(category, enabled);
   }
+  // Once the limit is set, selectBlock owns it; a re-fired stop trigger would only shadow lower-priority reminders.
+  if (Number.isFinite(session.stopAllowedUntil)) triggerManager.setCategoryEnabled(MESSAGE_CATEGORIES.STOP_WATCHING, false);
   const trigger = triggerManager.evaluate({ ...stats, timerInterval, breakReminderManaged: true });
   const next = { ...session, triggers: triggerManager.exportState() };
   if (trigger?.category === MESSAGE_CATEGORIES.STOP_WATCHING) {
-    // The limit is already set and selectBlock found it snoozed; a re-fired trigger must not reset it.
-    if (Number.isFinite(session.stopAllowedUntil)) return { session: next, reminder: null };
     return { session: { ...next, stopAllowedUntil: totalWatchTimeToday }, reminder: blockReminder(trigger.category, session) };
   }
   if (ESCALATING_CATEGORIES.includes(trigger?.category)) next.escalation = escalate(trigger.category);
