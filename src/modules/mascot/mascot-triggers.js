@@ -51,9 +51,6 @@ export class TriggerManager {
 
     /** @type {number} Last total watch time we evaluated against */
     this.lastEvaluatedWatchTime = 0;
-
-    /** @type {boolean} Whether a persistent mascot is currently showing */
-    this.isPersistentActive = false;
   }
 
   /**
@@ -75,14 +72,6 @@ export class TriggerManager {
     } else {
       this.enabledCategories.delete(category);
     }
-  }
-
-  /**
-   * Mark that a persistent mascot is currently showing (blocks new triggers).
-   * @param {boolean} active
-   */
-  setPersistentActive(active) {
-    this.isPersistentActive = active;
   }
 
   /**
@@ -127,9 +116,6 @@ export class TriggerManager {
    * @returns {Object|null} Trigger result: { category, behavior, priority } or null
    */
   evaluate(context) {
-    // Don't fire new triggers if a persistent mascot is already showing
-    if (this.isPersistentActive) return null;
-
     const now = new Date();
     const currentHour = now.getHours();
     const sessionMs = this.getSessionDuration();
@@ -305,7 +291,6 @@ export class TriggerManager {
       enabledCategories: [...this.enabledCategories],
       cooldowns: cooldownState,
       sessionDurationMs: this.getSessionDuration(),
-      isPersistentActive: this.isPersistentActive,
       lastEvaluatedWatchTime: this.lastEvaluatedWatchTime,
     };
   }

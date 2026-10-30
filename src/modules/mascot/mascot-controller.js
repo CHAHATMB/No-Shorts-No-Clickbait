@@ -192,7 +192,6 @@ export class MascotController {
     if (options.preview) container.dataset.preview = 'true';
     this.previousFocus = document.activeElement;
     this.reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    this.triggerManager.setPersistentActive(behavior === 'persistent');
 
     // Pause video if requested
     if (!options.preview && (pauseVideo || behavior === 'persistent')) {
@@ -295,11 +294,6 @@ export class MascotController {
       displayDuration: trigger.behavior === 'persistent' ? 0 : 8000,
       pauseVideo: trigger.behavior === 'persistent',
     });
-
-    // Mark persistent active on trigger manager
-    if (trigger.behavior === 'persistent') {
-      this.triggerManager.setPersistentActive(true);
-    }
   }
 
   /**
@@ -352,7 +346,6 @@ export class MascotController {
         if (e && e.target !== container) return;
         this._cleanup();
         this.state = MascotState.OFFSCREEN;
-        this.triggerManager.setPersistentActive(false);
 
         // Fire callback
         if (this.onUserAction && container.dataset.preview !== 'true') {
@@ -394,7 +387,6 @@ export class MascotController {
         this.messageQueue = [];
         this._cleanup();
         this.state = MascotState.OFFSCREEN;
-        this.triggerManager.setPersistentActive(false);
       }
     }
 
@@ -672,6 +664,5 @@ export class MascotController {
     if (this.container?.dataset.preview !== 'true') return;
     this._cleanup();
     this.state = MascotState.OFFSCREEN;
-    this.triggerManager.setPersistentActive(false);
   }
 }
