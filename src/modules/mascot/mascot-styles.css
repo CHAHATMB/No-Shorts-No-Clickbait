@@ -6,6 +6,8 @@
   --fg-mascot-available-height: calc(100dvh - var(--fg-mascot-top) - 16px);
   --fg-mascot-character-width: 140px;
   --fg-mascot-character-height: 180px;
+  /* Clears the character plus its widest (dark theme) glow past the right edge */
+  --fg-mascot-walk-offset: calc(var(--fg-mascot-inset) + var(--fg-mascot-character-width) + 40px);
   --fg-mascot-surface: rgba(255, 255, 255, 0.98);
   --fg-mascot-text: #0f0f0f;
   --fg-mascot-muted: #606060;
@@ -74,7 +76,6 @@ html[dark] #fg-mascot-container {
   -webkit-user-drag: none;
   pointer-events: all;
   transform-origin: center bottom;
-  transition: transform 0.15s ease;
 }
 
 /* Mirrored sprite when walking towards left */
@@ -252,20 +253,17 @@ Entry Animations
 ========================================
 */
 
-/* GRAND entrance — walk-in from far right, travels into the viewport */
+/*
+Walks move linearly so the sprite's leg cadence matches ground speed. Grand
+walks at the stride-matched pace; walk is quicker to stay within the
+controller's fallback timers.
+*/
 .fg-mascot-enter-grand {
-  animation: fg-mascot-grand-enter 2.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
-.fg-mascot-enter-grand .fg-mascot-character {
-  animation: fg-mascot-grand-walk-cycle 2.5s ease-out forwards;
+  animation: fg-mascot-walk-in 1.6s linear forwards;
 }
 
-/* Fallback entrance animations */
 .fg-mascot-enter-walk {
-  animation: fg-mascot-slide-in-right 1.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
-.fg-mascot-enter-walk .fg-mascot-character {
-  animation: fg-mascot-bob-walk 1.2s ease-in-out forwards;
+  animation: fg-mascot-walk-in 1.4s linear forwards;
 }
 
 .fg-mascot-enter-slide {
@@ -292,19 +290,12 @@ Exit Animations
 ========================================
 */
 
-/* GRAND exit — walk back off-screen to the right */
 .fg-mascot-exit-grand {
-  animation: fg-mascot-grand-exit 1.8s cubic-bezier(0.55, 0, 1, 0.45) forwards;
-}
-.fg-mascot-exit-grand .fg-mascot-character {
-  animation: fg-mascot-grand-exit-cycle 1.8s ease-in forwards;
+  animation: fg-mascot-walk-out 1.6s linear forwards;
 }
 
 .fg-mascot-exit-walk {
-  animation: fg-mascot-slide-out-right 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
-.fg-mascot-exit-walk .fg-mascot-character {
-  animation: fg-mascot-bob-walk 0.9s ease-in-out forwards;
+  animation: fg-mascot-walk-out 1.1s linear forwards;
 }
 
 .fg-mascot-exit-slide {
@@ -331,38 +322,13 @@ Container Keyframes
 ========================================
 */
 
-/* Grand entrance: travel from off-screen deep into the viewport */
-@keyframes fg-mascot-grand-enter {
-  0% { 
-    right: -420px;
-  }
-  60% { 
-    right: var(--fg-mascot-inset);
-  }
-  75% {
-    right: calc(var(--fg-mascot-inset) + 12px);
-  }
-  88% {
-    right: calc(var(--fg-mascot-inset) - 5px);
-  }
-  100% { 
-    right: var(--fg-mascot-inset);
-  }
+@keyframes fg-mascot-walk-in {
+  from { transform: translateX(var(--fg-mascot-walk-offset)); }
+  to { transform: translateX(0); }
 }
-
-/* Grand exit: walk back off-screen to the right */
-@keyframes fg-mascot-grand-exit {
-  0% { 
-    right: var(--fg-mascot-inset);
-  }
-  100% { 
-    right: -420px;
-  }
-}
-
-@keyframes fg-mascot-slide-in-right {
-  from { right: -420px; }
-  to { right: var(--fg-mascot-inset); }
+@keyframes fg-mascot-walk-out {
+  from { transform: translateX(0); }
+  to { transform: translateX(var(--fg-mascot-walk-offset)); }
 }
 @keyframes fg-mascot-slide-in-right-smooth {
   from { right: -420px; }
@@ -371,10 +337,6 @@ Container Keyframes
 @keyframes fg-mascot-slide-in-right-jump {
   from { right: -420px; }
   to { right: var(--fg-mascot-inset); }
-}
-@keyframes fg-mascot-slide-out-right {
-  from { right: var(--fg-mascot-inset); }
-  to { right: -420px; }
 }
 @keyframes fg-mascot-slide-out-right-smooth {
   from { right: var(--fg-mascot-inset); }
@@ -396,41 +358,6 @@ Container Keyframes
 Character Animation Keyframes 
 ========================================
 */
-
-/* Grand walk cycle: walking bobs during travel, then a spring-settle on arrival */
-@keyframes fg-mascot-grand-walk-cycle {
-  0%   { transform: translateY(0) rotate(0deg); }
-  8%   { transform: translateY(-12px) rotate(-2deg); }
-  16%  { transform: translateY(0) rotate(0deg); }
-  24%  { transform: translateY(-12px) rotate(2deg); }
-  32%  { transform: translateY(0) rotate(0deg); }
-  40%  { transform: translateY(-12px) rotate(-2deg); }
-  48%  { transform: translateY(0) rotate(0deg); }
-  56%  { transform: translateY(-12px) rotate(2deg); }
-  /* Settle on arrival */
-  60%  { transform: translateY(0) rotate(0deg); }
-  72%  { transform: translateY(-16px) scale(1.05, 0.95); }
-  82%  { transform: translateY(4px) scale(0.97, 1.03); }
-  92%  { transform: translateY(-3px) scale(1.01, 0.99); }
-  100% { transform: translateY(0) scale(1); }
-}
-
-/* Grand exit walk cycle */
-@keyframes fg-mascot-grand-exit-cycle {
-  0%   { transform: translateY(0) rotate(0deg); }
-  15%  { transform: translateY(-10px) rotate(2deg); }
-  30%  { transform: translateY(0) rotate(0deg); }
-  45%  { transform: translateY(-10px) rotate(-2deg); }
-  60%  { transform: translateY(0) rotate(0deg); }
-  75%  { transform: translateY(-10px) rotate(2deg); }
-  100% { transform: translateY(0) rotate(0deg); }
-}
-
-@keyframes fg-mascot-bob-walk {
-  0% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
-  100% { transform: translateY(0); }
-}
 
 @keyframes fg-mascot-bounce-enter {
   0% { transform: translateY(0); }

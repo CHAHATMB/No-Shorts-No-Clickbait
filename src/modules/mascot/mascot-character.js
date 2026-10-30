@@ -10,6 +10,8 @@ const getExtensionURL = (path) => {
   }
 };
 
+const WALK_FRAME_INTERVAL_MS = 120;
+
 /**
  * Mascot Registry
  */
@@ -25,7 +27,7 @@ export const MASCOTS = {
       'mascots/finn/right4.png',
     ],
     back: 'mascots/finn/back.png',
-    walkFrameInterval: 140,
+    walkFrameInterval: WALK_FRAME_INTERVAL_MS,
   },
   bmo: {
     id: 'bmo',
@@ -33,7 +35,7 @@ export const MASCOTS = {
     idle: 'mascots/shime2.png',
     walkFrames: ['mascots/shime2.png'],
     back: 'mascots/shime2.png',
-    walkFrameInterval: 140,
+    walkFrameInterval: WALK_FRAME_INTERVAL_MS,
   },
   jake: {
     id: 'jake',
@@ -41,14 +43,14 @@ export const MASCOTS = {
     idle: 'mascots/shime3.png',
     walkFrames: ['mascots/shime3.png'],
     back: 'mascots/shime3.png',
-    walkFrameInterval: 140,
+    walkFrameInterval: WALK_FRAME_INTERVAL_MS,
   },
 };
 
 export const DEFAULT_MASCOT_ID = 'finn';
 
-// Preload cache to prevent blank flashes when switching frames
-const preloadedImages = new Set();
+// Holding the Image objects keeps decoded frames alive, preventing blank flashes when switching frames
+const preloadedImages = new Map();
 export function preloadMascotAssets(mascotId = DEFAULT_MASCOT_ID) {
   const mascot = MASCOTS[mascotId] || MASCOTS[DEFAULT_MASCOT_ID];
   const paths = [
@@ -61,7 +63,7 @@ export function preloadMascotAssets(mascotId = DEFAULT_MASCOT_ID) {
     if (!preloadedImages.has(fullUrl)) {
       const img = new Image();
       img.src = fullUrl;
-      preloadedImages.add(fullUrl);
+      preloadedImages.set(fullUrl, img);
     }
   });
 }
@@ -122,7 +124,7 @@ export class MascotAnimator {
       if (this.img) {
         this.img.src = frames[this.currentFrameIndex];
       }
-    }, this.mascot.walkFrameInterval || 140);
+    }, this.mascot.walkFrameInterval || WALK_FRAME_INTERVAL_MS);
   }
 
   stop() {

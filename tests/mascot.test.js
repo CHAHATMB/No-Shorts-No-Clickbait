@@ -175,7 +175,7 @@ await test('PNG frames cycle, mirror on entrance, and stop at the idle frame', (
   }
   assert(image.src.endsWith('right1.png'), 'Entrance must start with the first walk frame');
   assert(image.classList.contains('fg-mascot-facing-left'), 'Entrance must face left');
-  clock.tick(140);
+  clock.tick(MASCOTS.finn.walkFrameInterval);
   assert(image.src.endsWith('right2.png'), 'Walk frames must advance');
   finishEntrance(controller, clock);
   assert(image.src.endsWith('front.png'), 'Arrival must use the front-facing sprite');
@@ -193,7 +193,7 @@ await test('Walking exit cycles frames facing right', (controller, clock) => {
   }
   const image = controller.characterEl.querySelector('img');
   const firstFrame = image.src;
-  clock.tick(140);
+  clock.tick(MASCOTS.finn.walkFrameInterval);
   assert(image.src !== firstFrame, 'Exit must animate actual walking frames, not a static back image');
   assert(!image.classList.contains('fg-mascot-facing-left'), 'Exit must face right');
 });
@@ -311,6 +311,17 @@ await test('Unknown mascot IDs fall back to Finn and all registered PNG assets l
     await image.decode();
     assert(image.naturalWidth > 0, `Asset failed to load: ${path}`);
   }));
+});
+
+await test('Every Finn sprite shares one canvas size so frames do not rescale while walking', async () => {
+  const { idle, back, walkFrames } = MASCOTS.finn;
+  const sizes = await Promise.all([idle, back, ...walkFrames].map(async path => {
+    const image = new Image();
+    image.src = runtime.getURL(path);
+    await image.decode();
+    return `${image.naturalWidth}x${image.naturalHeight}`;
+  }));
+  assert(new Set(sizes).size === 1, `Sprite sizes differ: ${sizes.join(', ')}`);
 });
 
 async function withReminderFixture(parameters, run) {
