@@ -31,6 +31,8 @@ So the replacement needs front idle, back, and a right-facing walk cycle from on
 ## Commits
 | Hash | Message |
 |------|---------|
+| e0940ae | doc: start feature 04 and inventory current mascot frames |
+| 4e6df82 | feat: add CC0 Kenney adventurer mascot frames aligned on a shared canvas |
 
 ## Tests added
 
