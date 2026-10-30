@@ -48,7 +48,8 @@ test('Break reminder fires once per interval across tabs, reloads, and worker re
     session = continueWatchSession(restart(session), today);
     const result = selectReminder(session, stats(total), breakSettings);
     session = result.session;
-    assert.equal(result.reminder?.category ?? null, expected, `At ${total / MINUTE_MS} minutes: ${JSON.stringify(result.reminder)}`);
+    const delivered = result.reminder?.behavior === 'block' ? null : result.reminder;
+    assert.equal(delivered?.category ?? null, expected, `At ${total / MINUTE_MS} minutes: ${JSON.stringify(result.reminder)}`);
   }
 });
 
@@ -78,7 +79,7 @@ test('Mascot triggers keep their cooldowns through restarts', async () => {
   for (const total of [29 * MINUTE_MS, 30 * MINUTE_MS, 30 * MINUTE_MS + 5000, 31 * MINUTE_MS]) {
     const result = selectReminder(continueWatchSession(restart(session), 'today'), stats(total), settings);
     session = result.session;
-    if (result.reminder) fired.push([total / MINUTE_MS, result.reminder.category]);
+    if (result.reminder && result.reminder.behavior !== 'block') fired.push([total / MINUTE_MS, result.reminder.category]);
   }
   assert.deepEqual(fired, [[30, 'HYDRATION']], `Hydration must fire once: ${JSON.stringify(fired)}`);
 });
@@ -92,6 +93,95 @@ test('A watch session restarts only after a gap', async context => {
   assert.equal(continued.sessionStartTime, started.sessionStartTime);
   context.mock.timers.tick(SESSION_GAP_MS + 1);
   assert.equal(continueWatchSession(continued, 'today').sessionStartTime, Date.now());
+});
+
+const TICK_MS = 5000;
+const hydrationSettings = { timeReminderEnabled: false, mascotCategories: { HYDRATION: true, EYE_STRAIN: false, STOP_WATCHING: false, LATE_NIGHT: false } };
+const stopSettings = { timeReminderEnabled: false, mascotCategories: { HYDRATION: false, EYE_STRAIN: false, STOP_WATCHING: true, LATE_NIGHT: false } };
+
+// Plays the video tick by tick from `watch.total`, optionally pausing (wall clock only) before the first tick.
+async function playFor(watch, durationMs, { pauseMs = 0, settings = hydrationSettings, continueCountToday = 0 } = {}) {
+  const { continueWatchSession, selectReminder } = await reminders;
+  watch.now += pauseMs;
+  const delivered = [];
+  for (let played = 0; played < durationMs; played += TICK_MS) {
+    watch.total += TICK_MS;
+    watch.now += TICK_MS;
+    const session = continueWatchSession(restart(watch.session), 'today', watch.now);
+    const result = selectReminder(session, { totalWatchTimeToday: watch.total, continueCountToday, breaksTakenToday: 0 }, settings, watch.now);
+    watch.session = result.session;
+    if (result.reminder) delivered.push([watch.total / 1000, result.reminder.category, result.reminder.behavior]);
+  }
+  return delivered;
+}
+const startWatch = total => ({ total, now: Date.parse('2026-10-30T12:00:00'), session: null });
+
+test('Escalation: an ignored reminder blocks once after the grace period', async () => {
+  const { BLOCK_GRACE_MS } = await reminders;
+  const watch = startWatch(30 * MINUTE_MS - TICK_MS);
+  assert.deepEqual(await playFor(watch, TICK_MS), [[1800, 'HYDRATION', 'transient']]);
+  assert.deepEqual(await playFor(watch, BLOCK_GRACE_MS - TICK_MS), [], 'No block inside the grace period');
+  assert.deepEqual(await playFor(watch, TICK_MS), [[1800 + BLOCK_GRACE_MS / 1000, 'HYDRATION', 'block']]);
+  assert.deepEqual(await playFor(watch, 5 * MINUTE_MS), [], `The block must fire once: ${JSON.stringify(watch.session)}`);
+});
+
+test('Escalation: pausing the video acknowledges the reminder and prevents the block', async () => {
+  const { ACKNOWLEDGE_PAUSE_MS } = await reminders;
+  const watch = startWatch(30 * MINUTE_MS - TICK_MS);
+  await playFor(watch, TICK_MS);
+  assert.deepEqual(await playFor(watch, 5 * MINUTE_MS, { pauseMs: ACKNOWLEDGE_PAUSE_MS }), []);
+  assert.equal(watch.session.escalation, null);
+});
+
+test('Escalation: a pause shorter than the acknowledgement threshold still blocks', async () => {
+  const { ACKNOWLEDGE_PAUSE_MS, BLOCK_GRACE_MS } = await reminders;
+  const watch = startWatch(30 * MINUTE_MS - TICK_MS);
+  await playFor(watch, TICK_MS);
+  const delivered = await playFor(watch, BLOCK_GRACE_MS, { pauseMs: ACKNOWLEDGE_PAUSE_MS - 1000 });
+  assert.deepEqual(delivered.map(([, category, behavior]) => [category, behavior]), [['HYDRATION', 'block']]);
+});
+
+test('Escalation: the break reminder escalates by the same rule', async () => {
+  const { escalateReminder, selectReminder, continueWatchSession } = await reminders;
+  const session = continueWatchSession(undefined, 'today', 0);
+  const result = selectReminder(session, stats(15 * MINUTE_MS), breakSettings, 0);
+  assert.deepEqual(result.session.escalation, { category: 'BREAK', watchTime: 15 * MINUTE_MS, deliveredAt: 0 });
+  assert.equal(escalateReminder(result.session.escalation, 15 * MINUTE_MS + 45000, 45000), 'ignored');
+  assert.equal(escalateReminder(result.session.escalation, 15 * MINUTE_MS + 40000, 40000), 'pending');
+  assert.equal(escalateReminder(result.session.escalation, 15 * MINUTE_MS + 40000, 70000), 'acknowledged');
+});
+
+test('Stop watching: reaching the limit blocks right away and again on every later play', async () => {
+  const watch = startWatch(60 * MINUTE_MS - TICK_MS);
+  const options = { settings: stopSettings, continueCountToday: 2 };
+  assert.deepEqual(await playFor(watch, TICK_MS, options), [[3600, 'STOP_WATCHING', 'block']]);
+  const replayed = await playFor(watch, TICK_MS, options);
+  assert.deepEqual(replayed, [[3605, 'STOP_WATCHING', 'block']], 'Navigating away or reloading must not lift the stop block');
+});
+
+test('Stop watching: "Watch 5 more min" allows five minutes of watching, then blocks again', async () => {
+  const { snoozeStopWatching, STOP_SNOOZE_MS } = await reminders;
+  const watch = startWatch(60 * MINUTE_MS - TICK_MS);
+  const options = { settings: stopSettings, continueCountToday: 2 };
+  await playFor(watch, TICK_MS, options);
+  watch.session = restart(snoozeStopWatching(watch.session, watch.total));
+  assert.deepEqual(await playFor(watch, STOP_SNOOZE_MS - TICK_MS, options), [], 'No block during the snooze');
+  assert.deepEqual(await playFor(watch, TICK_MS, options), [[3900, 'STOP_WATCHING', 'block']]);
+});
+
+test('Stop watching: disabling the stop category lifts the block', async () => {
+  const watch = startWatch(60 * MINUTE_MS - TICK_MS);
+  await playFor(watch, TICK_MS, { settings: stopSettings, continueCountToday: 2 });
+  const disabled = { ...stopSettings, mascotCategories: { ...stopSettings.mascotCategories, STOP_WATCHING: false } };
+  assert.deepEqual(await playFor(watch, MINUTE_MS, { settings: disabled, continueCountToday: 2 }), []);
+  assert.deepEqual(await playFor(watch, MINUTE_MS, { settings: { ...stopSettings, mascotEnabled: false }, continueCountToday: 2 }), []);
+});
+
+test('Escalation state resets on a new day', async () => {
+  const { continueWatchSession } = await reminders;
+  const fresh = continueWatchSession({ date: 'yesterday', stopAllowedUntil: 0, escalation: { category: 'BREAK', watchTime: 0, deliveredAt: 0 } }, 'today');
+  assert.equal(fresh.stopAllowedUntil, undefined);
+  assert.equal(fresh.escalation, undefined);
 });
 
 function backgroundHarness(data, window, { features = {}, fetch, beforeStorageRead = async () => {} } = {}) {
