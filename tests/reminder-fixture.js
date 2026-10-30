@@ -51,7 +51,7 @@ const runtime = {
   getURL(path) {
     const source = path === 'mascot-styles.css'
       ? 'src/modules/mascot/mascot-styles.css'
-      : path;
+      : path.replace(/^video-blocker\//, 'src/modules/video-blocker/art/');
     return new URL(`../${source}`, import.meta.url).href;
   },
   onMessage: { addListener(listener) { window.sendExtensionMessage = listener; } },
