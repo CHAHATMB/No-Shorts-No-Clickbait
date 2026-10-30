@@ -52,12 +52,12 @@ export class VideoBlocker {
     this.overlay.setAttribute('role', 'alertdialog');
     this.overlay.setAttribute('aria-label', type.message);
     this.overlay.innerHTML = `
-      <img class="fg-video-blocker-art" alt="">
+      <div class="fg-video-blocker-art" aria-hidden="true"></div>
       <p class="fg-video-blocker-message"></p>
       <p class="fg-video-blocker-countdown" aria-live="polite"></p>
       <button type="button" class="fg-video-blocker-action" hidden></button>
     `;
-    this.overlay.querySelector('img').src = browser.runtime.getURL(`video-blocker/${type.art}.svg`);
+    this.loadArt(type.art, this.overlay.querySelector('.fg-video-blocker-art'));
     this.overlay.querySelector('.fg-video-blocker-message').textContent = type.message;
     this.overlay.addEventListener('click', event => event.stopPropagation());
     this.overlay.addEventListener('keydown', event => event.stopPropagation());
@@ -79,19 +79,31 @@ export class VideoBlocker {
     return true;
   }
 
+  // Inline rather than <img>: media queries inside an SVG image do not reliably follow the page's reduced-motion setting.
+  async loadArt(name, target) {
+    try {
+      const response = await fetch(browser.runtime.getURL(`video-blocker/${name}.svg`));
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const art = new DOMParser().parseFromString(await response.text(), 'image/svg+xml').documentElement;
+      target.appendChild(document.importNode(art, true));
+    } catch (error) {
+      console.warn('[VideoBlocker] Art failed to load:', error);
+    }
+  }
+
   startCountdown(action) {
     const countdown = this.overlay.querySelector('.fg-video-blocker-countdown');
-    let secondsLeft = COUNTDOWN_SECONDS;
-    countdown.textContent = `Resume in ${secondsLeft}s`;
-    this.countdownTimer = setInterval(() => {
-      secondsLeft--;
-      countdown.textContent = `Resume in ${secondsLeft}s`;
-      if (secondsLeft > 0) return;
-      clearInterval(this.countdownTimer);
+    const tick = secondsLeft => {
+      if (secondsLeft > 0) {
+        countdown.textContent = `Resume in ${secondsLeft}s`;
+        this.countdownTimer = setTimeout(() => tick(secondsLeft - 1), SECOND_MS);
+        return;
+      }
       countdown.textContent = '';
       action.hidden = false;
       action.focus({ preventScroll: true });
-    }, SECOND_MS);
+    };
+    tick(COUNTDOWN_SECONDS);
   }
 
   resume() {
@@ -102,7 +114,7 @@ export class VideoBlocker {
 
   remove() {
     if (!this.overlay) return;
-    clearInterval(this.countdownTimer);
+    clearTimeout(this.countdownTimer);
     this.video.removeEventListener('play', this.keepPaused);
     document.removeEventListener(NAVIGATE_EVENT, this.remove);
     this.overlay.remove();

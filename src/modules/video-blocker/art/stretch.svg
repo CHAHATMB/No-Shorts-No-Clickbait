@@ -1,15 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
   <style>
-    .arm { animation: reach 2.4s ease-in-out infinite alternate; transform-origin: 60px 50px; }
-    .right { animation-name: reach-right; }
-    @keyframes reach { from { transform: rotate(0deg); } to { transform: rotate(118deg); } }
-    @keyframes reach-right { from { transform: rotate(0deg); } to { transform: rotate(-118deg); } }
-    @media (prefers-reduced-motion: reduce) { .arm { animation: none; } }
+    .fg-art-arm { animation: fg-art-reach 2.4s ease-in-out infinite alternate; }
+    .fg-art-right { animation-name: fg-art-reach-right; }
+    @keyframes fg-art-reach { from { transform: rotate(0deg); } to { transform: rotate(100deg); } }
+    @keyframes fg-art-reach-right { from { transform: rotate(0deg); } to { transform: rotate(-100deg); } }
+    @media (prefers-reduced-motion: reduce) { .fg-art-arm { animation: none; } }
   </style>
   <g fill="none" stroke="#f2f2f2" stroke-width="5" stroke-linecap="round">
     <circle cx="60" cy="30" r="10" fill="#f2f2f2" stroke="none"/>
     <path d="M60 44v34M60 78l-14 26M60 78l14 26"/>
-    <path class="arm" d="M60 50l-26 14"/>
-    <path class="arm right" d="M60 50l26 14"/>
+    <g transform="translate(60 50)">
+      <path class="fg-art-arm" d="M0 0l-26 14"/>
+      <path class="fg-art-arm fg-art-right" d="M0 0l26 14"/>
+    </g>
   </g>
 </svg>
