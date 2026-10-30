@@ -48,3 +48,26 @@ Self-check (`tests/reminder-fixture.html?mascot=false`, port 8790, stopped after
 - Is the STOP_WATCHING trigger (60 min + 2 dismissals) the intended "daily watch limit", or do you want a configurable limit setting? (That means popup changes, which are out of this feature's ownership.)
 - Is it right to treat "Got it" / "Continue Watching" followed by more playback as ignoring? The alternative needs a `mascot-controller.js` hook that tells a user close apart from auto-dismiss (`onUserAction('close')` fires for both). I didn't edit the controller.
 - Should blocks be allowed in fullscreen? This needs a fullscreen-specific readiness rule in `content.js`.
+
+## Round 2+ (responses to review)
+Orchestrator decisions: (1) keep the STOP_WATCHING trigger as the daily limit; (2) "Got it" / "Continue Watching" and then playing on still counts as ignored, and there is no controller hook; (3) blocks show in fullscreen. Decision 3 replaces the fullscreen limitation and open question above.
+
+Round 1 (review.md, 66d7974):
+1. major, fixed (3ad05ff): a re-fired STOP_WATCHING trigger no longer touches a limit that is already set (`selectReminder` returns no reminder when `stopAllowedUntil` is finite; `selectBlock` handles the block). Test "a snooze after the trigger cooldown has passed is not cut short" mocks `Date` via `context.mock.timers` (passed to `playFor` as `clock`). It failed before the fix and passes now.
+2. minor, fixed (3ad05ff): a tick now carries `reminderPending` (content still holds an undelivered reminder). The background then moves the escalation baseline forward (`deferEscalation`), so the grace starts once the reminder is shown. In fullscreen, content sends `reminderPending: false`: the mascot can't show there, so the held reminder escalates to a block after the grace (decision 3). A block clears a held reminder of the same category. Remaining edge: a reminder held in tab A, with the user then watching in tab B, can still escalate in B. Fixing that needs a "shown" acknowledgement round trip plus expiry for tabs that close. I judged that over-engineering for a rare case.
+3. minor:
+   - fullscreen, fixed (3ad05ff, 4c00445): ticks send `blockReady` (no block already up). When the mascot can't show, the background runs `selectBlock` (stop limit + escalations only). The overlay lives in `#movie_player`, so it is inside YouTube's fullscreen element; if the fullscreen element doesn't contain the player, `show()` exits fullscreen.
+   - (a) SPA navigation, fixed (4c00445): on `yt-navigate-start` the overlay and its listeners are still cleaned up, then the same block is shown again on `yt-navigate-finish`. The countdown restarts at 20 s.
+   - (b) reload, limitation kept: after a full reload the stop block comes back on the first counted tick (≤ `WATCH_TICK_MS`, ~5 s of play). Closing that needs a startup storage check in content; skipped as over-engineering for a 5 s window.
+   - (c) miniplayer, limitation kept: an existing block stays with the player into the miniplayer (fix (a)). A *new* block can't start there, because feature 03 counts watch time only on `/watch`, and changing the counting rule is out of scope.
+4. minor, fixed (3ad05ff): `snoozeStopWatching` extends the limit only while blocked (`total >= stopAllowedUntil`), so a stale overlay in another tab can't extend an active snooze. Tested.
+5. minor, fixed (3ad05ff): the break timeline now expects `BREAK block` at 29 min, and the cooldown test expects `[[30, HYDRATION, transient], [31, HYDRATION, block]]`. Nothing is filtered.
+6. optional, skipped: webpack `asset/source` would remove the fetch and the WAR entry. But `tests/reminder-fixture.html` loads `src/` as native ES modules, where an `.svg` import fails, so the fixture would break. The WAR entry only exposes four static SVGs.
+
+Tests added: the cooldown/snooze reproduction, the snooze guard, the grace held while a reminder waits, `selectBlock` (blocks only, never mascot reminders), and a background integration test for `blockReady` / `reminderPending`.
+Results: `npm test` 65/65. `npm run build` OK. `npm run lint` 0 errors (10 pre-existing warnings). Fixture self-check (port 8790, stopped): the BREAK block came after 45 s of play, the ticks carry the new flags, and `yt-navigate-start` → overlay gone → `yt-navigate-finish` → BREAK block back with the video paused again.
+
+| Hash | Message |
+|------|---------|
+| 3ad05ff | fix: keep stop snoozes past the trigger cooldown, start grace on display, and show blocks in fullscreen |
+| 4c00445 | fix: put the video block back after SPA navigation and over non-player fullscreen |
