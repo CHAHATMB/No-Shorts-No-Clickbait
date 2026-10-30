@@ -4,9 +4,9 @@
 import { MESSAGE_CATEGORIES } from './mascot/mascot-messages.js';
 import { TriggerManager } from './mascot/mascot-triggers.js';
 
-export const MAX_WATCH_TICK_MS = 60 * 1000;
-export const SESSION_GAP_MS = 5 * 60 * 1000;
-const MINUTE_MS = 60 * 1000;
+export const MINUTE_MS = 60 * 1000;
+export const MAX_WATCH_TICK_MS = MINUTE_MS;
+export const SESSION_GAP_MS = 5 * MINUTE_MS;
 const DEFAULT_TIMER_INTERVAL_MINUTES = 15;
 
 export function isCountedWatchTab(tab, focusedWindow) {

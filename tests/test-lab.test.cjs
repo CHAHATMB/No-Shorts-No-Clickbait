@@ -132,7 +132,7 @@ function backgroundHarness(development = true) {
   const event = { addListener() {} };
   const context = {
     __DEV__: development, FEATURES: {}, console: { log() {}, error() {} },
-    MAX_DAILY_OVERRIDES: 3, Promise, Date,
+    MAX_DAILY_OVERRIDES: 3, MINUTE_MS: 60000, Promise, Date,
     browser: {
       tabs: { onUpdated: event, query: async () => [], sendMessage: async () => {} },
       alarms: { onAlarm: event },

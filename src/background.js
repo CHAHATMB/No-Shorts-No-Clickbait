@@ -3,7 +3,7 @@ import './browser-polyfill.js';
 import { FEATURES } from './features.js';
 import { initUniversalTracker, extractDomain } from './modules/time-tracker.js';
 import { checkUrlBlocked, getOverrideCount, incrementOverrideCount, MAX_DAILY_OVERRIDES } from './modules/url-blocker.js';
-import { clampWatchTick, continueWatchSession, isCountedWatchTab, selectReminder } from './modules/watch-reminders.js';
+import { clampWatchTick, continueWatchSession, isCountedWatchTab, MINUTE_MS, selectReminder } from './modules/watch-reminders.js';
 
 console.log("Background service worker started.");
 
@@ -28,10 +28,8 @@ let dailyWatchStats = {};
 let totalWatchTimeToday = 0;
 let continueCountToday = 0;
 let breaksTakenToday = 0;
-let testCommandQueue = Promise.resolve();
 let watchUpdateQueue = Promise.resolve();
 const WATCH_SESSION_KEY = 'watchSession';
-const MINUTE_MS = 60000;
 
 async function loadCodingSettings() {
   const result = await browser.storage.local.get([
@@ -284,42 +282,44 @@ async function updateSolvedProblems() {
   const currentStats = await fetchLeetCodeStats(codingProfiles.leetcodeUsername);
   if (!currentStats) return;
 
-  const today = new Date().toDateString();
+  await queueWatchUpdate(async () => {
+    const today = new Date().toDateString();
 
-  if (!dailyBaselines[today]) {
-    dailyBaselines[today] = currentStats;
-    await browser.storage.local.set({ dailyBaselines });
-  }
+    if (!dailyBaselines[today]) {
+      dailyBaselines[today] = currentStats;
+      await browser.storage.local.set({ dailyBaselines });
+    }
 
-  const baseline = dailyBaselines[today];
-  const solvedToday = {
-    easy: Math.max(0, currentStats.easy - baseline.easy),
-    medium: Math.max(0, currentStats.medium - baseline.medium),
-    hard: Math.max(0, currentStats.hard - baseline.hard),
-  };
+    const baseline = dailyBaselines[today];
+    const solvedToday = {
+      easy: Math.max(0, currentStats.easy - baseline.easy),
+      medium: Math.max(0, currentStats.medium - baseline.medium),
+      hard: Math.max(0, currentStats.hard - baseline.hard),
+    };
 
-  const earnedMinutes =
-    solvedToday.easy * REWARD_MINUTES.EASY +
-    solvedToday.medium * REWARD_MINUTES.MEDIUM +
-    solvedToday.hard * REWARD_MINUTES.HARD;
+    const earnedMinutes =
+      solvedToday.easy * REWARD_MINUTES.EASY +
+      solvedToday.medium * REWARD_MINUTES.MEDIUM +
+      solvedToday.hard * REWARD_MINUTES.HARD;
 
-  const previousEarnedMinutes = solvedProblemsHistory[today].totalMinutes || 0;
-  if (earnedMinutes > previousEarnedMinutes) {
-    const newMinutes = earnedMinutes - previousEarnedMinutes;
-    remainingTime += newMinutes * 60 * 1000;
-  }
+    const previousEarnedMinutes = solvedProblemsHistory[today].totalMinutes || 0;
+    if (earnedMinutes > previousEarnedMinutes) {
+      const newMinutes = earnedMinutes - previousEarnedMinutes;
+      remainingTime += newMinutes * 60 * 1000;
+    }
 
-  solvedProblemsHistory[today] = { ...solvedToday, totalMinutes: earnedMinutes };
-  await browser.storage.local.set({ solvedProblemsHistory, remainingTime });
+    solvedProblemsHistory[today] = { ...solvedToday, totalMinutes: earnedMinutes };
+    await browser.storage.local.set({ solvedProblemsHistory, remainingTime });
 
-  try {
-    await browser.runtime.sendMessage({
-      action: "updateStats",
-      remainingTime,
-      earnedMinutesToday: earnedMinutes,
-      solvedToday,
-    });
-  } catch (e) { /* ignore */ }
+    try {
+      await browser.runtime.sendMessage({
+        action: "updateStats",
+        remainingTime,
+        earnedMinutesToday: earnedMinutes,
+        solvedToday,
+      });
+    } catch (e) { /* ignore */ }
+  });
 }
 
 // ============================================================
@@ -435,7 +435,7 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
     'testAddWatchTime', 'testAddSiteTime', 'testResetTodayData', 'testAddAllowance',
     'testSetAllowance', 'testResetOverrides', 'testMaxOverrides', 'testSolveProblem', 'testSetHourlyRate',
   ].includes(message.action)) {
-    testCommandQueue = testCommandQueue.then(async () => {
+    queueWatchUpdate(async () => {
       const MAX_TEST_MINUTES = 1440;
       const MAX_HOURLY_RATE = 1000000;
       if (['testAddWatchTime', 'testAddAllowance', 'testSetAllowance'].includes(message.action) &&
@@ -452,7 +452,6 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
       if (message.action === 'testSetHourlyRate' && (!Number.isInteger(message.rate) || message.rate <= 0 || message.rate > MAX_HOURLY_RATE)) {
         throw new TypeError('Hourly rate must be a positive whole number up to 1000000.');
       }
-      await loadCodingSettings();
       const today = new Date().toDateString();
       const siteKey = `siteTime_${today}`;
       const stored = await browser.storage.local.get([siteKey, 'hourlyRate', 'blockOverrides']);
