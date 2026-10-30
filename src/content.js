@@ -13,6 +13,7 @@ import { TEST_PROTOCOL_VERSION } from './modules/test-lab-client.js';
     blurAmount: "10px",
     checkInterval: 1000, 
   };
+  const WATCH_TICK_MS = 5000;
 
   // Settings state
   let settings = {
@@ -31,12 +32,10 @@ import { TEST_PROTOCOL_VERSION } from './modules/test-lab-client.js';
 
   // Time Reminder state
   let timeReminderEnabled = true;
-  let timerInterval = 15; // minutes
   let totalWatchTimeToday = 0;
   let continueCountToday = 0;
   let breaksTakenToday = 0;
   let reminderTimer = null;
-  let lastReminderWatchTime = 0;
 
   // Mascot companion
   let mascotController = null;
@@ -98,7 +97,6 @@ import { TEST_PROTOCOL_VERSION } from './modules/test-lab-client.js';
       "remainingTime",
       "focusModeEnabled",
       "timeReminderEnabled",
-      "timerInterval",
       "totalWatchTimeToday",
       "continueCountToday",
       "breaksTakenToday",
@@ -116,11 +114,9 @@ import { TEST_PROTOCOL_VERSION } from './modules/test-lab-client.js';
       remainingTime = result.remainingTime || 0;
       
       timeReminderEnabled = result.timeReminderEnabled !== false;
-      timerInterval = result.timerInterval || 15;
       totalWatchTimeToday = result.totalWatchTimeToday || 0;
       continueCountToday = result.continueCountToday || 0;
       breaksTakenToday = result.breaksTakenToday || 0;
-      lastReminderWatchTime = totalWatchTimeToday;
 
       // Apply mascot settings
       if (mascotController) {
@@ -157,17 +153,13 @@ import { TEST_PROTOCOL_VERSION } from './modules/test-lab-client.js';
       timeReminderEnabled = message.enabled;
       if (!timeReminderEnabled) dismissReminder();
     } else if (message.action === "updateTimerInterval") {
-      timerInterval = message.interval;
-      lastReminderWatchTime = totalWatchTimeToday;
+      // The background reads the saved interval when it selects reminders.
     } else if (message.action === "updateStats") {
       if (message.remainingTime !== undefined) remainingTime = message.remainingTime;
       if (message.totalWatchTimeToday !== undefined) totalWatchTimeToday = message.totalWatchTimeToday;
       if (message.continueCountToday !== undefined) continueCountToday = message.continueCountToday;
       if (message.breaksTakenToday !== undefined) breaksTakenToday = message.breaksTakenToday;
-      if (message.resetReminderBaseline) {
-        lastReminderWatchTime = totalWatchTimeToday;
-        lastDeductionTime = null;
-      }
+      if (message.resetReminderBaseline) lastDeductionTime = null;
       checkBlocking();
     } else if (message.action === "toggleMascot") {
       if (mascotController) {
@@ -262,33 +254,17 @@ import { TEST_PROTOCOL_VERSION } from './modules/test-lab-client.js';
       const video = document.querySelector("video");
       const isActuallyWatching = video && !video.paused && !video.ended && video.readyState > 2;
 
-      if (isActuallyWatching && window.location.pathname.includes("/watch")) {
+      if (isActuallyWatching && !document.hidden && window.location.pathname.includes("/watch")) {
         const now = Date.now();
         if (lastDeductionTime) {
           const elapsed = now - lastDeductionTime;
-          if (elapsed >= 5000) { // Update every 5 seconds
-            totalWatchTimeToday += elapsed;
-
+          if (elapsed >= WATCH_TICK_MS) {
+            lastDeductionTime = now;
             browser.runtime.sendMessage({
               action: "deductTime",
-              amount: elapsed
-            });
-            lastDeductionTime = now;
-            
-            // Check for periodic reminder
-            checkPeriodicReminder();
-
-            // Evaluate mascot triggers
-            if (mascotController) {
-              mascotController.evaluate({
-                totalWatchTimeToday,
-                continueCountToday,
-                breaksTakenToday,
-                timerInterval,
-                breakReminderManaged: true,
-                moneyWasted: 0, // Will be computed in evaluate()
-              });
-            }
+              amount: elapsed,
+              reminderReady: isReminderReady(),
+            }).then(handleWatchTick, error => console.warn('[WatchTime] Background did not record watch time:', error));
           }
         } else {
           lastDeductionTime = now;
@@ -299,15 +275,19 @@ import { TEST_PROTOCOL_VERSION } from './modules/test-lab-client.js';
     }, 1000);
   }
 
-  function checkPeriodicReminder() {
-    if (!timeReminderEnabled || document.getElementById("youtube-time-reminder")) return;
+  function isReminderReady() {
+    return !document.fullscreenElement && !document.getElementById("youtube-time-reminder") &&
+      (!mascotController?.enabled || mascotController.state === 'offscreen');
+  }
 
-    const intervalMs = timerInterval * 60 * 1000;
-    
-    // Only trigger if watched at least timerInterval minutes total today,
-    // AND at least timerInterval minutes have elapsed since last reminder
-    if (totalWatchTimeToday >= intervalMs && (totalWatchTimeToday - lastReminderWatchTime) >= intervalMs) {
+  function handleWatchTick(response) {
+    if (!response?.counted) return;
+    totalWatchTimeToday = response.totalWatchTimeToday;
+    if (!response.reminder) return;
+    if (response.reminder.category === MESSAGE_CATEGORIES.BREAK) {
       showTimeReminder();
+    } else {
+      mascotController?.showTrigger(response.reminder, { totalWatchTimeToday, continueCountToday, breaksTakenToday });
     }
   }
 
@@ -316,7 +296,6 @@ import { TEST_PROTOCOL_VERSION } from './modules/test-lab-client.js';
     if (mascotController?.enabled) {
       if (!mascotController.triggerManager.enabledCategories.has(MESSAGE_CATEGORIES.BREAK)) return;
       if (mascotController.state !== 'offscreen') return;
-      lastReminderWatchTime = totalWatchTimeToday;
       const minutesWatched = Math.round(totalWatchTimeToday / (60 * 1000));
       mascotController.show(`You've watched for ${minutesWatched} minutes today. Ready to stretch, grab some water, or rest your eyes?`, {
         category: MESSAGE_CATEGORIES.BREAK,
@@ -325,8 +304,6 @@ import { TEST_PROTOCOL_VERSION } from './modules/test-lab-client.js';
       });
       return;
     }
-
-    if (!preview) lastReminderWatchTime = totalWatchTimeToday;
 
     // Pause the video
     const video = document.querySelector("video");

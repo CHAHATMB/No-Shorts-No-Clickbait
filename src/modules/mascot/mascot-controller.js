@@ -252,25 +252,22 @@ export class MascotController {
   }
 
   /**
-   * Evaluate triggers and show mascot if appropriate.
-   * Called from the time tracking loop.
+   * Show a reminder the background selected for this tab.
    *
+   * @param {{category: string, behavior: string, sessionStartTime: number}} trigger
    * @param {Object} watchData - Current watch state data
    */
-  evaluate(watchData) {
+  showTrigger(trigger, watchData) {
     if (!this.enabled) return;
     if (this.state !== MascotState.OFFSCREEN) return;
 
     // Don't show in fullscreen
     if (document.fullscreenElement || document.hidden || document.getElementById('youtube-time-reminder')) return;
 
-    const trigger = this.triggerManager.evaluate(watchData);
-    if (!trigger) return;
-
     // Build context for message personalization
     const context = buildContext({
       totalWatchTimeToday: watchData.totalWatchTimeToday,
-      sessionStartTime: this.triggerManager.sessionStartTime,
+      sessionStartTime: trigger.sessionStartTime,
       continueCountToday: watchData.continueCountToday,
       breaksTakenToday: watchData.breaksTakenToday,
       moneyWasted: watchData.moneyWasted || 0,

@@ -3,6 +3,7 @@ import './browser-polyfill.js';
 import { FEATURES } from './features.js';
 import { initUniversalTracker, extractDomain } from './modules/time-tracker.js';
 import { checkUrlBlocked, getOverrideCount, incrementOverrideCount, MAX_DAILY_OVERRIDES } from './modules/url-blocker.js';
+import { clampWatchTick, continueWatchSession, isCountedWatchTab, selectReminder } from './modules/watch-reminders.js';
 
 console.log("Background service worker started.");
 
@@ -28,6 +29,9 @@ let totalWatchTimeToday = 0;
 let continueCountToday = 0;
 let breaksTakenToday = 0;
 let testCommandQueue = Promise.resolve();
+let watchUpdateQueue = Promise.resolve();
+const WATCH_SESSION_KEY = 'watchSession';
+const MINUTE_MS = 60000;
 
 async function loadCodingSettings() {
   const result = await browser.storage.local.get([
@@ -187,6 +191,51 @@ async function checkTimeWasterAlert() {
 }
 
 // ============================================================
+// WATCH TIME & REMINDERS
+// ============================================================
+async function broadcastStats(data) {
+  try {
+    await browser.runtime.sendMessage({ action: "updateStats", ...data });
+  } catch (e) {}
+  try {
+    const tabs = await browser.tabs.query({ url: "*://*.youtube.com/*" });
+    for (const tab of tabs) {
+      browser.tabs.sendMessage(tab.id, { action: "updateStats", ...data }).catch(() => {});
+    }
+  } catch (e) {}
+}
+
+// Every watch-stat update reloads saved state first: the MV3 worker may have restarted with empty globals.
+function queueWatchUpdate(update) {
+  const result = watchUpdateQueue.then(async () => {
+    await loadCodingSettings();
+    return update();
+  });
+  watchUpdateQueue = result.catch(error => console.error('[WatchTime] Update failed:', error));
+  return result;
+}
+
+async function recordWatchTick(tab, amount, reminderReady) {
+  const focusedWindow = await browser.windows.getLastFocused();
+  if (!amount || !isCountedWatchTab(tab, focusedWindow)) return { counted: false };
+
+  remainingTime = Math.max(0, remainingTime - amount);
+  totalWatchTimeToday += amount;
+  const today = new Date().toDateString();
+  dailyWatchStats[today] = Math.round(totalWatchTimeToday / MINUTE_MS);
+
+  const stored = await browser.storage.local.get([WATCH_SESSION_KEY, 'timeReminderEnabled', 'timerInterval', 'mascotEnabled', 'mascotCategories']);
+  let session = continueWatchSession(stored[WATCH_SESSION_KEY], today);
+  let reminder = null;
+  if (reminderReady) {
+    ({ session, reminder } = selectReminder(session, { totalWatchTimeToday, continueCountToday, breaksTakenToday }, stored));
+  }
+  await browser.storage.local.set({ remainingTime, totalWatchTimeToday, dailyWatchStats, [WATCH_SESSION_KEY]: session });
+  broadcastStats({ remainingTime, totalWatchTimeToday, continueCountToday });
+  return { counted: true, totalWatchTimeToday, reminder };
+}
+
+// ============================================================
 // LEETCODE API (existing)
 // ============================================================
 async function fetchLeetCodeStats(username) {
@@ -307,44 +356,27 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-async function broadcastStats(data) {
-  try {
-    await browser.runtime.sendMessage({ action: "updateStats", ...data });
-  } catch (e) {}
-  try {
-    const tabs = await browser.tabs.query({ url: "*://*.youtube.com/*" });
-    for (const tab of tabs) {
-      browser.tabs.sendMessage(tab.id, { action: "updateStats", ...data }).catch(() => {});
-    }
-  } catch (e) {}
-}
-
   if (message.action === "deductTime") {
-    const deduction = message.amount;
-    remainingTime = Math.max(0, remainingTime - deduction);
-    totalWatchTimeToday += deduction;
-    const today = new Date().toDateString();
-    dailyWatchStats[today] = Math.round(totalWatchTimeToday / 1000 / 60);
-    browser.storage.local.set({ remainingTime, totalWatchTimeToday, dailyWatchStats });
-    broadcastStats({
-      remainingTime,
-      totalWatchTimeToday,
-      continueCountToday,
+    queueWatchUpdate(() => recordWatchTick(sender.tab, clampWatchTick(message.amount), message.reminderReady === true))
+      .then(sendResponse, error => sendResponse({ counted: false, error: error.message }));
+    return true;
+  }
+
+  if (message.action === "continueReminder") {
+    queueWatchUpdate(async () => {
+      continueCountToday++;
+      await browser.storage.local.set({ continueCountToday });
+      broadcastStats({ continueCountToday });
     });
     return false;
   }
 
-  if (message.action === "continueReminder") {
-    continueCountToday++;
-    browser.storage.local.set({ continueCountToday });
-    broadcastStats({ continueCountToday });
-    return false;
-  }
-
   if (message.action === "takeBreak") {
-    breaksTakenToday++;
-    browser.storage.local.set({ breaksTakenToday });
-    broadcastStats({ breaksTakenToday });
+    queueWatchUpdate(async () => {
+      breaksTakenToday++;
+      await browser.storage.local.set({ breaksTakenToday });
+      broadcastStats({ breaksTakenToday });
+    });
     if (sender.tab) browser.tabs.remove(sender.tab.id);
     return false;
   }
@@ -404,7 +436,6 @@ async function broadcastStats(data) {
     'testSetAllowance', 'testResetOverrides', 'testMaxOverrides', 'testSolveProblem', 'testSetHourlyRate',
   ].includes(message.action)) {
     testCommandQueue = testCommandQueue.then(async () => {
-      const MINUTE_MS = 60000;
       const MAX_TEST_MINUTES = 1440;
       const MAX_HOURLY_RATE = 1000000;
       if (['testAddWatchTime', 'testAddAllowance', 'testSetAllowance'].includes(message.action) &&
@@ -440,7 +471,7 @@ async function broadcastStats(data) {
       } else if (message.action === 'testResetTodayData') {
         Object.assign(updates, {
           totalWatchTimeToday: 0, continueCountToday: 0, breaksTakenToday: 0,
-          dailyWatchStats: { ...dailyWatchStats, [today]: 0 }, lastWasterAlert: {}, [siteKey]: {},
+          dailyWatchStats: { ...dailyWatchStats, [today]: 0 }, lastWasterAlert: {}, [siteKey]: {}, [WATCH_SESSION_KEY]: null,
         });
         detail = 'Today’s watch time, site time, and reminder counters reset. Earlier history, settings, and allowance preserved.';
       } else if (message.action === 'testAddAllowance' || message.action === 'testSetAllowance' || message.action === 'testSolveProblem') {

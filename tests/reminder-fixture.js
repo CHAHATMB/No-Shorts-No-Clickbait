@@ -1,3 +1,5 @@
+import { continueWatchSession, selectReminder } from '../src/modules/watch-reminders.js';
+
 window.__DEV__ = true;
 const parameters = new URLSearchParams(location.search);
 let now = Date.now();
@@ -20,6 +22,30 @@ window.setInterval = (callback, duration) => {
   }
   return originalInterval(callback, duration);
 };
+const settings = {
+  codingBonusEnabled: parameters.get('coding') === 'true',
+  mascotEnabled: parameters.get('mascot') !== 'false',
+  timeReminderEnabled: parameters.get('reminders') !== 'false',
+  timerInterval: 15,
+  mascotCategories: {
+    BREAK: parameters.get('breaks') !== 'false',
+    HYDRATION: false,
+    EYE_STRAIN: false,
+    STOP_WATCHING: false,
+    LATE_NIGHT: false,
+  },
+};
+let watchSession = null;
+let totalWatchTimeToday = 0;
+function recordWatchTick({ amount, reminderReady }) {
+  totalWatchTimeToday += amount;
+  watchSession = continueWatchSession(watchSession, new Date().toDateString(), now);
+  let reminder = null;
+  if (reminderReady) {
+    ({ session: watchSession, reminder } = selectReminder(watchSession, { totalWatchTimeToday, continueCountToday: 0, breaksTakenToday: 0 }, settings));
+  }
+  return { counted: true, totalWatchTimeToday, reminder };
+}
 const runtime = {
   id: 'mascot-test',
   getURL(path) {
@@ -29,7 +55,10 @@ const runtime = {
     return new URL(`../${source}`, import.meta.url).href;
   },
   onMessage: { addListener(listener) { window.sendExtensionMessage = listener; } },
-  async sendMessage(message) { window.sentMessages.push(message); },
+  async sendMessage(message) {
+    window.sentMessages.push(message);
+    if (message.action === 'deductTime') return recordWatchTick(message);
+  },
 };
 window.chrome = { runtime };
 window.browser = {
@@ -37,19 +66,7 @@ window.browser = {
   storage: {
     local: {
       async get() {
-        return {
-          codingBonusEnabled: parameters.get('coding') === 'true',
-          mascotEnabled: parameters.get('mascot') !== 'false',
-          timeReminderEnabled: parameters.get('reminders') !== 'false',
-          timerInterval: 15,
-          mascotCategories: {
-            BREAK: parameters.get('breaks') !== 'false',
-            HYDRATION: false,
-            EYE_STRAIN: false,
-            STOP_WATCHING: false,
-            LATE_NIGHT: false,
-          },
-        };
+        return structuredClone(settings);
       },
     },
   },

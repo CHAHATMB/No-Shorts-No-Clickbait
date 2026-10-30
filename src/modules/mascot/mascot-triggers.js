@@ -261,6 +261,25 @@ export class TriggerManager {
   }
 
   /**
+   * Serializable cooldown state, so trigger decisions survive restarts.
+   * @returns {{cooldowns: Object<string, number>, lastEvaluatedWatchTime: number}}
+   */
+  exportState() {
+    return {
+      cooldowns: Object.fromEntries(this.cooldowns),
+      lastEvaluatedWatchTime: this.lastEvaluatedWatchTime,
+    };
+  }
+
+  /**
+   * @param {{cooldowns?: Object<string, number>, lastEvaluatedWatchTime?: number}} [state]
+   */
+  restoreState({ cooldowns = {}, lastEvaluatedWatchTime = 0 } = {}) {
+    this.cooldowns = new Map(Object.entries(cooldowns));
+    this.lastEvaluatedWatchTime = lastEvaluatedWatchTime;
+  }
+
+  /**
    * Reset all cooldowns (e.g., on page navigation).
    */
   resetCooldowns() {
