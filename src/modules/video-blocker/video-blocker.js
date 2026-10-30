@@ -6,7 +6,8 @@ import { MESSAGE_CATEGORIES } from '../mascot/mascot-messages.js';
 const BLOCKER_ID = 'fg-video-blocker';
 const COUNTDOWN_SECONDS = 20;
 const SECOND_MS = 1000;
-const NAVIGATE_EVENT = 'yt-navigate-start';
+const NAVIGATE_START_EVENT = 'yt-navigate-start';
+const NAVIGATE_FINISH_EVENT = 'yt-navigate-finish';
 
 const BLOCK_TYPES = {
   [MESSAGE_CATEGORIES.HYDRATION]: { art: 'water', message: 'Time for a glass of water.' },
@@ -25,7 +26,12 @@ export class VideoBlocker {
     this.video = null;
     this.countdownTimer = null;
     this.keepPaused = () => this.video.pause();
-    this.remove = this.remove.bind(this);
+    // Navigation tears the overlay down, then puts the same block on the next page, so a click on another video cannot skip it.
+    this.restoreAfterNavigation = () => {
+      const { category } = this.overlay.dataset;
+      this.remove();
+      document.addEventListener(NAVIGATE_FINISH_EVENT, () => this.show(category), { once: true });
+    };
   }
 
   get active() {
@@ -44,7 +50,7 @@ export class VideoBlocker {
     this.video = video;
     video.pause();
     video.addEventListener('play', this.keepPaused);
-    document.addEventListener(NAVIGATE_EVENT, this.remove);
+    document.addEventListener(NAVIGATE_START_EVENT, this.restoreAfterNavigation);
 
     this.overlay = document.createElement('div');
     this.overlay.id = BLOCKER_ID;
@@ -75,7 +81,9 @@ export class VideoBlocker {
       this.startCountdown(action);
     }
 
-    (video.closest('#movie_player') || video.parentElement).appendChild(this.overlay);
+    const player = video.closest('#movie_player') || video.parentElement;
+    if (document.fullscreenElement && !document.fullscreenElement.contains(player)) document.exitFullscreen().catch(() => {});
+    player.appendChild(this.overlay);
     return true;
   }
 
@@ -116,7 +124,7 @@ export class VideoBlocker {
     if (!this.overlay) return;
     clearTimeout(this.countdownTimer);
     this.video.removeEventListener('play', this.keepPaused);
-    document.removeEventListener(NAVIGATE_EVENT, this.remove);
+    document.removeEventListener(NAVIGATE_START_EVENT, this.restoreAfterNavigation);
     this.overlay.remove();
     this.overlay = null;
     this.video = null;
