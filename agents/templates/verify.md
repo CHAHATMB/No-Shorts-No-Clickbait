@@ -2,12 +2,14 @@
 
 **Verdict:** <!-- VERIFIED | VERIFY_FAILED -->
 
+## Scope
+<!-- Changed files (git diff --stat over the feature commits) and which tests/fixtures cover them -->
+
 ## Checks run
 | Check | Result |
 |-------|--------|
-| `npm run build` | |
-| `npm test` | |
-| Browser fixtures | |
+| Build (affected browser) | |
+| Targeted tests/fixtures | |
 
 ## Feature scenarios
 | Scenario | Result | Screenshot |

@@ -16,7 +16,7 @@ Each feature lives in `agents/features/<NN-slug>/`, created from `agents/templat
 2. **Developer** reads `FEATURE.md`, `AGENTS.md`, and any prior `review.md`; implements; writes unit tests for critical business logic only (no UI tests); commits each logical unit; logs in `dev.md`; sets status `READY_FOR_REVIEW`.
 3. **Quality control** (clean context) reviews the feature's commits (`git log`/`git show` for the hashes listed in `dev.md`). Checks: correctness/bugs, no over-engineering, simple logic, no comment blocks explaining code, matches surrounding style, tests exist where business logic is critical (and not elsewhere). Writes `review.md`; sets status `APPROVED` or `CHANGES_REQUESTED`. Read-only on code.
 4. On `CHANGES_REQUESTED`, the developer addresses findings and the loop repeats.
-5. **Verify** builds, runs `npm test` and the browser fixture pages, exercises the feature, saves screenshots, writes `verify.md`; sets status `VERIFIED` or `VERIFY_FAILED`.
+5. **Verify** is scoped to the feature's changed files only (`git diff --stat` over its commits): build the affected browser(s), run only the tests/fixtures that cover the changed code, exercise the feature's scenarios, save screenshots, write `verify.md`; sets status `VERIFIED` or `VERIFY_FAILED`. No full regression suite — developer and QC already ran `npm test`.
 
 ## Rules for all agents
 
