@@ -25,3 +25,13 @@ The bump is needed less for the skating, which is cosmetic, than for the 100ms m
 
 ### Test coverage assessment
 The sprite-size test directly guards the root cause and is cheap. It's the right amount. Replacing the hard-coded 140 with `MASCOTS.finn.walkFrameInterval` is correct. No unnecessary tests were added. Pre-existing and out of scope: Finn's licensing risk, already flagged in dev.md.
+
+## Round 2
+**Commits reviewed:** 5b1340d, b1fcc0c
+**Verdict:** APPROVED
+
+Findings 1-3 are resolved. `walk` is now 1.6s in and out, with 2000ms fallbacks (400ms headroom). The CSS comment is one line, and the controller pose comment is accurate. Finding 4 was accepted as is. I didn't rerun the developer's runs, per the coordinator.
+
+| # | Severity | File:line | Issue | Suggested fix |
+|---|---|---|---|---|
+| 5 | minor | mascot-controller.js:246,373 | The fallback ternaries now nest three deep, and the exit comment "longer for grand exit" doesn't mention walk. Not blocking. | Optional: a small `{grand: 3500, walk: 2000, pop: 500}` lookup with a default, if the file is touched again. |
