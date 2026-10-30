@@ -3,9 +3,7 @@ window.testLabResults = results;
 const frame = document.getElementById('popup');
 const markup = await (await fetch('../src/popup.html')).text();
 frame.srcdoc = markup.replace('<head>', '<head><base href="/src/">')
-  .replace(/@import url\([^)]*\);/, '')
-  .replace('<script src="browser-polyfill.js"></script>', '<script src="/tests/test-lab-fixture.js"></script>')
-  .replace('<script src="popup.js"></script>', '<script type="module" src="/src/popup.js"></script>');
+  .replace('<script src="popup.js"></script>', '<script src="/tests/test-lab-fixture.js"></script><script type="module" src="/src/popup.js"></script>');
 await new Promise(resolve => frame.addEventListener('load', resolve, { once: true }));
 const documentUnderTest = frame.contentDocument;
 const harness = frame.contentWindow.testHarness;
@@ -51,6 +49,13 @@ await test('Test tab separates previews, saved-data tools, and diagnostics', () 
   assert(sections[0].open && !sections[1].open && !sections[2].open, 'Only previews should open by default');
   assert(!element('btn-test-clear-storage'), 'Unreliable full-storage reset must not be offered');
   assert(element('test-toast').getAttribute('role') === 'status', 'Results must be announced accessibly');
+});
+
+await test('Popup fits within the browser action viewport', () => {
+  const height = ['.header', '.tabs', '.tab-content.active', 'footer']
+    .map(selector => documentUnderTest.querySelector(selector).getBoundingClientRect().height)
+    .reduce((total, sectionHeight) => total + sectionHeight, 0);
+  assert(height <= 600, `Popup content height ${height}px exceeds the 600px browser limit`);
 });
 
 await test('Preview command targets only the displayed active tab without storage writes', async () => {
