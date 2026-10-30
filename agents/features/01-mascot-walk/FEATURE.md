@@ -1,6 +1,6 @@
 # 01 — Smooth mascot walk animation
 
-**Status:** APPROVED
+**Status:** VERIFY_FAILED
 
 ## Goal
 The mascot's walk animation is choppy and feels poor. Make walking look smooth and natural.
