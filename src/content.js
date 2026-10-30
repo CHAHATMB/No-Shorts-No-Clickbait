@@ -268,6 +268,9 @@ import { VideoBlocker } from './modules/video-blocker/video-blocker.js';
               action: "deductTime",
               amount: elapsed,
               reminderReady: !pendingReminder && isReminderReady(),
+              blockReady: !videoBlocker.active,
+              // A fullscreen page cannot show the mascot, so a held reminder escalates straight to a block there.
+              reminderPending: Boolean(pendingReminder) && !document.fullscreenElement,
             }).then(handleWatchTick, error => console.warn('[WatchTime] Background did not record watch time:', error));
           }
         } else {
@@ -287,14 +290,16 @@ import { VideoBlocker } from './modules/video-blocker/video-blocker.js';
   function handleWatchTick(response) {
     if (!response?.counted) return;
     totalWatchTimeToday = response.totalWatchTimeToday;
+    if (response.reminder?.behavior === BLOCK_BEHAVIOR) {
+      if (videoBlocker.show(response.reminder.category) && pendingReminder?.category === response.reminder.category) pendingReminder = null;
+      return;
+    }
     // The background has already recorded this reminder as delivered, so hold it until the page can show it.
     pendingReminder = response.reminder || pendingReminder;
     if (!pendingReminder || !isReminderReady()) return;
     const reminder = pendingReminder;
     pendingReminder = null;
-    if (reminder.behavior === BLOCK_BEHAVIOR) {
-      videoBlocker.show(reminder.category);
-    } else if (reminder.category === MESSAGE_CATEGORIES.BREAK) {
+    if (reminder.category === MESSAGE_CATEGORIES.BREAK) {
       showTimeReminder();
     } else {
       mascotController?.showTrigger(reminder, { totalWatchTimeToday, continueCountToday, breaksTakenToday });

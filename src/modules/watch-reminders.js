@@ -43,8 +43,36 @@ export function escalateReminder(escalation, totalWatchTimeToday, now = Date.now
   return watchedSince >= BLOCK_GRACE_MS ? 'ignored' : 'pending';
 }
 
+// The grace period starts once the page has shown the reminder, not when it was delivered.
+export function deferEscalation(session, totalWatchTimeToday, now = Date.now()) {
+  if (!session.escalation) return session;
+  return { ...session, escalation: { ...session.escalation, watchTime: totalWatchTimeToday, deliveredAt: now } };
+}
+
 export function snoozeStopWatching(session, totalWatchTimeToday) {
+  if (!(totalWatchTimeToday >= session.stopAllowedUntil)) return session;
   return { ...session, stopAllowedUntil: totalWatchTimeToday + STOP_SNOOZE_MS };
+}
+
+const blockReminder = (category, session) => ({ category, behavior: BLOCK_BEHAVIOR, sessionStartTime: session.sessionStartTime });
+
+/**
+ * Blocks only, for a page that can show a block but not a mascot (e.g. fullscreen).
+ * An escalation still in the returned session is pending.
+ * @returns {{session: Object, reminder: Object|null}}
+ */
+export function selectBlock(session, totalWatchTimeToday, settings, now = Date.now()) {
+  const stopEnabled = settings.mascotEnabled !== false && settings.mascotCategories?.[MESSAGE_CATEGORIES.STOP_WATCHING] !== false;
+  if (stopEnabled && totalWatchTimeToday >= session.stopAllowedUntil) {
+    return { session, reminder: blockReminder(MESSAGE_CATEGORIES.STOP_WATCHING, session) };
+  }
+  if (!session.escalation) return { session, reminder: null };
+  const outcome = escalateReminder(session.escalation, totalWatchTimeToday, now);
+  if (outcome === 'pending') return { session, reminder: null };
+  return {
+    session: { ...session, escalation: null },
+    reminder: outcome === 'ignored' ? blockReminder(session.escalation.category, session) : null,
+  };
 }
 
 /**
@@ -62,21 +90,12 @@ export function selectReminder(session, stats, settings, now = Date.now()) {
   const categories = settings.mascotCategories || {};
   const breakEnabled = settings.timeReminderEnabled !== false &&
     (!mascotEnabled || categories[MESSAGE_CATEGORIES.BREAK] !== false);
-  const stopEnabled = mascotEnabled && categories[MESSAGE_CATEGORIES.STOP_WATCHING] !== false;
   const { totalWatchTimeToday } = stats;
-  const block = category => ({ category, behavior: BLOCK_BEHAVIOR, sessionStartTime: session.sessionStartTime });
   const escalate = category => ({ category, watchTime: totalWatchTimeToday, deliveredAt: now });
 
-  if (stopEnabled && Number.isFinite(session.stopAllowedUntil) && totalWatchTimeToday >= session.stopAllowedUntil) {
-    return { session, reminder: block(MESSAGE_CATEGORIES.STOP_WATCHING) };
-  }
-  if (session.escalation) {
-    const outcome = escalateReminder(session.escalation, totalWatchTimeToday, now);
-    if (outcome === 'pending') return { session, reminder: null };
-    const reminder = outcome === 'ignored' ? block(session.escalation.category) : null;
-    session = { ...session, escalation: null };
-    if (reminder) return { session, reminder };
-  }
+  const blocked = selectBlock(session, totalWatchTimeToday, settings, now);
+  if (blocked.reminder || blocked.session.escalation) return blocked;
+  session = blocked.session;
 
   if (breakEnabled && totalWatchTimeToday >= intervalMs && totalWatchTimeToday - session.lastBreakWatchTime >= intervalMs) {
     return {
@@ -95,7 +114,9 @@ export function selectReminder(session, stats, settings, now = Date.now()) {
   const trigger = triggerManager.evaluate({ ...stats, timerInterval, breakReminderManaged: true });
   const next = { ...session, triggers: triggerManager.exportState() };
   if (trigger?.category === MESSAGE_CATEGORIES.STOP_WATCHING) {
-    return { session: { ...next, stopAllowedUntil: totalWatchTimeToday }, reminder: block(trigger.category) };
+    // The limit is already set and selectBlock found it snoozed; a re-fired trigger must not reset it.
+    if (Number.isFinite(session.stopAllowedUntil)) return { session: next, reminder: null };
+    return { session: { ...next, stopAllowedUntil: totalWatchTimeToday }, reminder: blockReminder(trigger.category, session) };
   }
   if (ESCALATING_CATEGORIES.includes(trigger?.category)) next.escalation = escalate(trigger.category);
   return {

@@ -3,7 +3,7 @@ import './browser-polyfill.js';
 import { FEATURES } from './features.js';
 import { initUniversalTracker, extractDomain } from './modules/time-tracker.js';
 import { checkUrlBlocked, getOverrideCount, incrementOverrideCount, MAX_DAILY_OVERRIDES } from './modules/url-blocker.js';
-import { clampWatchTick, continueWatchSession, isCountedWatchTab, MINUTE_MS, selectReminder, snoozeStopWatching } from './modules/watch-reminders.js';
+import { clampWatchTick, continueWatchSession, deferEscalation, isCountedWatchTab, MINUTE_MS, selectBlock, selectReminder, snoozeStopWatching } from './modules/watch-reminders.js';
 
 console.log("Background service worker started.");
 
@@ -213,7 +213,7 @@ function queueWatchUpdate(update) {
   return result;
 }
 
-async function recordWatchTick(tab, amount, reminderReady) {
+async function recordWatchTick(tab, amount, { reminderReady, blockReady, reminderPending }) {
   const focusedWindow = await browser.windows.getLastFocused();
   if (!amount || !isCountedWatchTab(tab, focusedWindow)) return { counted: false };
 
@@ -225,8 +225,11 @@ async function recordWatchTick(tab, amount, reminderReady) {
   const stored = await browser.storage.local.get([WATCH_SESSION_KEY, 'timeReminderEnabled', 'timerInterval', 'mascotEnabled', 'mascotCategories']);
   let session = continueWatchSession(stored[WATCH_SESSION_KEY], today);
   let reminder = null;
+  if (reminderPending) session = deferEscalation(session, totalWatchTimeToday);
   if (reminderReady) {
     ({ session, reminder } = selectReminder(session, { totalWatchTimeToday, continueCountToday, breaksTakenToday }, stored));
+  } else if (blockReady) {
+    ({ session, reminder } = selectBlock(session, totalWatchTimeToday, stored));
   }
   await browser.storage.local.set({ remainingTime, totalWatchTimeToday, dailyWatchStats, [WATCH_SESSION_KEY]: session });
   broadcastStats({ remainingTime, totalWatchTimeToday, continueCountToday });
@@ -357,7 +360,11 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.action === "deductTime") {
-    queueWatchUpdate(() => recordWatchTick(sender.tab, clampWatchTick(message.amount), message.reminderReady === true))
+    queueWatchUpdate(() => recordWatchTick(sender.tab, clampWatchTick(message.amount), {
+      reminderReady: message.reminderReady === true,
+      blockReady: message.blockReady === true,
+      reminderPending: message.reminderPending === true,
+    }))
       .then(sendResponse, error => sendResponse({ counted: false, error: error.message }));
     return true;
   }

@@ -43,13 +43,16 @@ test('Break reminder fires once per interval across tabs, reloads, and worker re
   const { continueWatchSession, selectReminder } = await reminders;
   const today = 'Fri Oct 30 2026';
   let session = continueWatchSession(undefined, today);
-  const ticks = [[14 * MINUTE_MS, null], [15 * MINUTE_MS, 'BREAK'], [15 * MINUTE_MS + 5000, null], [29 * MINUTE_MS, null], [30 * MINUTE_MS, 'BREAK'], [30 * MINUTE_MS + 5000, null]];
+  const ticks = [
+    [14 * MINUTE_MS, null], [15 * MINUTE_MS, 'BREAK persistent'], [15 * MINUTE_MS + 5000, null],
+    [29 * MINUTE_MS, 'BREAK block'], [30 * MINUTE_MS, 'BREAK persistent'], [30 * MINUTE_MS + 5000, null],
+  ];
   for (const [total, expected] of ticks) {
     session = continueWatchSession(restart(session), today);
     const result = selectReminder(session, stats(total), breakSettings);
     session = result.session;
-    const delivered = result.reminder?.behavior === 'block' ? null : result.reminder;
-    assert.equal(delivered?.category ?? null, expected, `At ${total / MINUTE_MS} minutes: ${JSON.stringify(result.reminder)}`);
+    const delivered = result.reminder && `${result.reminder.category} ${result.reminder.behavior}`;
+    assert.equal(delivered, expected, `At ${total / MINUTE_MS} minutes: ${JSON.stringify(result.reminder)}`);
   }
 });
 
@@ -79,9 +82,9 @@ test('Mascot triggers keep their cooldowns through restarts', async () => {
   for (const total of [29 * MINUTE_MS, 30 * MINUTE_MS, 30 * MINUTE_MS + 5000, 31 * MINUTE_MS]) {
     const result = selectReminder(continueWatchSession(restart(session), 'today'), stats(total), settings);
     session = result.session;
-    if (result.reminder && result.reminder.behavior !== 'block') fired.push([total / MINUTE_MS, result.reminder.category]);
+    if (result.reminder) fired.push([total / MINUTE_MS, result.reminder.category, result.reminder.behavior]);
   }
-  assert.deepEqual(fired, [[30, 'HYDRATION']], `Hydration must fire once: ${JSON.stringify(fired)}`);
+  assert.deepEqual(fired, [[30, 'HYDRATION', 'transient'], [31, 'HYDRATION', 'block']], `Hydration must fire once, then escalate once: ${JSON.stringify(fired)}`);
 });
 
 test('A watch session restarts only after a gap', async context => {
@@ -100,13 +103,15 @@ const hydrationSettings = { timeReminderEnabled: false, mascotCategories: { HYDR
 const stopSettings = { timeReminderEnabled: false, mascotCategories: { HYDRATION: false, EYE_STRAIN: false, STOP_WATCHING: true, LATE_NIGHT: false } };
 
 // Plays the video tick by tick from `watch.total`, optionally pausing (wall clock only) before the first tick.
-async function playFor(watch, durationMs, { pauseMs = 0, settings = hydrationSettings, continueCountToday = 0 } = {}) {
+// Pass the test's mock timers as `clock` when TriggerManager cooldowns (which read Date.now) matter.
+async function playFor(watch, durationMs, { pauseMs = 0, settings = hydrationSettings, continueCountToday = 0, clock } = {}) {
   const { continueWatchSession, selectReminder } = await reminders;
-  watch.now += pauseMs;
+  const advance = ms => { watch.now += ms; clock?.tick(ms); };
+  advance(pauseMs);
   const delivered = [];
   for (let played = 0; played < durationMs; played += TICK_MS) {
     watch.total += TICK_MS;
-    watch.now += TICK_MS;
+    advance(TICK_MS);
     const session = continueWatchSession(restart(watch.session), 'today', watch.now);
     const result = selectReminder(session, { totalWatchTimeToday: watch.total, continueCountToday, breaksTakenToday: 0 }, settings, watch.now);
     watch.session = result.session;
@@ -169,6 +174,50 @@ test('Stop watching: "Watch 5 more min" allows five minutes of watching, then bl
   assert.deepEqual(await playFor(watch, TICK_MS, options), [[3900, 'STOP_WATCHING', 'block']]);
 });
 
+test('Stop watching: a snooze after the trigger cooldown has passed is not cut short', async context => {
+  const watch = startWatch(60 * MINUTE_MS - TICK_MS);
+  context.mock.timers.enable({ apis: ['Date'], now: watch.now });
+  const { snoozeStopWatching, STOP_SNOOZE_MS } = await reminders;
+  const options = { settings: stopSettings, continueCountToday: 2, clock: context.mock.timers };
+  assert.deepEqual(await playFor(watch, TICK_MS, options), [[3600, 'STOP_WATCHING', 'block']]);
+  context.mock.timers.tick(16 * MINUTE_MS);
+  watch.now += 16 * MINUTE_MS;
+  watch.session = restart(snoozeStopWatching(watch.session, watch.total));
+  assert.deepEqual(await playFor(watch, STOP_SNOOZE_MS - TICK_MS, options), [], `The 15-minute trigger cooldown must not end the snooze: ${JSON.stringify(watch.session)}`);
+  assert.deepEqual(await playFor(watch, TICK_MS, options), [[3900, 'STOP_WATCHING', 'block']]);
+});
+
+test('Stop watching: "Watch 5 more min" only extends a limit that is blocking now', async () => {
+  const { snoozeStopWatching, STOP_SNOOZE_MS } = await reminders;
+  assert.deepEqual(snoozeStopWatching({ date: 'today' }, 10 * MINUTE_MS), { date: 'today' }, 'No limit reached yet');
+  const snoozed = snoozeStopWatching({ stopAllowedUntil: 60 * MINUTE_MS }, 60 * MINUTE_MS);
+  assert.equal(snoozed.stopAllowedUntil, 60 * MINUTE_MS + STOP_SNOOZE_MS);
+  assert.equal(snoozeStopWatching(snoozed, 61 * MINUTE_MS), snoozed, 'A stale overlay in another tab must not extend an active snooze');
+});
+
+test('Escalation: the grace period starts when the page shows the reminder', async () => {
+  const { deferEscalation, BLOCK_GRACE_MS } = await reminders;
+  const watch = startWatch(30 * MINUTE_MS - TICK_MS);
+  await playFor(watch, TICK_MS);
+  for (let held = 0; held < 2 * MINUTE_MS; held += TICK_MS) {
+    watch.total += TICK_MS;
+    watch.now += TICK_MS;
+    watch.session = deferEscalation(restart(watch.session), watch.total, watch.now);
+  }
+  assert.deepEqual(await playFor(watch, BLOCK_GRACE_MS - TICK_MS), [], 'Time while the reminder was held must not count toward the grace');
+  assert.deepEqual((await playFor(watch, TICK_MS)).map(([, category, behavior]) => [category, behavior]), [['HYDRATION', 'block']]);
+});
+
+test('Blocks are selected for a page that cannot show the mascot, and mascot reminders are not', async () => {
+  const { continueWatchSession, selectBlock, BLOCK_GRACE_MS } = await reminders;
+  const session = continueWatchSession(undefined, 'today', 0);
+  assert.equal(selectBlock(session, 45 * MINUTE_MS, breakSettings, 0).reminder, null, 'A due break reminder waits for a page that can show it');
+  const escalated = { ...session, escalation: { category: 'EYE_STRAIN', watchTime: 0, deliveredAt: 0 } };
+  assert.deepEqual(selectBlock(escalated, BLOCK_GRACE_MS, breakSettings, BLOCK_GRACE_MS).reminder?.category, 'EYE_STRAIN');
+  const limited = { ...session, stopAllowedUntil: 60 * MINUTE_MS };
+  assert.equal(selectBlock(limited, 60 * MINUTE_MS, stopSettings, 0).reminder?.behavior, 'block');
+});
+
 test('Stop watching: disabling the stop category lifts the block', async () => {
   const watch = startWatch(60 * MINUTE_MS - TICK_MS);
   await playFor(watch, TICK_MS, { settings: stopSettings, continueCountToday: 2 });
@@ -207,7 +256,7 @@ function backgroundHarness(data, window, { features = {}, fetch, beforeStorageRe
   };
   return reminders.then(exports => {
     vm.runInNewContext(readSource('background.js'), Object.assign(context, exports));
-    return (tab, amount = 5000, reminderReady = true) => new Promise(resolve => listener({ action: 'deductTime', amount, reminderReady }, { tab }, resolve));
+    return (tab, amount = 5000, reminderReady = true, flags = {}) => new Promise(resolve => listener({ action: 'deductTime', amount, reminderReady, ...flags }, { tab }, resolve));
   });
 }
 
@@ -243,6 +292,22 @@ test('A tick from a tab that cannot show a reminder does not use it up', async (
   assert.equal(deferred.counted, true);
   assert.equal(deferred.reminder, null);
   assert.equal((await tick(watchingTab)).reminder?.category, 'BREAK', 'The deferred reminder must fire once the tab is ready');
+});
+
+test('Background shows blocks in fullscreen and holds the grace while a reminder waits to be shown', async () => {
+  const data = {
+    lastUpdateDate: new Date().toDateString(), totalWatchTimeToday: 60 * MINUTE_MS,
+    mascotCategories: stopSettings.mascotCategories,
+    watchSession: { date: new Date().toDateString(), lastBreakWatchTime: 0, sessionStartTime: Date.now(), lastTickTime: Date.now(), triggers: {}, stopAllowedUntil: 60 * MINUTE_MS },
+  };
+  const tick = await backgroundHarness(data, { ...focusedWindow });
+  assert.equal((await tick(watchingTab, 5000, false, { blockReady: true })).reminder?.category, 'STOP_WATCHING', 'Fullscreen can show the stop block');
+  assert.equal((await tick(watchingTab, 5000, false)).reminder, null, 'A page with a block already up gets nothing');
+
+  data.watchSession = { ...data.watchSession, stopAllowedUntil: undefined, escalation: { category: 'HYDRATION', watchTime: 0, deliveredAt: 0 } };
+  const held = await tick(watchingTab, 5000, false, { blockReady: true, reminderPending: true });
+  assert.equal(held.reminder, null, 'A reminder still waiting in the tab must not escalate');
+  assert.equal(data.watchSession.escalation.watchTime, data.totalWatchTimeToday);
 });
 
 test('A watch tick overlapping a LeetCode bonus keeps both updates', async () => {
@@ -292,7 +357,7 @@ function contentTrackingLoop({ video, hidden = false, path = '/watch' }) {
   let now = Date.parse("2026-10-30T12:00:00");
   vm.runInNewContext(`${source.slice(start, source.indexOf('\n  function isReminderReady', start))}\ninitializeTimeTracking();`, {
     WATCH_TICK_MS: 5000, lastDeductionTime: null, pendingReminder: null,
-    isReminderReady: () => true, handleWatchTick() {}, console,
+    isReminderReady: () => true, handleWatchTick() {}, console, videoBlocker: { active: false },
     Date: { now: () => now },
     setInterval: callback => { tickLoop = callback; },
     document: { hidden, querySelector: () => video },
