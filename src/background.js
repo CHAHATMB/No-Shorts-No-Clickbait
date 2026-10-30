@@ -3,7 +3,7 @@ import './browser-polyfill.js';
 import { FEATURES } from './features.js';
 import { initUniversalTracker, extractDomain } from './modules/time-tracker.js';
 import { checkUrlBlocked, getOverrideCount, incrementOverrideCount, MAX_DAILY_OVERRIDES } from './modules/url-blocker.js';
-import { clampWatchTick, continueWatchSession, isCountedWatchTab, MINUTE_MS, selectReminder } from './modules/watch-reminders.js';
+import { clampWatchTick, continueWatchSession, isCountedWatchTab, MINUTE_MS, selectReminder, snoozeStopWatching } from './modules/watch-reminders.js';
 
 console.log("Background service worker started.");
 
@@ -367,6 +367,15 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
       continueCountToday++;
       await browser.storage.local.set({ continueCountToday });
       broadcastStats({ continueCountToday });
+    });
+    return false;
+  }
+
+  if (message.action === "snoozeStopWatching") {
+    queueWatchUpdate(async () => {
+      const { [WATCH_SESSION_KEY]: session } = await browser.storage.local.get(WATCH_SESSION_KEY);
+      if (session?.date !== new Date().toDateString()) return;
+      await browser.storage.local.set({ [WATCH_SESSION_KEY]: snoozeStopWatching(session, totalWatchTimeToday) });
     });
     return false;
   }

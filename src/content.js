@@ -4,6 +4,8 @@ import { FEATURES } from './features.js';
 import { MascotController } from './modules/mascot/mascot-controller.js';
 import { MESSAGE_CATEGORIES } from './modules/mascot/mascot-messages.js';
 import { TEST_PROTOCOL_VERSION } from './modules/test-lab-client.js';
+import { BLOCK_BEHAVIOR } from './modules/watch-reminders.js';
+import { VideoBlocker } from './modules/video-blocker/video-blocker.js';
 
 (function () {
   "use strict";
@@ -37,6 +39,9 @@ import { TEST_PROTOCOL_VERSION } from './modules/test-lab-client.js';
   let breaksTakenToday = 0;
   let reminderTimer = null;
   let pendingReminder = null;
+  const videoBlocker = new VideoBlocker({
+    onSnooze: () => browser.runtime.sendMessage({ action: "snoozeStopWatching" }),
+  });
 
   // Mascot companion
   let mascotController = null;
@@ -275,7 +280,7 @@ import { TEST_PROTOCOL_VERSION } from './modules/test-lab-client.js';
   }
 
   function isReminderReady() {
-    return !document.hidden && !document.fullscreenElement && !document.getElementById("youtube-time-reminder") &&
+    return !document.hidden && !document.fullscreenElement && !document.getElementById("youtube-time-reminder") && !videoBlocker.active &&
       (!mascotController?.enabled || mascotController.state === 'offscreen');
   }
 
@@ -287,7 +292,9 @@ import { TEST_PROTOCOL_VERSION } from './modules/test-lab-client.js';
     if (!pendingReminder || !isReminderReady()) return;
     const reminder = pendingReminder;
     pendingReminder = null;
-    if (reminder.category === MESSAGE_CATEGORIES.BREAK) {
+    if (reminder.behavior === BLOCK_BEHAVIOR) {
+      videoBlocker.show(reminder.category);
+    } else if (reminder.category === MESSAGE_CATEGORIES.BREAK) {
       showTimeReminder();
     } else {
       mascotController?.showTrigger(reminder, { totalWatchTimeToday, continueCountToday, breaksTakenToday });
