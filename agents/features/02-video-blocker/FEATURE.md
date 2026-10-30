@@ -1,6 +1,6 @@
 # 02 — Video blocker overlay (escalation)
 
-**Status:** BLOCKED — starts after 01 and 03 are VERIFIED
+**Status:** READY_FOR_DEV
 
 ## Goal
 The mascot reminder alone is easy to ignore. Add a video blocker that pauses the YouTube video and covers the player area with a dim, semi-transparent black overlay plus a simple animated GIF and short message.
@@ -21,4 +21,9 @@ The mascot reminder alone is easy to ignore. Add a video blocker that pauses the
 - [ ] Screenshots of each blocker type.
 
 ## File ownership
-To be finalized when this starts.
+- New module(s) under `src/modules/video-blocker/` (JS + CSS) and new GIF/asset files
+- `src/modules/watch-reminders.js`, `src/background.js`, `src/content.js` — escalation wiring only (feature 03 is VERIFIED; build on its reminder-dispatch API in `agents/features/03-timer-multitab/dev.md`)
+- `webpack.config.js` / manifests only if needed to ship new assets
+- `tests/*.test.cjs` for escalation logic
+
+Feature 01 is still finishing in `mascot-character.js`, `mascot-styles.css`, `mascots/**` — do NOT edit those. If you need a hook in `mascot-controller.js` (e.g. "reminder acknowledged/dismissed" event), note it in dev.md and ask the orchestrator before editing.
