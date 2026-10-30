@@ -1,6 +1,6 @@
 # 02 — Video blocker overlay (escalation)
 
-**Status:** IN_DEV
+**Status:** READY_FOR_REVIEW
 
 ## Goal
 The mascot reminder alone is easy to ignore. Add a video blocker that pauses the YouTube video and covers the player area with a dim, semi-transparent black overlay plus a simple animated GIF and short message.
