@@ -13,6 +13,7 @@ import {
 } from './mascot-character.js';
 import { MESSAGE_CATEGORIES, buildContext, selectMessage } from './mascot-messages.js';
 import { TriggerManager } from './mascot-triggers.js';
+import { findPlayerVideo } from '../video-blocker/video-blocker.js';
 
 // Inline the CSS as a string to inject into the page
 // (webpack won't process CSS imports in content scripts the same way)
@@ -595,7 +596,7 @@ export class MascotController {
    * @private
    */
   _pauseVideo() {
-    const video = document.querySelector('video');
+    const video = findPlayerVideo();
     if (video && !video.paused) {
       video.pause();
     }
@@ -606,7 +607,7 @@ export class MascotController {
    * @private
    */
   _resumeVideo() {
-    const video = document.querySelector('video');
+    const video = findPlayerVideo();
     if (video && video.paused) {
       video.play().catch(() => {});
     }
