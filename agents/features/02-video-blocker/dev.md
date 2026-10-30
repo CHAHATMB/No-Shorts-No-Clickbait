@@ -71,3 +71,15 @@ Results: `npm test` 65/65. `npm run build` OK. `npm run lint` 0 errors (10 pre-e
 |------|---------|
 | 3ad05ff | fix: keep stop snoozes past the trigger cooldown, start grace on display, and show blocks in fullscreen |
 | 4c00445 | fix: put the video block back after SPA navigation and over non-player fullscreen |
+
+Verify round 1 (verify.md, db96f7a: VERIFY_FAILED) and review round 2 minors (76f00ea):
+- Verify failure / review 7, fixed (2a49c41): `findPlayerVideo()` (exported from `video-blocker.js`) tries `#movie_player video` before falling back to `video`. There was no existing player selector to reuse. It is now used by `VideoBlocker.show()`, the content tick loop (`content.js` `initializeTimeTracking`: with a preview first, the loop read the preview's paused state, so ticks and blocks stopped) and the text-panel pause in `showTimeReminder`. The `pauseVideo`/`resumeVideo` methods in `mascot-controller.js:598,609` have the same generic query, but I didn't change them (that file needs approval first). Flagged as a follow-up. `content.js:220` pauses *all* videos, so it is fine as it is. Browser check: with a preview `<video>` before `#movie_player`, the block and its re-show after navigation attach to `#movie_player`, and `play()` on the main video is paused again.
+- Review 8, fixed (6d584a0): once `stopAllowedUntil` is set, STOP_WATCHING is disabled in the TriggerManager, so a cooldown re-fire can't take a lower-priority reminder's slot. The trigger-branch guard from round 1 is now unreachable and was removed. Test: "during a snooze, a re-fired stop trigger does not swallow another reminder".
+- Review 9, fixed (2a49c41, despite the 6d584a0 message): when a block is shown, content calls `mascotController.dismiss('close')`, so the two overlays never show together. `'close'` doesn't count toward stats.
+
+Results: `npm test` 66/66. `npm run build` OK. `npm run lint` 0 errors.
+
+| Hash | Message |
+|------|---------|
+| 2a49c41 | fix: target the main player's video so hover previews cannot bypass the block (also contains the review 9 mascot dismiss and its test-context change) |
+| 6d584a0 | fix: keep snoozed stop triggers from swallowing other reminders, and dismiss the mascot when a block shows (watch-reminders.js only) |
