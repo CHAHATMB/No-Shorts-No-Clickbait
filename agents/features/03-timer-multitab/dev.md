@@ -30,7 +30,7 @@ Multi-tab was the main cause of duplicates (1, 2); 3 and 4 explain lost/incorrec
 - **Tick** (content → background): `browser.runtime.sendMessage({ action: 'deductTime', amount: ms, reminderReady: boolean })`, sent every `WATCH_TICK_MS` (5s) while a video plays in a visible `/watch` tab.
 - **Decision** (`background.js` `recordWatchTick`, run in `queueWatchUpdate`): ignore unless the counting rule holds → reload state (`loadCodingSettings`) → add time/deduct allowance → `continueWatchSession(saved, today)` → if `reminderReady`, `selectReminder(session, stats, settings)` → save `watchSession` + stats in one `storage.local.set` → `broadcastStats` to all tabs.
 - **Response** (the only delivery path, so it reaches only the counted tab): `{ counted: false }` or `{ counted: true, totalWatchTimeToday, reminder: null | { category, behavior, sessionStartTime } }`.
-- **Display** (`content.js` `handleWatchTick`): `BREAK` → `showTimeReminder()` (mascot or text panel); other categories → `mascotController.showTrigger(reminder, watchData)`.
+- **Display** (`content.js` `handleWatchTick`): if the page can no longer show it (hidden, fullscreen, mascot busy), the reminder is held in `pendingReminder` and shown on the next counted tick; meanwhile ticks send `reminderReady: false`. Then: `BREAK` → `showTimeReminder()` (mascot or text panel); other categories → `mascotController.showTrigger(reminder, watchData)`.
 - **Dedupe state**: `storage.local.watchSession = { date, lastBreakWatchTime, sessionStartTime, lastTickTime, triggers: { cooldowns, lastEvaluatedWatchTime } }`; reset each day and by the Test Lab "reset today" command.
 - To add an escalation (feature 02): add a branch to `selectReminder` (pure, in `src/modules/watch-reminders.js`) that records its own state in the session and returns a new `category`; handle that category in `handleWatchTick`.
 
@@ -39,6 +39,8 @@ Multi-tab was the main cause of duplicates (1, 2); 3 and 4 explain lost/incorrec
 |------|---------|
 | d4b27fc | fix: persist site-time tracking across worker restarts and stop counting unfocused windows |
 | 8dcb5c7 | fix: count watch time only in the focused tab and dispatch reminders once from the background |
+| aaa324c | fix: queue LeetCode bonus and Test Lab stat writes behind watch-time updates |
+| 586e357 | fix: hold undelivered reminders, drop tracking with no window open, and cover review gaps in tests |
 
 ## Tests added
 `tests/watch-time.test.cjs` (Node, no dependencies):
@@ -51,6 +53,16 @@ Multi-tab was the main cause of duplicates (1, 2); 3 and 4 explain lost/incorrec
 Results: `npm test` 44/44 pass. `npm run build` OK. `npm run lint` 0 errors. `tests/mascot.html` 27/27 pass. `tests/test-lab.html` 16/17: "Popup fits within the browser action viewport" fails (603px > 600px). This change doesn't touch the popup, `popup.html` or `styles.css`, so the failure is unrelated (environment or another change).
 
 ## Round 2+ (responses to review)
+Round 1 (review.md, 4be09e8):
+1. major, fixed (aaa324c): the write phase of `updateSolvedProblems` (after the fetch) and the Test Lab command body now run in `queueWatchUpdate`; `testCommandQueue` is gone (its separate reload is now done by the queue). Test: "A watch tick overlapping a LeetCode bonus keeps both updates". It fails on 8dcb5c7 (remainingTime 55000) and passes now.
+2. minor, fixed without a round trip (586e357): content keeps a reminder it couldn't show in `pendingReminder` and shows it on the next counted tick; `isReminderReady` now also checks `document.hidden`. It is lost only if the tab closes first.
+3. minor, fixed: if `getLastFocused` rejects (no window open), the tracker treats it as no active tab and clears `siteTimeTracking`. Covered in the site-tracker test.
+4. minor, fixed: removed the empty `updateTimerInterval` branch. The popup's unanswered `tabs.sendMessage` resolves to `undefined` through the polyfill, the same way as other actions this receiver ignores.
+5. minor, fixed: `MINUTE_MS` is exported from `watch-reminders.js`. The Test Lab VM harness injects it the same way it already injects `MAX_DAILY_OVERRIDES`.
+6. minor, skipped (follow-up): the dead `isPersistentActive`/`setPersistentActive`/`sessionStartTime` on the content-side `TriggerManager`. Removing them reaches into controller code that feature 01 is editing at the same time; this cleanup isn't part of this feature.
+7. verify only: left for the verify agent (Firefox, two windows, switching windows).
+Tests added: a `reminderReady: false` tick does not use up the reminder; a tick overlapping a bonus keeps both updates; the content loop sends nothing for paused, ended, or hidden tabs, non-`/watch` pages, or a page with no video (real `initializeTimeTracking`, sliced in the same way as `loadListener`); no credit after the browser window has been closed.
+Results: `npm test` 52/52, build OK, mascot.html 27/27. test-lab.html 16/17; the same popup-height failure, which predates this feature (review.md).
 
 ## Open questions
 - `TriggerManager.isPersistentActive`/`setPersistentActive` in the content-side manager are no longer read (the background decides). Left in place; can be removed later.
