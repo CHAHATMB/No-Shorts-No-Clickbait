@@ -25,6 +25,7 @@
 |------|---------|
 | e9df507 | fix: align Finn sprite frames on a shared bottom-anchored canvas |
 | 46be793 | fix: walk the mascot at a constant, cadence-matched pace |
+| 5b1340d | fix: give the walk entrance the stride-matched pace with safe fallback headroom |
 
 ## Tests added
 - `tests/mascot.test.js`: every Finn sprite must share one natural size (regression guard for the root cause). Frame-advance tests now tick `MASCOTS.finn.walkFrameInterval` instead of a hard-coded 140.
@@ -33,7 +34,11 @@
 - `npm run build` OK (chrome + firefox, both ship the new frames/CSS); `npm test` 44/44 pass.
 
 ## Round 2+ (responses to review)
+- Orchestrator approved editing `mascot-controller.js` (feature 03 done) for review findings 1-3 only.
+- Findings 1+2 (5b1340d): `walk` in/out is now 1.6s, the same as grand, so it's stride-matched with no skating. The walk entrance/exit fallbacks go from 1500/1200ms to 2000ms (400ms headroom). The CSS comment is trimmed to the linear-speed caveat.
+- Finding 3 (5b1340d): the controller pose comment no longer refers to the removed walk-cycle CSS.
+- Finding 4: left as is (acceptable per review).
+- Re-ran: `npm run build` OK, `npm test` 52/52, `tests/mascot.html` 27/27 at desktop, 420px and reduced motion.
 
 ## Open questions
-- Raise the walk entrance/exit fallbacks in `mascot-controller.js` so `walk` can use the stride-matched 1.6s?
 - Finn is an Adventure Time (Cartoon Network) character. Shipping that likeness is a licensing risk that predates this feature.
