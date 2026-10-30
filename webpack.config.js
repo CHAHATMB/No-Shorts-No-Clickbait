@@ -39,6 +39,8 @@ module.exports = (env = {}, argv = {}) => {
           { from: 'src/styles.css', to: 'styles.css' },
           { from: 'src/browser-polyfill.js', to: 'browser-polyfill.js' },
           { from: 'src/modules/mascot/mascot-styles.css', to: 'mascot-styles.css' },
+          { from: 'src/modules/video-blocker/video-blocker.css', to: 'video-blocker.css' },
+          { from: 'src/modules/video-blocker/art', to: 'video-blocker' },
           {
             from: 'src/popup.html',
             to: 'popup.html',

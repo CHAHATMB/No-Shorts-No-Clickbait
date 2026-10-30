@@ -27,7 +27,8 @@
         "content.js"
       ],
       "css": [
-        "styles.css"
+        "styles.css",
+        "video-blocker.css"
       ],
       "run_at": "document_idle"
     },
@@ -55,7 +56,8 @@
     {
       "resources": [
         "mascot-styles.css",
-        "mascots/*"
+        "mascots/*",
+        "video-blocker/*"
       ],
       "matches": [
         "*://*.youtube.com/*"

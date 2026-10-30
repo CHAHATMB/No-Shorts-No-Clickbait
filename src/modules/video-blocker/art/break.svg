@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <style>
+    .steam { animation: rise 2.4s ease-out infinite; }
+    .steam:nth-child(2) { animation-delay: 0.8s; }
+    .steam:nth-child(3) { animation-delay: 1.6s; }
+    @keyframes rise { from { transform: translateY(8px); opacity: 0; } 40% { opacity: 1; } to { transform: translateY(-14px); opacity: 0; } }
+    @media (prefers-reduced-motion: reduce) { .steam { animation: none; } }
+  </style>
+  <g fill="none" stroke="#f2f2f2" stroke-width="4" stroke-linecap="round">
+    <path class="steam" d="M46 44c-6-8 6-12 0-20"/>
+    <path class="steam" d="M60 44c-6-8 6-12 0-20"/>
+    <path class="steam" d="M74 44c-6-8 6-12 0-20"/>
+  </g>
+  <path d="M30 54h60v22a22 22 0 0 1-22 22H52a22 22 0 0 1-22-22z" fill="#c98b4a"/>
+  <path d="M90 60h6a10 10 0 0 1 0 20h-8" fill="none" stroke="#c98b4a" stroke-width="6"/>
+  <path d="M24 104h72" stroke="#f2f2f2" stroke-width="4" stroke-linecap="round"/>
+</svg>
