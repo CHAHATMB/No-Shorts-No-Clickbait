@@ -6,14 +6,26 @@ A **Firefox extension** that helps you stay **focused** on YouTube by:
 <br>✅ Auto-pausing videos on hover ⏯️
 <br>✅ Removing ad blocker detection popups 🛡️
 <br>✅ **Tracking cumulative watch time** and reminding you to take breaks ⏰
+<br>✅ **Scout, a mascot companion** that blocks the video if you ignore a reminder 🧭
 
 ---
 
 ## ✨ Features
 
-### ⏰ Time Reminder (New!)
+### 🧭 Scout Mascot & Video Blocker (New in v3.1.0!)
+
+- **Scout walks in** with reminders to drink water, rest your eyes, take a break, or stop for the day
+- **Ignore a reminder** and keep watching for 45 seconds: the player is covered and the video paused, with a 20-second countdown before **Resume**
+- **Daily watch limit**: the player stays blocked until you choose **Watch 5 more min**
+- Choose which reminders Scout shows in the popup; respects reduced-motion settings
+
+<img src="docs/screenshots/mascot-break-reminder.png" width="700" alt="Scout showing a break reminder on YouTube">
+<img src="docs/screenshots/video-block-break.png" width="700" alt="Video blocked after an ignored break reminder">
+
+### ⏰ Time Reminder
 
 - **Tracks total time spent watching videos** across multiple YouTube pages/videos
+- **Counts only the video playing in your focused tab**, so multiple tabs never double-count, and each reminder fires once
 - Prompts you to take a break after a configurable interval
 - Helps maintain awareness of your viewing habits and encourages mindful use
 
@@ -54,6 +66,10 @@ Here are some screenshots of the extension in action:
 <img src="docs/screenshots/screenshot2.png" width="2000" alt="Shorts removed">
 <img src="docs/screenshots/screenshot3.png" width="2000" alt="Clean interface">
 <img src="docs/screenshots/screenshot7.png" width="2000" alt="Video controls">
+<img src="docs/screenshots/mascot-hydration-reminder.png" width="2000" alt="Scout hydration reminder">
+<img src="docs/screenshots/video-block-water.png" width="2000" alt="Water break video block">
+<img src="docs/screenshots/video-block-stop.png" width="2000" alt="Daily watch limit block">
+<img src="docs/screenshots/popup-mascot-settings.png" width="400" alt="Mascot companion settings in the popup">
 
 ---
 
@@ -86,6 +102,7 @@ You can configure the extension by clicking on its **toolbar icon**:
 - **Toggle video pause** on hover 🎮
 - **Toggle popup removal** on/off 🛡️
 - **Toggle time reminder** on/off and configure interval ⚙️
+- **Toggle Scout** and choose which reminders it shows 🧭
 
 ---
 
@@ -142,6 +159,14 @@ The project uses **Webpack** to manage file structure and bundling:
 ---
 
 ## 📜 Changelog
+
+### [v3.1.0] - 2026-10-31
+**✨ Highlights**
+- **Scout Mascot**: CC0-licensed companion with water, eye-strain, break, and stop-watching reminders.
+- **Video Blocker**: Ignored reminders and the daily watch limit now block the player.
+- **Accurate Watch Time**: Counts only the focused, playing tab; reminders fire once across tabs.
+
+[View Full Release Notes](docs/release-notes/v3.1.0.md)
 
 ### [v3.0.4] - 2026-05-23
 **✨ Highlights**
